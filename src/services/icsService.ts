@@ -1,5 +1,4 @@
-import { getSolarDate } from '@dqcai/vn-lunar';
-import { getLunarInfo } from './lunarService';
+import { lunarToSolar, SolarYMD } from './lunarService';
 import { LunarEvent } from '../types';
 
 // ---------------------------------------------------------------------------
@@ -8,13 +7,18 @@ import { LunarEvent } from '../types';
 
 export interface ResolvedEventYear {
   skipped: false;
+  /** Lunar year of this occurrence — stable identity, used in the event UID. */
+  lunarYear: number;
+  /** Solar year the occurrence actually falls in (differs for months 11–12). */
   solarYear: number;
-  solarDate: { year: number; month: number; day: number };
+  solarDate: SolarYMD;
+  /** True when day 30 was moved to day 29 because the month has only 29 days. */
+  adjustedDay: boolean;
 }
 
 export interface SkippedEventYear {
   skipped: true;
-  solarYear: number;
+  lunarYear: number;
   title: string;
   reason: 'leap_month_not_found' | 'conversion_error';
 }
@@ -99,48 +103,43 @@ function utcStamp(): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Resolves the solar date for a lunar event across a range of solar years.
+ * Returns every occurrence of a lunar event that falls in the solar years
+ * `startYear` … `startYear + yearCount - 1`.
  *
- * Strategy: probe June 15 of each solar year to get a stable lunarYear
- * (well past Tết, avoiding the Jan–Feb ambiguity window), then call
- * LunarCalendar.toSolar with the event's lunar day/month/year.
+ * Works per lunar year, not per solar year: months 11–12 of lunar year N often
+ * land in January/February of solar year N+1. So lunar year `startYear - 1` is
+ * checked too, and each occurrence is kept only if its real solar date is
+ * inside the range. Results are labelled with both years.
  */
 export function resolveEventYears(
   event: LunarEvent,
   startYear: number,
   yearCount: number,
 ): EventYearResult[] {
+  const endYear = startYear + yearCount - 1;
   const results: EventYearResult[] = [];
 
-  for (let i = 0; i < yearCount; i++) {
-    const solarYear = startYear + i;
+  for (let lunarYear = startYear - 1; lunarYear <= endYear; lunarYear++) {
+    const r = lunarToSolar(event.lunarDay, event.lunarMonth, lunarYear, event.isLeapMonth);
 
-    try {
-      const probe = getLunarInfo(new Date(solarYear, 5, 15)); // June 15
-      const lunarYear = probe.lunarYear;
-
-      const solar = getSolarDate(event.lunarDay, event.lunarMonth, lunarYear, event.isLeapMonth);
-
-      // Validate the result is a plausible calendar date
-      if (
-        !solar ||
-        solar.year < 1900 || solar.year > 2100 ||
-        solar.month < 1   || solar.month > 12  ||
-        solar.day < 1     || solar.day > 31
-      ) {
-        results.push({ skipped: true, solarYear, title: event.title, reason: 'conversion_error' });
-        continue;
+    if (r.ok === false) {
+      // Lunar year startYear-1 is only probed for spill-over into startYear;
+      // a miss there is not something the user asked about.
+      if (lunarYear >= startYear) {
+        results.push({ skipped: true, lunarYear, title: event.title, reason: r.reason });
       }
-
-      results.push({ skipped: false, solarYear, solarDate: solar });
-    } catch {
-      results.push({
-        skipped: true,
-        solarYear,
-        title: event.title,
-        reason: event.isLeapMonth ? 'leap_month_not_found' : 'conversion_error',
-      });
+      continue;
     }
+
+    if (r.solar.year < startYear || r.solar.year > endYear) continue;
+
+    results.push({
+      skipped: false,
+      lunarYear,
+      solarYear: r.solar.year,
+      solarDate: r.solar,
+      adjustedDay: r.adjustedDay,
+    });
   }
 
   return results;
@@ -159,13 +158,16 @@ function formatVEvent(event: LunarEvent, resolved: ResolvedEventYear, dtstamp: s
   const summary = escapeText(
     `${event.title} (Âm ${event.lunarDay}/${event.lunarMonth}${leapTag})`,
   );
+  const adjustedNote = resolved.adjustedDay
+    ? `\nTháng ${event.lunarMonth} năm nay chỉ có 29 ngày nên sự kiện được đặt vào ngày 29.`
+    : '';
   const description = escapeText(
-    `Sự kiện âm lịch ngày ${event.lunarDay} tháng ${event.lunarMonth}${leapTag}\nTạo bởi Lịch Âm Việt Nam`,
+    `Sự kiện âm lịch ngày ${event.lunarDay} tháng ${event.lunarMonth}${leapTag} (năm âm ${resolved.lunarYear})${adjustedNote}\nTạo bởi Lịch Âm Việt Nam`,
   );
 
   const lines = [
     'BEGIN:VEVENT',
-    foldLine(`UID:${event.id}-${resolved.solarYear}@lunar-vn`),
+    foldLine(`UID:${event.id}-${resolved.lunarYear}@lunar-vn`),
     `DTSTAMP:${dtstamp}`,
     `DTSTART;VALUE=DATE:${dtstart}`,
     `DTEND;VALUE=DATE:${dtend}`,

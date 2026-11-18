@@ -1,7 +1,64 @@
-import { LunarCalendar, CHI } from '@dqcai/vn-lunar';
+import { LunarCalendar, CHI, getSolarDate } from '@dqcai/vn-lunar';
 import { LunarInfo, AuspiciousDate, UpcomingEvent } from '../types';
 
 export { LunarCalendar, CHI };
+
+// ---------------------------------------------------------------------------
+// Verified lunar → solar conversion
+// ---------------------------------------------------------------------------
+
+export interface SolarYMD { year: number; month: number; day: number }
+
+export type LunarToSolarResult =
+  | { ok: true; solar: SolarYMD; adjustedDay: boolean }
+  | { ok: false; reason: 'leap_month_not_found' | 'conversion_error' };
+
+/** Converts once and verifies the result by converting back to lunar. */
+function convertExact(day: number, month: number, lunarYear: number, isLeap: boolean): SolarYMD | null {
+  try {
+    const s = getSolarDate(day, month, lunarYear, isLeap);
+    if (!s || !s.year || !s.month || !s.day) return null;
+    const back = LunarCalendar.fromSolar(s.day, s.month, s.year).lunarDate;
+    const matches =
+      back.day === day &&
+      Math.abs(back.month) === month &&
+      Boolean(back.leap) === isLeap &&
+      back.year === lunarYear;
+    return matches ? { year: s.year, month: s.month, day: s.day } : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Converts a lunar date to solar and checks the answer.
+ *
+ * `getSolarDate` never fails on bad input: day 30 of a 29-day month rolls over
+ * into the next month, and a leap month that does not exist that year still
+ * returns a date. This helper catches both by converting the result back.
+ *
+ * Day 30 in a 29-day month (tháng thiếu) falls back to day 29, the usual
+ * practice for anniversaries.
+ */
+export function lunarToSolar(
+  day: number,
+  month: number,
+  lunarYear: number,
+  isLeap: boolean,
+): LunarToSolarResult {
+  const exact = convertExact(day, month, lunarYear, isLeap);
+  if (exact) return { ok: true, solar: exact, adjustedDay: false };
+
+  if (day === 30) {
+    const shorter = convertExact(29, month, lunarYear, isLeap);
+    if (shorter) return { ok: true, solar: shorter, adjustedDay: true };
+  }
+
+  if (isLeap && !convertExact(1, month, lunarYear, true)) {
+    return { ok: false, reason: 'leap_month_not_found' };
+  }
+  return { ok: false, reason: 'conversion_error' };
+}
 
 // ---------------------------------------------------------------------------
 // Module-level constants (hoisted out of hot paths for clarity & performance)

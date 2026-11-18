@@ -1,4 +1,5 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
+import type { ReactNode } from 'react';
 import {
   format, addMonths, subMonths,
   startOfMonth, endOfMonth,
@@ -8,14 +9,15 @@ import {
 } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import {
-  ChevronLeft, ChevronRight,
-  Heart, Hammer, Store, StickyNote, Flag, Frown, Info,
-  Search, Calendar as CalendarIcon, Download, Clock, Plus, Trash2,
+  ChevronLeft, ChevronRight, ChevronDown,
+  Heart, Hammer, Store, StickyNote, Flag, Frown,
+  Search, CalendarSearch, Download, Plus, Trash2, ThumbsUp, ThumbsDown, Minus,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WEEK_DAYS, CHI_NAMES } from '../../constants/calendar';
 import { getLunarInfo, getHoliday } from '../../services/lunarService';
 import { LunarInfo, UserNote } from '../../types';
+import { useSwipe } from '../../hooks/useSwipe';
 
 interface Props {
   currentDate: Date;
@@ -36,6 +38,19 @@ interface Props {
   onOpenLunarEventModal: () => void;
 }
 
+const RATING = {
+  good:    { label: 'Ngày tốt',        Icon: ThumbsUp,   tone: 'bg-good-soft text-good' },
+  bad:     { label: 'Ngày xấu',        Icon: ThumbsDown, tone: 'bg-bad-soft text-bad' },
+  neutral: { label: 'Bình thường',     Icon: Minus,      tone: 'bg-surface-2 text-fg-2' },
+} as const;
+
+function clashes(userZodiac: string | null, info: LunarInfo): boolean {
+  if (!userZodiac) return false;
+  const userIdx = CHI_NAMES.indexOf(userZodiac as typeof CHI_NAMES[number]);
+  const dayIdx  = CHI_NAMES.indexOf(info.canChiDay.split(' ')[1] as typeof CHI_NAMES[number]);
+  return userIdx !== -1 && dayIdx !== -1 && Math.abs(userIdx - dayIdx) === 6;
+}
+
 export function CalendarView({
   currentDate,
   selectedDate,
@@ -54,398 +69,291 @@ export function CalendarView({
   onOpenAuspiciousPicker,
   onOpenLunarEventModal,
 }: Props) {
-  const calendarDays = useMemo(() => {
-    const ms = startOfMonth(currentDate);
-    return eachDayOfInterval({
-      start: startOfWeek(ms, { weekStartsOn: 1 }),
-      end:   endOfWeek(endOfMonth(ms), { weekStartsOn: 1 }),
-    });
-  }, [currentDate]);
-
   const monthStart = startOfMonth(currentDate);
 
-  const zodiacClashForDay = (lunarDay: LunarInfo) => {
-    if (!userZodiac) return false;
-    const dayChi  = lunarDay.canChiDay.split(' ')[1];
-    const userIdx = CHI_NAMES.indexOf(userZodiac as typeof CHI_NAMES[number]);
-    const dayIdx  = CHI_NAMES.indexOf(dayChi as typeof CHI_NAMES[number]);
-    return userIdx !== -1 && dayIdx !== -1 && Math.abs(userIdx - dayIdx) === 6;
-  };
+  const weeks = useMemo(() => {
+    const days = eachDayOfInterval({
+      start: startOfWeek(monthStart, { weekStartsOn: 1 }),
+      end:   endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 }),
+    });
+    const noteDates = new Set(notes.map(n => n.date));
+    const cells = days.map(day => {
+      const lunar = getLunarInfo(day);
+      return {
+        day,
+        lunar,
+        holiday: getHoliday(lunar.lunarDay, lunar.lunarMonth, day.getDate(), day.getMonth() + 1),
+        hasNote: noteDates.has(format(day, 'yyyy-MM-dd')),
+        clash: clashes(userZodiac, lunar),
+      };
+    });
+    return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
+  }, [monthStart.getTime(), notes, userZodiac]);
 
-  const selectedZodiacClash = zodiacClashForDay(selectedLunarInfo);
+  // "Tháng 9 – 10 âm lịch · Bính Ngọ" for the header subtitle
+  const lunarSubtitle = useMemo(() => {
+    const first = getLunarInfo(monthStart);
+    const last  = getLunarInfo(endOfMonth(monthStart));
+    const a = Math.abs(first.lunarMonth), b = Math.abs(last.lunarMonth);
+    const months = a === b ? `Tháng ${a}` : `Tháng ${a} – ${b}`;
+    return `${months} âm lịch · ${last.canChiYear}`;
+  }, [monthStart.getTime()]);
+
+  const swipe = useSwipe(
+    () => onCurrentDateChange(addMonths(currentDate, 1)),
+    () => onCurrentDateChange(subMonths(currentDate, 1)),
+  );
+
+  const rating = RATING[selectedLunarInfo.rating];
+  const selectedClash = clashes(userZodiac, selectedLunarInfo);
+  const showingThisMonth = isSameMonth(currentDate, new Date());
 
   return (
-    <div className="flex flex-col bg-white overflow-y-auto flex-1 md:h-full md:overflow-hidden">
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:overflow-hidden md:flex md:flex-col">
 
-      {/* Header */}
-      <header className="px-3 md:px-5 py-2 md:py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-3 border-b border-border bg-white shrink-0 sticky top-0 z-10">
-        {/* Month navigation */}
-        <div className="flex items-center gap-2 md:gap-3 flex-wrap">
-          <div className="flex items-center gap-0.5">
+      {/* ───────── Header ───────── */}
+      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] md:static md:shrink-0">
+        <div className="max-w-6xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => onCurrentDateChange(subMonths(currentDate, 1))}
-              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
-              title="Tháng trước"
+              onClick={onOpenQuickPicker}
+              className="flex-1 min-w-0 text-left rounded-xl -mx-1 px-1 py-0.5 hover:bg-surface-2 transition-colors"
+              aria-label="Chọn tháng, năm"
             >
-              <ChevronLeft size={18} />
+              <span className="flex items-center gap-1 text-2xl md:text-3xl font-extrabold text-fg">
+                Tháng {format(currentDate, 'M')}
+                <span className="text-fg-3 font-bold">{format(currentDate, 'yyyy')}</span>
+                <ChevronDown size={20} className="text-fg-3 mt-1 shrink-0" />
+              </span>
+              <span className="block text-xs md:text-sm text-fg-2 truncate">{lunarSubtitle}</span>
             </button>
-            <button
-              onClick={() => onCurrentDateChange(addMonths(currentDate, 1))}
-              className="p-1.5 rounded-md hover:bg-gray-100 text-gray-500 transition-colors"
-              title="Tháng sau"
-            >
-              <ChevronRight size={18} />
+            {!showingThisMonth && (
+              <button
+                onClick={() => { const t = new Date(); onCurrentDateChange(t); onSelectedDateChange(t); }}
+                className="btn-soft px-3 py-2"
+              >
+                Hôm nay
+              </button>
+            )}
+            <button onClick={() => onCurrentDateChange(subMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng trước">
+              <ChevronLeft size={20} />
+            </button>
+            <button onClick={() => onCurrentDateChange(addMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng sau">
+              <ChevronRight size={20} />
             </button>
           </div>
-          <h2 className="hidden md:block text-xl font-bold text-gray-800">
-            Tháng {format(currentDate, 'MM, yyyy')}
-          </h2>
-          <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-lg border border-gray-200">
-            <select
-              value={currentDate.getMonth()}
-              onChange={e => {
-                const next = new Date(currentDate);
-                next.setMonth(+e.target.value);
-                onCurrentDateChange(next);
-              }}
-              className="bg-transparent border-none text-xs md:text-sm font-semibold px-1 md:px-2 py-1 focus:ring-0 cursor-pointer"
-            >
-              {Array.from({ length: 12 }, (_, i) => (
-                <option key={i} value={i}>Tháng {i + 1}</option>
-              ))}
-            </select>
-            <select
-              value={currentDate.getFullYear()}
-              onChange={e => {
-                const next = new Date(currentDate);
-                next.setFullYear(+e.target.value);
-                onCurrentDateChange(next);
-              }}
-              className="bg-transparent border-none text-xs md:text-sm font-semibold px-1 md:px-2 py-1 focus:ring-0 cursor-pointer"
-            >
-              {Array.from({ length: 200 }, (_, i) => {
-                const y = 1900 + i;
-                return <option key={y} value={y}>{y}</option>;
-              })}
-            </select>
-          </div>
-        </div>
 
-        {/* Right side: Hôm nay + actions */}
-        <div className="flex items-center gap-1.5 md:gap-2">
-          <button
-            onClick={() => {
-              const today = new Date();
-              onCurrentDateChange(today);
-              onSelectedDateChange(today);
-            }}
-            className="flex-1 md:flex-none whitespace-nowrap flex items-center justify-center gap-1 px-2 md:px-3 py-1.5 rounded-lg border border-gray-200 text-[11px] md:text-sm font-semibold hover:bg-gray-50 transition-colors"
-          >
-            Hôm nay
-          </button>
-          <button
-            onClick={onOpenQuickPicker}
-            className="flex-1 md:flex-none whitespace-nowrap flex items-center justify-center gap-1 px-2 md:px-3 py-1.5 rounded-lg border border-[#1671C6] text-[#1671C6] text-[11px] md:text-sm font-semibold hover:bg-blue-50 transition-colors"
-            title="Xem nhanh"
-          >
-            <CalendarIcon size={12} />
-            <span>Xem nhanh</span>
-          </button>
-          <button
-            onClick={onOpenAuspiciousPicker}
-            className="flex-1 md:flex-none whitespace-nowrap flex items-center justify-center gap-1 px-2 md:px-3 py-1.5 rounded-lg border border-[#1671C6] text-[#1671C6] text-[11px] md:text-sm font-semibold hover:bg-blue-50 transition-colors"
-            title="Ngày tốt"
-          >
-            <Search size={12} />
-            <span>Ngày tốt</span>
-          </button>
-          <button
-            onClick={onOpenLunarEventModal}
-            className="flex-1 md:flex-none whitespace-nowrap flex items-center justify-center gap-1 px-2 md:px-3 py-1.5 rounded-lg border border-gray-200 text-gray-600 text-[11px] md:text-sm font-semibold hover:bg-gray-50 transition-colors"
-            title="Xuất lịch"
-          >
-            <Download size={12} />
-            <span>Xuất lịch</span>
-          </button>
+          <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            <button onClick={onOpenAuspiciousPicker} className="chip">
+              <Search size={15} className="text-brand" /> Tìm ngày tốt
+            </button>
+            <button onClick={onOpenQuickPicker} className="chip">
+              <CalendarSearch size={15} className="text-brand" /> Đổi ngày
+            </button>
+            <button onClick={onOpenLunarEventModal} className="chip">
+              <Download size={15} className="text-brand" /> Xuất lịch
+            </button>
+          </div>
         </div>
       </header>
 
-      {/* Main area: calendar + detail panel */}
-      <div className="flex flex-col md:flex-row md:flex-1 md:overflow-hidden">
+      {/* ───────── Body ───────── */}
+      <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 md:pb-6 md:flex-1 md:min-h-0 md:flex md:gap-6">
 
-        {/* Calendar grid */}
-        <div className="flex flex-col md:flex-1 md:overflow-hidden">
-          {/* Week-day header */}
-          <div className="calendar-grid border-none bg-white shrink-0">
-            <div className="hidden md:flex py-2 text-center text-[10px] font-bold text-olive/40 border-b border-border bg-slate-50 items-center justify-center">
-              W
-            </div>
-            {WEEK_DAYS.map(day => (
-              <div
-                key={day}
-                className={cn(
-                  'py-2 text-center text-xs font-semibold text-olive border-b border-border',
-                  day === 'CN' && 'text-rose-600',
-                )}
-              >
-                {day}
+        {/* Month grid */}
+        <section className="card p-2 sm:p-3 md:flex-1 md:min-h-0 md:overflow-y-auto no-scrollbar" {...swipe}>
+          <div className="grid grid-cols-7 md:grid-cols-[28px_repeat(7,minmax(0,1fr))]">
+            <div className="hidden md:block" />
+            {WEEK_DAYS.map(d => (
+              <div key={d} className={cn('py-2 text-center text-xs font-semibold', d === 'CN' ? 'text-lunar' : 'text-fg-3')}>
+                {d}
               </div>
             ))}
+
+            {weeks.map(week => [
+              <div
+                key={`w${week[0].day.getTime()}`}
+                className="hidden md:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
+                title="Tuần"
+              >
+                {getWeek(week[0].day, { weekStartsOn: 1, locale: vi })}
+              </div>,
+              ...week.map(({ day, lunar, holiday: dayHoliday, hasNote, clash }) => {
+                const selected = isSameDay(day, selectedDate);
+                const today    = isToday(day);
+                const inMonth  = isSameMonth(day, monthStart);
+                const sunday   = day.getDay() === 0;
+                const special  = lunar.lunarDay === 1 || lunar.lunarDay === 15 || !!dayHoliday;
+                return (
+                  <button
+                    key={day.getTime()}
+                    onClick={() => onSelectedDateChange(day)}
+                    aria-label={format(day, "d 'tháng' M", { locale: vi })}
+                    aria-pressed={selected}
+                    className={cn(
+                      'group relative flex flex-col items-center pt-1.5 pb-1 h-[62px] sm:h-[76px] md:h-auto md:min-h-[84px] rounded-2xl transition-colors',
+                      !selected && 'hover:bg-surface-2',
+                      !inMonth && 'opacity-35',
+                    )}
+                  >
+                    <span
+                      className={cn(
+                        'w-9 h-9 flex items-center justify-center rounded-full text-[15px] sm:text-base font-semibold tabular-nums transition-colors',
+                        selected ? 'bg-brand text-on-brand font-bold'
+                          : today ? 'text-brand font-bold ring-2 ring-brand ring-inset'
+                          : sunday ? 'text-lunar' : 'text-fg',
+                      )}
+                    >
+                      {format(day, 'd')}
+                    </span>
+                    <span
+                      className={cn(
+                        'text-[10px] sm:text-[11px] leading-tight tabular-nums mt-0.5',
+                        special ? 'text-lunar font-bold' : 'text-fg-3 font-medium',
+                      )}
+                    >
+                      {lunar.lunarDay === 1 ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
+                    </span>
+                    {dayHoliday && (
+                      <span className="hidden md:block w-full px-1 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate">
+                        {dayHoliday}
+                      </span>
+                    )}
+                    <span className="mt-auto flex gap-[3px] h-1.5" aria-hidden="true">
+                      {lunar.rating === 'good' && <span className="w-1.5 h-1.5 rounded-full bg-good" />}
+                      {lunar.rating === 'bad'  && <span className="w-1.5 h-1.5 rounded-full bg-bad/70" />}
+                      {hasNote && <span className="w-1.5 h-1.5 rounded-full bg-gold" />}
+                      {clash && <span className="w-1.5 h-1.5 rounded-full bg-clash" />}
+                    </span>
+                  </button>
+                );
+              }),
+            ])}
           </div>
 
-          {/* Day cells */}
-          <div className="calendar-grid md:flex-1 md:overflow-y-auto no-scrollbar">
-            {Array.from({ length: Math.ceil(calendarDays.length / 7) }, (_, weekIdx) => {
-              const week       = calendarDays.slice(weekIdx * 7, weekIdx * 7 + 7);
-              const weekNumber = getWeek(week[0], { weekStartsOn: 1, locale: vi });
-              return (
-                <React.Fragment key={weekIdx}>
-                  <div className="week-cell">Tuần {weekNumber}</div>
-                  {week.map((day, idx) => {
-                    const lunar      = getLunarInfo(day);
-                    const isSelected = isSameDay(day, selectedDate);
-                    const isHoliday  = getHoliday(
-                      lunar.lunarDay, lunar.lunarMonth,
-                      day.getDate(), day.getMonth() + 1,
-                    );
-                    const hasNote = notes.some(n => n.date === format(day, 'yyyy-MM-dd'));
-                    const hasZodiacClash = zodiacClashForDay(lunar);
-
-                    return (
-                      <button
-                        key={idx}
-                        onClick={() => onSelectedDateChange(day)}
-                        className={cn(
-                          'day-cell aspect-square sm:aspect-auto sm:min-h-[100px] items-start justify-start p-2',
-                          !isSameMonth(day, monthStart) && 'other-month bg-hover/30',
-                          isSelected && 'active',
-                          isToday(day) && 'today',
-                        )}
-                      >
-                        {/* Status dots */}
-                        <div className="absolute top-1 right-1 flex gap-0.5 items-center">
-                          {lunar.rating === 'good' && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-green-500" title="Ngày tốt" />
-                          )}
-                          {lunar.rating === 'bad' && (
-                            <div className="w-2.5 h-2.5 rounded-full bg-red-500" title="Ngày xấu" />
-                          )}
-                          {isHoliday && (
-                            <Flag size={11} className="text-rose-500 fill-rose-500" />
-                          )}
-                          {hasNote && (
-                            <StickyNote size={12} className="text-amber-500 fill-amber-200" />
-                          )}
-                          {hasZodiacClash && (
-                            <Frown size={11} className="text-purple-500 fill-purple-100" />
-                          )}
-                        </div>
-
-                        {/* Activity icons */}
-                        <div className="absolute bottom-1 right-1 flex gap-0.5 opacity-70">
-                          {lunar.activities.wedding && (
-                            <Heart size={14} className="text-rose-500 fill-rose-500" />
-                          )}
-                          {lunar.activities.moving && (
-                            <Hammer size={14} className="text-blue-500" />
-                          )}
-                          {lunar.activities.opening && (
-                            <Store size={14} className="text-amber-500" />
-                          )}
-                        </div>
-
-                        {/* Solar day */}
-                        <span className="text-xl sm:text-2xl font-bold">{format(day, 'd')}</span>
-                        <div className="mt-0.5 flex flex-col items-start gap-0.5">
-                          <span className={cn(
-                            'text-xs sm:text-sm font-bold',
-                            isSelected ? 'text-accent' : 'text-olive/70',
-                          )}>
-                            {lunar.lunarDay}/{Math.abs(lunar.lunarMonth)}
-                          </span>
-                          {isHoliday && (
-                            <span className="text-[11px] font-bold text-rose-600 leading-tight line-clamp-1">
-                              {isHoliday}
-                            </span>
-                          )}
-                          {!isHoliday && lunar.lunarDay === 1  && Math.abs(lunar.lunarMonth) !== 1 && (
-                            <span className="text-[11px] font-bold text-rose-600 leading-tight">Mồng 1</span>
-                          )}
-                          {!isHoliday && lunar.lunarDay === 15 && Math.abs(lunar.lunarMonth) !== 1 && (
-                            <span className="text-[11px] font-bold text-rose-600 leading-tight">Ngày rằm</span>
-                          )}
-                        </div>
-                      </button>
-                    );
-                  })}
-                </React.Fragment>
-              );
-            })}
+          {/* Legend */}
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 pb-1 text-[11px] text-fg-2">
+            <Legend className="bg-good" label="Ngày tốt" />
+            <Legend className="bg-bad/70" label="Ngày xấu" />
+            <Legend className="bg-gold" label="Ghi chú" />
+            {userZodiac && <Legend className="bg-clash" label="Xung tuổi" />}
           </div>
-        </div>
+        </section>
 
-        {/* Detail panel (right) */}
-        <aside className="w-full md:w-72 md:shrink-0 border-t md:border-t-0 md:border-l border-border bg-white md:overflow-y-auto no-scrollbar flex flex-col gap-5 p-5">
-
-          {/* Selected date header */}
-          <div>
-            <div className="text-[10px] uppercase font-bold text-gray-400 mb-1">Ngày đã chọn</div>
-            <div className="text-2xl font-bold text-[#1671C6]">
-              {format(selectedDate, 'dd/MM/yyyy')}
+        {/* Selected-day panel */}
+        <aside className="mt-4 md:mt-0 md:w-80 md:shrink-0 md:overflow-y-auto no-scrollbar flex flex-col gap-3">
+          <section className="card p-4">
+            <p className="section-label">Ngày đã chọn</p>
+            <div className="flex items-end justify-between gap-3 mt-1">
+              <div>
+                <p className="text-xl font-extrabold text-fg capitalize">
+                  {format(selectedDate, "EEEE, d/M", { locale: vi })}
+                </p>
+                <p className="text-sm text-fg-2">
+                  Âm lịch <span className="font-bold text-lunar">{selectedLunarInfo.lunarDay}/{Math.abs(selectedLunarInfo.lunarMonth)}</span>
+                  {selectedLunarInfo.isLeap && ' (nhuận)'}
+                </p>
+              </div>
+              <span className={cn('shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold', rating.tone)}>
+                <rating.Icon size={13} /> {rating.label}
+              </span>
             </div>
-            <div className="text-sm text-gray-500 capitalize">
-              {format(selectedDate, 'EEEE', { locale: vi })}
-            </div>
-          </div>
-
-          {/* Lunar date */}
-          <div className="p-3 rounded-xl border border-blue-100 bg-blue-50/50">
-            <div className="text-[10px] uppercase font-bold text-blue-400 mb-1">Âm lịch</div>
-            <div className="text-lg font-bold text-gray-800">
-              {selectedLunarInfo.lunarDay} tháng {Math.abs(selectedLunarInfo.lunarMonth)}
-              {selectedLunarInfo.isLeap && (
-                <span className="ml-1.5 text-[10px] bg-blue-100 text-blue-700 px-1.5 py-0.5 rounded font-bold align-middle">Nhuận</span>
-              )}
-            </div>
-            <div className="mt-2 grid grid-cols-1 gap-1 text-xs">
+            <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
               {[
                 { label: 'Năm', value: selectedLunarInfo.canChiYear },
                 { label: 'Tháng', value: selectedLunarInfo.canChiMonth },
                 { label: 'Ngày', value: selectedLunarInfo.canChiDay },
               ].map(({ label, value }) => (
-                <div key={label} className="flex justify-between">
-                  <span className="text-gray-500 font-medium">{label}</span>
-                  <span className="font-bold text-gray-800">{value}</span>
+                <div key={label} className="rounded-xl bg-surface-2 px-1 py-2">
+                  <dt className="text-[10px] font-semibold uppercase tracking-wider text-fg-3">{label}</dt>
+                  <dd className="text-xs font-bold text-fg mt-0.5">{value}</dd>
                 </div>
               ))}
-            </div>
-          </div>
+            </dl>
+            <p className="mt-2 text-xs text-fg-2">Trực <span className="font-semibold text-fg">{selectedLunarInfo.truc}</span></p>
 
-          {/* Day rating */}
-          {selectedLunarInfo.truc && (
-            <div className={cn(
-              'p-3 rounded-xl border text-sm',
-              selectedLunarInfo.rating === 'good' ? 'bg-green-50 border-green-200'
-                : selectedLunarInfo.rating === 'bad' ? 'bg-red-50 border-red-200'
-                : 'bg-gray-50 border-gray-200',
-            )}>
-              <div className="flex items-center gap-2">
-                <Info size={15} className={
-                  selectedLunarInfo.rating === 'good' ? 'text-green-600'
-                    : selectedLunarInfo.rating === 'bad' ? 'text-red-600'
-                    : 'text-gray-400'
-                } />
-                <div>
-                  <div className="text-[10px] uppercase font-bold text-gray-400">Trực</div>
-                  <div className={cn(
-                    'font-bold text-sm',
-                    selectedLunarInfo.rating === 'good' ? 'text-green-700'
-                      : selectedLunarInfo.rating === 'bad' ? 'text-red-700'
-                      : 'text-gray-600',
-                  )}>
-                    {selectedLunarInfo.truc} &bull; {
-                      selectedLunarInfo.rating === 'good' ? 'Ngày Tốt'
-                        : selectedLunarInfo.rating === 'bad' ? 'Ngày Xấu'
-                        : 'Bình Thường'
-                    }
-                  </div>
-                </div>
+            {(holiday || selectedClash) && (
+              <div className="mt-3 flex flex-col gap-2">
+                {holiday && (
+                  <p className="flex items-center gap-2 rounded-xl bg-lunar-soft px-3 py-2 text-sm font-semibold text-lunar">
+                    <Flag size={14} className="fill-current" /> {holiday}
+                  </p>
+                )}
+                {selectedClash && (
+                  <p className="flex items-center gap-2 rounded-xl bg-clash-soft px-3 py-2 text-sm font-semibold text-clash">
+                    <Frown size={14} /> Xung tuổi {userZodiac}
+                  </p>
+                )}
               </div>
-            </div>
-          )}
+            )}
 
-          {/* Activities */}
-          {selectedLunarInfo.rating === 'good' && (
-            <div className="flex flex-wrap gap-2">
-              {selectedLunarInfo.activities.wedding && (
-                <span className="flex items-center gap-1 px-2.5 py-1.5 bg-rose-50 text-rose-700 rounded-lg text-xs font-bold border border-rose-200">
-                  <Heart size={12} className="fill-rose-700" /> Cưới hỏi
-                </span>
-              )}
-              {selectedLunarInfo.activities.moving && (
-                <span className="flex items-center gap-1 px-2.5 py-1.5 bg-blue-50 text-blue-700 rounded-lg text-xs font-bold border border-blue-200">
-                  <Hammer size={12} /> Chuyển nhà
-                </span>
-              )}
-              {selectedLunarInfo.activities.opening && (
-                <span className="flex items-center gap-1 px-2.5 py-1.5 bg-amber-50 text-amber-700 rounded-lg text-xs font-bold border border-amber-200">
-                  <Store size={12} /> Khai trương
-                </span>
-              )}
-            </div>
-          )}
-
-          {/* Holiday */}
-          {holiday && (
-            <div className="p-3 bg-rose-50 rounded-xl border border-rose-100 flex items-start gap-2">
-              <Flag size={14} className="text-rose-600 fill-rose-600 shrink-0 mt-0.5" />
-              <div>
-                <div className="text-[10px] uppercase font-bold text-rose-400">Ngày lễ</div>
-                <div className="text-sm font-bold text-rose-700">{holiday}</div>
+            {(selectedLunarInfo.activities.wedding || selectedLunarInfo.activities.moving || selectedLunarInfo.activities.opening) && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {selectedLunarInfo.activities.wedding && <Tag icon={<Heart size={12} />} label="Cưới hỏi" />}
+                {selectedLunarInfo.activities.moving  && <Tag icon={<Hammer size={12} />} label="Chuyển nhà" />}
+                {selectedLunarInfo.activities.opening && <Tag icon={<Store size={12} />} label="Khai trương" />}
               </div>
-            </div>
-          )}
+            )}
+          </section>
 
-          {/* Zodiac clash */}
-          {selectedZodiacClash && (
-            <div className="p-3 bg-purple-50 rounded-xl border border-purple-100 flex items-center gap-2 text-xs font-bold text-purple-700">
-              <Frown size={14} />
-              Ngày xung tuổi {userZodiac}
-            </div>
-          )}
-
-          {/* Giờ Hoàng Đạo */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <Clock size={13} className="text-blue-500" />
-              <span className="text-[10px] uppercase font-bold text-gray-500">Giờ Hoàng Đạo</span>
-            </div>
+          <section className="card p-4">
+            <p className="section-label mb-2">Giờ hoàng đạo</p>
             <div className="flex flex-wrap gap-1.5">
-              {selectedLunarInfo.gioHoangDao.map((gio, idx) => (
-                <span key={idx} className="px-2 py-1 bg-blue-50 border border-blue-200 rounded text-[10px] font-semibold text-blue-700">
-                  {gio}
+              {selectedLunarInfo.gioHoangDao.map(gio => (
+                <span key={gio} className="rounded-lg bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">
+                  {gio.replace('-', '–')}
                 </span>
               ))}
             </div>
-          </div>
+          </section>
 
-          {/* Notes */}
-          <div>
-            <div className="flex items-center gap-1.5 mb-2">
-              <StickyNote size={13} className="text-amber-500" />
-              <span className="text-[10px] uppercase font-bold text-gray-500">Ghi chú</span>
-            </div>
-            <div className="flex flex-col gap-2 mb-2">
-              {selectedDateNotes.map(note => (
-                <div key={note.id} className="p-2.5 bg-amber-50 border border-amber-100 rounded-lg text-xs group relative">
-                  <button
-                    onClick={() => onDeleteNote(note.id)}
-                    className="absolute top-1.5 right-1.5 opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-600 transition-opacity"
-                  >
-                    <Trash2 size={11} />
-                  </button>
-                  <p className="text-gray-700 pr-4 whitespace-pre-wrap">{note.content}</p>
-                </div>
-              ))}
-            </div>
+          <section className="card p-4">
+            <p className="section-label mb-2 flex items-center gap-1.5"><StickyNote size={13} /> Ghi chú</p>
+            {selectedDateNotes.length > 0 && (
+              <ul className="flex flex-col gap-2 mb-2">
+                {selectedDateNotes.map(note => (
+                  <li key={note.id} className="group flex items-start gap-2 rounded-xl bg-gold-soft px-3 py-2">
+                    <p className="flex-1 text-sm text-fg whitespace-pre-wrap break-words">{note.content}</p>
+                    <button
+                      onClick={() => onDeleteNote(note.id)}
+                      aria-label="Xoá ghi chú"
+                      className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
             <textarea
               value={newNoteContent}
               onChange={e => onNewNoteChange(e.target.value)}
-              placeholder="Thêm ghi chú..."
-              className="w-full p-2.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none resize-none h-16 bg-gray-50"
+              placeholder="Thêm ghi chú…"
+              rows={2}
+              className="field resize-none"
             />
-            <button
-              onClick={onAddNote}
-              disabled={!newNoteContent.trim()}
-              className="mt-1.5 w-full flex items-center justify-center gap-1 py-1.5 bg-[#1671C6] text-white rounded-lg text-xs font-bold hover:bg-[#1461a8] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-            >
-              <Plus size={11} /> Lưu
+            <button onClick={onAddNote} disabled={!newNoteContent.trim()} className="btn-primary w-full mt-2">
+              <Plus size={16} /> Lưu
             </button>
-          </div>
-
+          </section>
         </aside>
       </div>
-
     </div>
+  );
+}
+
+function Legend({ className, label }: { className: string; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <span className={cn('w-1.5 h-1.5 rounded-full', className)} /> {label}
+    </span>
+  );
+}
+
+function Tag({ icon, label }: { icon: ReactNode; label: string }) {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-good-soft px-2.5 py-1 text-xs font-semibold text-good">
+      {icon} {label}
+    </span>
   );
 }

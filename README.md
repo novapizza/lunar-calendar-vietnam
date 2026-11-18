@@ -46,6 +46,22 @@ A Vietnamese lunar calendar single-page application built with React 19, TypeScr
 - Select **1–30 years** to generate using a slider — the app resolves the correct solar date individually for each year (since lunar dates shift annually)
 - Downloads a standard **RFC 5545 `.ics` file** importable into Google Calendar, Apple Calendar, Outlook, and any calendar app
 - Skipped years (e.g. leap month absent in a given year) are listed with a clear explanation
+- Occurrences are resolved per **lunar year** and kept when their real solar date is inside the chosen range, so events in lunar months 11–12 (which fall in Jan/Feb of the next solar year) are never missed or duplicated
+- Every conversion is verified by converting back to lunar; day 30 in a 29-day month (tháng thiếu) moves to day 29 and the event description says so
+
+### Design
+- Modern, calm UI built on semantic design tokens (`src/index.css`) — warm neutral surfaces, brand blue, traditional red/gold for lunar markers
+- **Be Vietnam Pro** typeface (designed for Vietnamese diacritics)
+- **Automatic dark mode** following the device setting
+- Popups are bottom sheets on phones and centred dialogs on desktop (`src/components/Sheet.tsx`)
+- The Botpress chat widget loads on tablet/desktop only — never on phones
+
+### Mobile & Installable App (PWA)
+- Built for phones first: bottom tab bar, safe-area support (notch / home indicator), no horizontal scrolling down to 320px wide
+- Swipe left/right to change month (Lịch) or day (Hôm nay)
+- **Installable**: one-tap install on Android/Chrome/Edge; on iPhone a banner shows the Share → Add to Home Screen steps
+- **Works offline** — all lunar calculations run on the device; the service worker caches the app and its font
+- When a new version is deployed, a small "Đã có phiên bản mới" toast lets the user update (no surprise reloads while typing)
 
 ---
 
@@ -61,6 +77,7 @@ A Vietnamese lunar calendar single-page application built with React 19, TypeScr
 | Date utilities | `date-fns` |
 | Icons | `lucide-react` |
 | Class merging | `clsx` + `tailwind-merge` |
+| PWA | `vite-plugin-pwa` (Workbox) |
 
 ---
 
@@ -72,19 +89,27 @@ src/
 ├── main.tsx
 ├── index.css
 ├── types.ts                         # LunarInfo, AuspiciousDate, UserNote, LunarEvent
+├── vite-env.d.ts                    # Vite + PWA virtual module types
 ├── constants/
 │   └── calendar.ts                  # CHI_NAMES, WEEK_DAYS, YEAR_RANGE
 ├── lib/
-│   └── utils.ts                     # cn() helper (clsx + tailwind-merge)
+│   ├── utils.ts                     # cn() helper (clsx + tailwind-merge)
+│   └── pwa.ts                       # Install-prompt capture, standalone / iOS detection
 ├── hooks/
 │   ├── useClock.ts                  # Live clock + current traditional hour
 │   ├── useNotes.ts                  # Per-day notes CRUD + localStorage
-│   └── useLunarEvents.ts            # Lunar event CRUD + localStorage
+│   ├── useLunarEvents.ts            # Lunar event CRUD + localStorage
+│   └── useSwipe.ts                  # Horizontal swipe gestures
 ├── services/
-│   ├── lunarService.ts              # getLunarInfo, findBestDates, ACTIVITY_RULES
+│   ├── lunarService.ts              # getLunarInfo, lunarToSolar (verified), findBestDates
 │   └── icsService.ts                # RFC 5545 ICS generation + download
 └── components/
-    ├── Sidebar.tsx                  # Left panel
+    ├── NavSidebar.tsx               # Bottom tab bar (mobile) / left rail (desktop)
+    ├── Sheet.tsx                    # Shared bottom-sheet / dialog shell for all modals
+    ├── InstallBanner.tsx            # "Install the app" banner
+    ├── UpdatePrompt.tsx             # Service-worker registration + update toast
+    ├── AboutLink.tsx
+    ├── views/                       # TodayView, CalendarView, EventsView
     └── modals/
         ├── QuickDatePickerModal.tsx
         ├── AuspiciousDateModal.tsx
@@ -127,7 +152,15 @@ npm run lint
 npm run build
 ```
 
-Output is written to `dist/`. Serve it with any static file host.
+Output is written to `dist/` (including `sw.js` and `manifest.webmanifest`). Serve it with any static file host over HTTPS — service workers need HTTPS (or `localhost`). `public/_headers` keeps `sw.js` uncached on Cloudflare so updates reach users.
+
+### Regenerate app icons
+
+Icons are generated from `public/icon.svg`:
+
+```bash
+npm run generate-pwa-assets
+```
 
 ### Preview the production build locally
 

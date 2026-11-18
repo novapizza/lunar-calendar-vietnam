@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { CHI_NAMES } from './constants/calendar';
 import { useClock } from './hooks/useClock';
 import { useNotes } from './hooks/useNotes';
@@ -72,6 +72,29 @@ export default function App() {
     [selectedLunarInfo, selectedDate],
   );
 
+  const anyModalOpen =
+    isQuickPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen;
+
+  // While a modal is open: hide the chat bubble (body class) and let Escape close it.
+  useEffect(() => {
+    if (!anyModalOpen) return;
+    document.body.classList.add('modal-open');
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      setIsQuickPickerOpen(false);
+      setIsAuspiciousPickerOpen(false);
+      setIsAboutOpen(false);
+      setIsLunarEventModalOpen(false);
+      setActiveActivity(null);
+      setAuspiciousDates([]);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.classList.remove('modal-open');
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [anyModalOpen]);
+
   // -------------------------------------------------------------------------
   // Handlers
   // -------------------------------------------------------------------------
@@ -114,11 +137,11 @@ export default function App() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="h-screen flex overflow-hidden bg-gray-100" style={{ fontFamily: "'Inter', sans-serif" }}>
+    <div className="h-dvh flex flex-col md:flex-row overflow-hidden bg-bg">
 
       <NavSidebar activeTab={activeTab} onTabChange={handleTabChange} />
 
-      <div className="flex-1 overflow-hidden flex flex-col pb-14 md:pb-0">
+      <main className="flex-1 min-h-0 overflow-hidden flex flex-col">
         {activeTab === 'today' && (
           <TodayView
             today={selectedDate}
@@ -138,6 +161,7 @@ export default function App() {
               setSelectedDate(date);
               setCurrentDate(date);
             }}
+            onOpenAbout={() => setIsAboutOpen(true)}
           />
         )}
 
@@ -165,20 +189,8 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'events' && <EventsView />}
-      </div>
-
-      {/* Footer (About link) — shown only on Today and Events views */}
-      {activeTab !== 'calendar' && (
-        <div className="fixed bottom-[3.75rem] md:bottom-4 right-6 z-20">
-          <button
-            onClick={() => setIsAboutOpen(true)}
-            className="text-xs font-semibold text-gray-400 hover:text-gray-600 underline underline-offset-2 transition-colors"
-          >
-            Thông tin ứng dụng
-          </button>
-        </div>
-      )}
+        {activeTab === 'events' && <EventsView onOpenAbout={() => setIsAboutOpen(true)} />}
+      </main>
 
       {/* Modals */}
       {isAuspiciousPickerOpen && (

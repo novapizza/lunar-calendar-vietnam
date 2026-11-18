@@ -1,13 +1,16 @@
-import { format, getWeek, addDays, subDays } from 'date-fns';
+import { format, getWeek, addDays, subDays, isToday } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import {
-  Sun, Moon, Clock, Star, Heart, Hammer, Store,
-  Flag, Info, Frown, StickyNote, Plus, Trash2,
-  ChevronLeft, ChevronRight,
+  Clock, Heart, Hammer, Store, Flag, Frown, StickyNote, Plus, Trash2,
+  ChevronLeft, ChevronRight, Sparkles, ThumbsUp, ThumbsDown, Minus, Undo2,
 } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 import { CHI_NAMES } from '../../constants/calendar';
 import { LunarInfo, UserNote } from '../../types';
+import { useSwipe } from '../../hooks/useSwipe';
+import { AboutLink } from '../AboutLink';
+import { InstallBanner } from '../InstallBanner';
 
 const CHI_EMOJI: Record<string, string> = {
   'Tý': '🐭', 'Sửu': '🐂', 'Dần': '🐯', 'Mão': '🐱',
@@ -16,17 +19,28 @@ const CHI_EMOJI: Record<string, string> = {
 };
 
 function getChiEmoji(canChi: string): string {
-  const chi = canChi.split(' ')[1] ?? '';
-  return CHI_EMOJI[chi] ?? '🗓️';
+  return CHI_EMOJI[canChi.split(' ')[1] ?? ''] ?? '🗓️';
 }
 
-/** Returns "Mồng 1" or "Ngày rằm" label for lunar day 1/15, excluding 1/1 and 15/1 */
+/** "Mồng 1" / "Ngày rằm" for lunar day 1/15, excluding 1/1 and 15/1 (named holidays). */
 function getLunarDayLabel(lunarDay: number, lunarMonth: number): string | null {
   const m = Math.abs(lunarMonth);
-  if (lunarDay === 1  && m !== 1) return 'Mồng 1';
+  if (lunarDay === 1 && m !== 1) return 'Mồng 1';
   if (lunarDay === 15 && m !== 1) return 'Ngày rằm';
   return null;
 }
+
+/** "Tý (23h-1h)" → { name: "Tý", hours: "23h–1h" } */
+function parseGio(gio: string) {
+  const m = gio.match(/^(\S+)\s*\((.*)\)$/);
+  return m ? { name: m[1], hours: m[2].replace('-', '–') } : { name: gio, hours: '' };
+}
+
+const RATING = {
+  good:    { label: 'Ngày tốt',        Icon: ThumbsUp,   tone: 'bg-good-soft text-good' },
+  bad:     { label: 'Ngày xấu',        Icon: ThumbsDown, tone: 'bg-bad-soft text-bad' },
+  neutral: { label: 'Ngày bình thường', Icon: Minus,      tone: 'bg-surface-2 text-fg-2' },
+} as const;
 
 interface Props {
   today: Date;
@@ -43,6 +57,7 @@ interface Props {
   onDeleteNote: (id: string) => void;
   onZodiacChange: (zodiac: string) => void;
   onDayChange: (date: Date) => void;
+  onOpenAbout: () => void;
 }
 
 export function TodayView({
@@ -60,363 +75,271 @@ export function TodayView({
   onDeleteNote,
   onZodiacChange,
   onDayChange,
+  onOpenAbout,
 }: Props) {
+  const swipe = useSwipe(
+    () => onDayChange(addDays(today, 1)),
+    () => onDayChange(subDays(today, 1)),
+  );
+  const viewingToday = isToday(today);
   const lunarDayLabel = getLunarDayLabel(lunarInfo.lunarDay, lunarInfo.lunarMonth);
+  const rating = RATING[lunarInfo.rating];
+
+  const activities = [
+    { key: 'wedding', label: 'Cưới hỏi',   Icon: Heart,  ok: lunarInfo.activities.wedding },
+    { key: 'moving',  label: 'Chuyển nhà', Icon: Hammer, ok: lunarInfo.activities.moving },
+    { key: 'opening', label: 'Khai trương', Icon: Store,  ok: lunarInfo.activities.opening },
+  ];
 
   return (
-    <div className="min-h-full relative overflow-y-auto bg-gray-100">
-      {/* Blue header background */}
-      <div className="absolute top-0 left-0 right-0 h-[220px] z-0" style={{ backgroundColor: '#124F8B' }} />
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
+      <div className="max-w-5xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
 
-      <div className="relative z-10 max-w-4xl mx-auto px-4 md:px-6 pt-8 pb-20">
-        {/* Title */}
-        <h1
-          className="text-white text-3xl font-extrabold text-center mb-8"
-          style={{ textShadow: '0 2px 4px rgba(0,0,0,0.15)' }}
-        >
-          Lịch Âm Việt Nam
-        </h1>
-
-        {/* Main info cards */}
-        <div className="flex flex-col md:flex-row gap-4 items-stretch mb-5">
-          {/* Date card with prev/next navigation */}
-          <div className="flex-1 flex gap-2 items-stretch">
-            <button
-              onClick={() => onDayChange(subDays(today, 1))}
-              className="w-9 shrink-0 flex items-center justify-center rounded-xl bg-amber-50/80 hover:bg-amber-100 border border-amber-200 text-amber-600 transition-colors shadow-sm"
-              title="Ngày trước"
-            >
-              <ChevronLeft size={20} />
-            </button>
-
-            {/* Date card */}
-            <div
-              className="flex-1 rounded-2xl shadow-sm p-4 md:p-6 flex border border-amber-100"
-              style={{ backgroundColor: '#fff8e7' }}
-            >
-            {/* Solar */}
-            <div className="flex-1 text-center pr-3 md:pr-6 border-r border-amber-200">
-              <div className="flex items-center justify-center gap-2 mb-2">
-                <Sun size={15} className="text-amber-500 fill-amber-500" />
-                <span className="text-[11px] font-semibold text-gray-600 tracking-widest uppercase">Dương lịch</span>
-              </div>
-              <div
-                className="text-[52px] md:text-[76px] leading-none font-bold mb-2 tracking-tighter"
-                style={{ color: '#1671C6' }}
-              >
-                {format(today, 'd')}
-              </div>
-              <div className="text-lg font-bold text-gray-800 mb-1">
-                Tháng {format(today, 'MM')}, {format(today, 'yyyy')}
-              </div>
-              <div className="text-sm text-gray-600">
-                {format(today, 'EEEE', { locale: vi })}
-                {' '}•{' '}
-                Tuần {getWeek(today, { weekStartsOn: 1, locale: vi })}
-              </div>
-              <div className="mt-3 flex items-center justify-center gap-1.5 text-xs text-gray-500">
-                <Clock size={12} />
-                {format(now, 'HH:mm:ss')}
-                <span className="ml-1 px-1.5 py-0.5 bg-amber-100 rounded text-amber-700 font-semibold text-[10px]">
-                  Giờ {currentTraditionalHour}
-                </span>
-              </div>
-            </div>
-
-            {/* Lunar */}
-            <div className="flex-1 text-center pl-3 md:pl-6 flex flex-col items-center justify-center">
-              <div className="flex items-center justify-center gap-2 mb-4">
-                <Moon size={15} className="text-[#1671C6] fill-[#1671C6]" />
-                <span className="text-[11px] font-semibold text-gray-600 tracking-widest uppercase">Âm lịch</span>
-              </div>
-              <div
-                className="text-[52px] md:text-[76px] leading-none font-bold mb-2 tracking-tighter"
-                style={{ color: '#1671C6' }}
-              >
-                {lunarInfo.lunarDay}
-              </div>
-              <div className="text-lg font-bold text-gray-800">
-                tháng {Math.abs(lunarInfo.lunarMonth)}
-              </div>
-              {/* Mồng 1 / Ngày rằm badge */}
-              {lunarDayLabel && (
-                <span className="mt-2 px-3 py-0.5 bg-red-100 text-red-600 rounded-full text-sm font-bold border border-red-200">
-                  {lunarDayLabel}
-                </span>
-              )}
-              {lunarInfo.isLeap && (
-                <span className="mt-1.5 text-[10px] bg-blue-100 text-blue-700 px-2 py-0.5 rounded font-bold">
-                  Nhuận
-                </span>
-              )}
-            </div>
+        {/* Page header */}
+        <header className="flex items-end justify-between gap-3 mb-4 md:mb-6">
+          <div className="min-w-0">
+            <p className="section-label">{viewingToday ? 'Hôm nay' : 'Đang xem'}</p>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-fg capitalize truncate">
+              {format(today, "EEEE, d 'tháng' M", { locale: vi })}
+            </h1>
           </div>
-
-            <button
-              onClick={() => onDayChange(addDays(today, 1))}
-              className="w-9 shrink-0 flex items-center justify-center rounded-xl bg-amber-50/80 hover:bg-amber-100 border border-amber-200 text-amber-600 transition-colors shadow-sm"
-              title="Ngày sau"
-            >
-              <ChevronRight size={20} />
+          {!viewingToday && (
+            <button onClick={() => onDayChange(new Date())} className="chip shrink-0 text-brand">
+              <Undo2 size={15} /> Hôm nay
             </button>
-          </div>{/* end date-card group */}
+          )}
+        </header>
 
-          {/* Can Chi zodiac card */}
-          <div
-            className="w-full md:w-[270px] md:shrink-0 rounded-2xl shadow-sm p-5 border border-blue-100 relative"
-            style={{ backgroundColor: '#EBF3FC' }}
-          >
-            {/* Decorative vertical line */}
-            <div className="absolute left-10 top-10 bottom-10 w-px bg-blue-200" />
-            <div className="flex flex-col gap-5 relative z-10">
+        <InstallBanner />
+
+        <div className="grid gap-4 md:gap-6 md:grid-cols-[1.15fr_1fr] items-start">
+
+          {/* ───────────── Left column ───────────── */}
+          <div className="flex flex-col gap-4">
+
+            {/* Hero: solar + lunar date */}
+            <section
+              {...swipe}
+              className="relative overflow-hidden rounded-[1.75rem] text-white shadow-[var(--shadow-float)] bg-gradient-to-br from-[#2a6fc4] via-[#1d559c] to-[#123b6e]"
+            >
+              {/* decorative moon */}
+              <div className="pointer-events-none absolute -right-14 -top-16 w-56 h-56 rounded-full bg-[#fde68a]/8" aria-hidden="true" />
+              <div className="pointer-events-none absolute -right-2 -top-6 w-28 h-28 rounded-full bg-[#fde68a]/8" aria-hidden="true" />
+
+              <div className="relative flex items-center justify-between px-3 pt-3">
+                <button
+                  onClick={() => onDayChange(subDays(today, 1))}
+                  aria-label="Ngày trước"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 transition"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <span className="text-xs font-medium text-white/75">
+                  Tuần {getWeek(today, { weekStartsOn: 1, locale: vi })} · {format(today, 'yyyy')}
+                </span>
+                <button
+                  onClick={() => onDayChange(addDays(today, 1))}
+                  aria-label="Ngày sau"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 transition"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+              <div className="relative grid grid-cols-2 px-5 pt-2 pb-5">
+                <div className="pr-4 border-r border-white/15">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">Dương lịch</p>
+                  <p className="text-[64px] md:text-[80px] leading-none font-extrabold tracking-tight mt-1 tabular-nums">
+                    {format(today, 'd')}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">Tháng {format(today, 'M, yyyy')}</p>
+                </div>
+                <div className="pl-5">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#fde68a]/80">Âm lịch</p>
+                  <p className="text-[64px] md:text-[80px] leading-none font-extrabold tracking-tight mt-1 text-[#fde68a] tabular-nums">
+                    {lunarInfo.lunarDay}
+                  </p>
+                  <p className="mt-1 text-sm font-semibold">
+                    Tháng {Math.abs(lunarInfo.lunarMonth)}{lunarInfo.isLeap && ' (nhuận)'}
+                  </p>
+                </div>
+              </div>
+
+              <div className="relative flex flex-wrap items-center gap-2 px-5 pb-5">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-semibold tabular-nums">
+                  <Clock size={13} /> {format(now, 'HH:mm')} · Giờ {currentTraditionalHour}
+                </span>
+                {lunarDayLabel && (
+                  <span className="rounded-full bg-[#fde68a] text-[#5c3d00] px-3 py-1.5 text-xs font-bold">
+                    {lunarDayLabel}
+                  </span>
+                )}
+                {holiday && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-white text-lunar px-3 py-1.5 text-xs font-bold">
+                    <Flag size={12} className="fill-current" /> {holiday}
+                  </span>
+                )}
+              </div>
+            </section>
+
+            {/* Can Chi */}
+            <section className="card grid grid-cols-3 divide-x divide-line py-4">
               {[
-                { label: 'NĂM', value: lunarInfo.canChiYear },
-                { label: 'THÁNG', value: lunarInfo.canChiMonth },
-                { label: 'NGÀY', value: lunarInfo.canChiDay },
+                { label: 'Năm', value: lunarInfo.canChiYear },
+                { label: 'Tháng', value: lunarInfo.canChiMonth },
+                { label: 'Ngày', value: lunarInfo.canChiDay },
               ].map(({ label, value }) => (
-                <div key={label} className="flex items-center gap-3">
-                  <div className="w-11 h-11 bg-white rounded-full flex items-center justify-center text-2xl shadow-sm border border-gray-100 z-10 shrink-0">
-                    {getChiEmoji(value)}
-                  </div>
-                  <div>
-                    <div className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">{label}</div>
-                    <div className="font-bold text-gray-800 text-base">{value}</div>
-                  </div>
+                <div key={label} className="flex flex-col items-center text-center gap-1 px-2">
+                  <span className="text-2xl leading-none" aria-hidden="true">{getChiEmoji(value)}</span>
+                  <span className="section-label mt-1">{label}</span>
+                  <span className="text-sm font-bold text-fg">{value}</span>
                 </div>
               ))}
-            </div>
-          </div>
-        </div>
+            </section>
 
-        {/* Age selector */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 flex items-center justify-between mb-4">
-          <div className="flex items-center gap-2">
-            <Star size={18} className="text-blue-500 fill-blue-500" />
-            <span className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Tuổi của bạn</span>
-          </div>
-          <select
-            value={userZodiac ?? ''}
-            onChange={e => onZodiacChange(e.target.value)}
-            className="border border-gray-200 rounded-lg text-sm font-medium px-3 py-1.5 focus:ring-2 focus:ring-blue-400 outline-none cursor-pointer text-gray-700 bg-white"
-          >
-            <option value="">Chọn tuổi</option>
-            {CHI_NAMES.map(chi => (
-              <option key={chi} value={chi}>{chi}</option>
-            ))}
-          </select>
-        </div>
-
-        {/* Zodiac clash warning */}
-        {zodiacClash && (
-          <div className="mb-4 p-3 bg-rose-50 text-rose-700 rounded-xl border border-rose-100 flex items-center gap-2 text-sm font-bold">
-            <Frown size={16} />
-            Ngày này xung với tuổi {userZodiac} của bạn!
-          </div>
-        )}
-
-        {/* Holiday badge */}
-        {holiday && (
-          <div className="mb-4 p-4 bg-rose-50 rounded-xl border border-rose-100 flex items-start gap-3">
-            <Flag size={16} className="text-rose-600 fill-rose-600 shrink-0 mt-0.5" />
-            <div>
-              <div className="text-[10px] uppercase font-bold text-rose-400 mb-0.5">Ngày Lễ</div>
-              <div className="text-sm font-bold text-rose-700">{holiday}</div>
-            </div>
-          </div>
-        )}
-
-        {/* Trực & rating */}
-        {lunarInfo.truc && (
-          <div className={cn(
-            'mb-4 flex items-center gap-3 p-4 border rounded-xl',
-            lunarInfo.rating === 'good' ? 'bg-green-50 border-green-200'
-              : lunarInfo.rating === 'bad' ? 'bg-red-50 border-red-200'
-              : 'bg-white border-gray-200',
-          )}>
-            <Info size={20} className={cn(
-              lunarInfo.rating === 'good' ? 'text-green-600'
-                : lunarInfo.rating === 'bad' ? 'text-red-600'
-                : 'text-gray-400',
-            )} />
-            <div>
-              <div className="text-[10px] uppercase font-bold text-gray-400 mb-0.5">Trực & Đánh giá</div>
-              <div className={cn(
-                'text-sm font-bold',
-                lunarInfo.rating === 'good' ? 'text-green-700'
-                  : lunarInfo.rating === 'bad' ? 'text-red-700'
-                  : 'text-gray-600',
-              )}>
-                Trực {lunarInfo.truc} &bull; {
-                  lunarInfo.rating === 'good' ? 'Ngày Tốt'
-                    : lunarInfo.rating === 'bad' ? 'Ngày Xấu'
-                    : 'Ngày Bình Thường'
-                }
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Việc nên làm — hide on bad days, show plain message on neutral days */}
-        {lunarInfo.rating !== 'bad' && (
-          <div className="mb-6">
-            <h2 className="text-sm font-semibold text-gray-600 uppercase tracking-wider mb-4 pl-1">
-              Việc nên làm hôm nay
-            </h2>
-            {lunarInfo.truc === 'Trừ' ? (
-              <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl flex items-start gap-3">
-                <span className="text-xl shrink-0">🧹</span>
-                <p className="text-sm text-teal-800 font-medium">
-                  Đây là ngày rất tốt để dọn dẹp, phá dỡ, chữa bệnh, hoặc giải tỏa mâu thuẫn.
-                </p>
-              </div>
-            ) : lunarInfo.rating === 'neutral' ? (
-              <div className="rounded-2xl p-6 border border-gray-200 bg-white text-center text-gray-500 font-medium shadow-sm">
-                Mọi việc bình thường
-              </div>
-            ) : (
-              <div className="grid grid-cols-2 gap-4">
-                {/* Wedding */}
-                {lunarInfo.activities.wedding ? (
-                  <div
-                    className="rounded-2xl p-6 border border-red-100 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
-                    style={{ backgroundColor: '#FDECE8' }}
-                  >
-                    <div>
-                      <h3 className="text-[#a52a2a] text-lg font-bold mb-1">Cưới hỏi</h3>
-                      <p className="text-gray-500 text-sm">Ngày tốt cho hôn nhân</p>
-                    </div>
-                    <Heart size={48} className="text-rose-400 fill-rose-300 opacity-80" />
-                  </div>
-                ) : (
-                  <div
-                    className="rounded-2xl p-6 border border-red-100 flex items-center justify-between opacity-35"
-                    style={{ backgroundColor: '#FDECE8' }}
-                  >
-                    <div>
-                      <div className="h-5 w-24 bg-red-200 rounded mb-2" />
-                      <div className="h-4 w-16 bg-red-200 rounded" />
-                    </div>
-                    <div className="w-14 h-14 rounded-full bg-red-200" />
-                  </div>
-                )}
-
-                {/* Moving */}
-                {lunarInfo.activities.moving ? (
-                  <div
-                    className="rounded-2xl p-6 border border-blue-100 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
-                    style={{ backgroundColor: '#EBF3FC' }}
-                  >
-                    <div>
-                      <h3 className="text-[#1e3a8a] text-lg font-bold mb-1">Chuyển nhà</h3>
-                      <p className="text-gray-500 text-sm">Ngày tốt để chuyển nhà</p>
-                    </div>
-                    <Hammer size={48} className="text-blue-400 opacity-80" />
-                  </div>
-                ) : (
-                  <div
-                    className="rounded-2xl p-6 border border-blue-100 flex items-center justify-between opacity-35"
-                    style={{ backgroundColor: '#EBF3FC' }}
-                  >
-                    <div>
-                      <div className="h-5 w-24 bg-blue-200 rounded mb-2" />
-                      <div className="h-4 w-16 bg-blue-200 rounded" />
-                    </div>
-                    <div className="w-14 h-14 rounded-full bg-blue-200" />
-                  </div>
-                )}
-
-                {/* Opening */}
-                {lunarInfo.activities.opening ? (
-                  <div
-                    className="rounded-2xl p-6 border border-amber-100 flex items-center justify-between shadow-sm hover:shadow-md transition-shadow"
-                    style={{ backgroundColor: '#fffbeb' }}
-                  >
-                    <div>
-                      <h3 className="text-amber-800 text-lg font-bold mb-1">Khai trương</h3>
-                      <p className="text-gray-500 text-sm">Ngày tốt để khai trương</p>
-                    </div>
-                    <Store size={48} className="text-amber-400 opacity-80" />
-                  </div>
-                ) : (
-                  <div
-                    className="rounded-2xl p-6 border border-amber-100 flex items-center justify-between opacity-35"
-                    style={{ backgroundColor: '#fffbeb' }}
-                  >
-                    <div>
-                      <div className="h-5 w-24 bg-amber-200 rounded mb-2" />
-                      <div className="h-4 w-16 bg-amber-200 rounded" />
-                    </div>
-                    <div className="w-14 h-14 rounded-full bg-amber-200" />
-                  </div>
-                )}
-
-                {/* Placeholder 4th slot */}
-                <div
-                  className="rounded-2xl p-6 border border-green-100 flex items-center justify-between opacity-35"
-                  style={{ backgroundColor: '#f0fdf4' }}
-                >
-                  <div>
-                    <div className="h-5 w-24 bg-green-200 rounded mb-2" />
-                    <div className="h-4 w-16 bg-green-200 rounded" />
-                  </div>
-                  <div className="w-14 h-14 rounded-full bg-green-200" />
+            {/* Day assessment */}
+            <section className="card divide-y divide-line">
+              <Row
+                icon={<rating.Icon size={18} />}
+                tone={rating.tone}
+                title={rating.label}
+                detail={`Trực ${lunarInfo.truc}`}
+              />
+              <div className="flex items-center gap-3 px-4 py-3">
+                <div className="w-10 h-10 shrink-0 rounded-2xl bg-surface-2 text-fg-2 flex items-center justify-center text-lg">
+                  {userZodiac ? CHI_EMOJI[userZodiac] : '🧧'}
                 </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Giờ Hoàng Đạo */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5 mb-5">
-          <div className="flex items-center gap-2 mb-4">
-            <Clock size={16} className="text-blue-500" />
-            <span className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Giờ Hoàng Đạo</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {lunarInfo.gioHoangDao.map((gio, idx) => (
-              <span
-                key={idx}
-                className="px-3 py-1.5 bg-blue-50 border border-blue-200 rounded-lg text-xs font-semibold text-blue-700"
-              >
-                {gio}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        {/* Notes */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-5">
-          <div className="flex items-center gap-2 mb-4">
-            <StickyNote size={16} className="text-amber-500" />
-            <span className="text-sm font-semibold text-gray-700 uppercase tracking-wider">Ghi chú ngày này</span>
-          </div>
-          <div className="flex flex-col gap-2 mb-3">
-            {todayNotes.map(note => (
-              <div key={note.id} className="p-3 bg-amber-50 border border-amber-100 rounded-lg text-sm group relative">
-                <button
-                  onClick={() => onDeleteNote(note.id)}
-                  className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 text-rose-400 hover:text-rose-600 transition-opacity"
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold text-fg">Tuổi của bạn</p>
+                  <p className="text-xs text-fg-2">Báo ngày xung tuổi</p>
+                </div>
+                <select
+                  value={userZodiac ?? ''}
+                  onChange={e => onZodiacChange(e.target.value)}
+                  aria-label="Chọn tuổi"
+                  className="field w-24 shrink-0 py-2 font-semibold cursor-pointer"
                 >
-                  <Trash2 size={13} />
-                </button>
-                <p className="text-gray-700 pr-5 whitespace-pre-wrap">{note.content}</p>
+                  <option value="">Chọn</option>
+                  {CHI_NAMES.map(chi => <option key={chi} value={chi}>{chi}</option>)}
+                </select>
               </div>
-            ))}
+              {zodiacClash && (
+                <Row
+                  icon={<Frown size={18} />}
+                  tone="bg-clash-soft text-clash"
+                  title={`Xung với tuổi ${userZodiac}`}
+                  detail="Nên cân nhắc việc quan trọng"
+                />
+              )}
+            </section>
           </div>
-          <textarea
-            value={newNoteContent}
-            onChange={e => onNewNoteChange(e.target.value)}
-            placeholder="Thêm ghi chú cho ngày này..."
-            className="w-full p-3 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-blue-400 outline-none resize-none h-20 bg-gray-50"
-          />
-          <button
-            onClick={onAddNote}
-            disabled={!newNoteContent.trim()}
-            className="mt-2 w-full flex items-center justify-center gap-1.5 py-2 bg-[#1671C6] text-white rounded-lg text-sm font-semibold hover:bg-[#1461a8] disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
-          >
-            <Plus size={14} /> Lưu ghi chú
-          </button>
+
+          {/* ───────────── Right column ───────────── */}
+          <div className="flex flex-col gap-4">
+
+            {/* Activities */}
+            <section className="card p-4">
+              <h2 className="section-label mb-3">Việc nên làm</h2>
+              <ul className="flex flex-col gap-2">
+                {activities.map(({ key, label, Icon, ok }) => (
+                  <li key={key} className="flex items-center gap-3">
+                    <div className={cn(
+                      'w-9 h-9 shrink-0 rounded-xl flex items-center justify-center',
+                      ok ? 'bg-good-soft text-good' : 'bg-surface-2 text-fg-3',
+                    )}>
+                      <Icon size={17} />
+                    </div>
+                    <span className={cn('flex-1 text-sm font-semibold', ok ? 'text-fg' : 'text-fg-2')}>{label}</span>
+                    <span className={cn(
+                      'rounded-full px-2.5 py-1 text-[11px] font-bold',
+                      ok ? 'bg-good-soft text-good' : 'bg-surface-2 text-fg-3',
+                    )}>
+                      {ok ? 'Tốt' : 'Không hợp'}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+              {lunarInfo.truc === 'Trừ' && (
+                <p className="mt-3 flex gap-2 rounded-xl bg-surface-2 p-3 text-xs text-fg-2 leading-relaxed">
+                  <Sparkles size={14} className="shrink-0 mt-0.5 text-gold" />
+                  Ngày Trừ: tốt để dọn dẹp, chữa bệnh, giải toả mâu thuẫn.
+                </p>
+              )}
+            </section>
+
+            {/* Giờ Hoàng Đạo */}
+            <section className="card p-4">
+              <h2 className="section-label mb-3">Giờ hoàng đạo</h2>
+              <div className="grid grid-cols-3 gap-2">
+                {lunarInfo.gioHoangDao.map(gio => {
+                  const { name, hours } = parseGio(gio);
+                  const isNow = viewingToday && name === currentTraditionalHour;
+                  return (
+                    <div
+                      key={gio}
+                      className={cn(
+                        'rounded-xl px-2 py-2.5 text-center',
+                        isNow ? 'bg-brand text-on-brand' : 'bg-brand-soft',
+                      )}
+                    >
+                      <p className={cn('text-sm font-bold', isNow ? 'text-on-brand' : 'text-brand')}>{name}</p>
+                      <p className={cn('text-[11px] tabular-nums', isNow ? 'text-on-brand/80' : 'text-fg-2')}>
+                        {isNow ? 'Đang diễn ra' : hours}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            {/* Notes */}
+            <section className="card p-4">
+              <h2 className="section-label mb-3 flex items-center gap-1.5">
+                <StickyNote size={13} /> Ghi chú
+              </h2>
+              {todayNotes.length > 0 && (
+                <ul className="flex flex-col gap-2 mb-3">
+                  {todayNotes.map(note => (
+                    <li key={note.id} className="group flex items-start gap-2 rounded-xl bg-gold-soft px-3 py-2.5">
+                      <p className="flex-1 text-sm text-fg whitespace-pre-wrap break-words">{note.content}</p>
+                      <button
+                        onClick={() => onDeleteNote(note.id)}
+                        aria-label="Xoá ghi chú"
+                        className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <textarea
+                value={newNoteContent}
+                onChange={e => onNewNoteChange(e.target.value)}
+                placeholder="Thêm ghi chú cho ngày này…"
+                rows={2}
+                className="field resize-none"
+              />
+              <button onClick={onAddNote} disabled={!newNoteContent.trim()} className="btn-primary w-full mt-2">
+                <Plus size={16} /> Lưu ghi chú
+              </button>
+            </section>
+          </div>
         </div>
+
+        <AboutLink onClick={onOpenAbout} />
+      </div>
+    </div>
+  );
+}
+
+function Row({ icon, tone, title, detail }: { icon: ReactNode; tone: string; title: string; detail?: string }) {
+  return (
+    <div className="flex items-center gap-3 px-4 py-3">
+      <div className={cn('w-10 h-10 shrink-0 rounded-2xl flex items-center justify-center', tone)}>{icon}</div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold text-fg">{title}</p>
+        {detail && <p className="text-xs text-fg-2">{detail}</p>}
       </div>
     </div>
   );
