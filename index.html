@@ -7,6 +7,13 @@
     <meta name="color-scheme" content="light dark" />
     <meta name="theme-color" content="#F7F6F3" media="(prefers-color-scheme: light)" />
     <meta name="theme-color" content="#0E1116" media="(prefers-color-scheme: dark)" />
+    <script>
+      // Apply the saved theme before first paint so there is no flash (see src/hooks/useTheme.ts).
+      try {
+        var t = localStorage.getItem('theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
 
     <!-- Installed app (iOS / Android) -->
     <meta name="mobile-web-app-capable" content="yes" />

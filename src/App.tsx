@@ -9,6 +9,7 @@ import { useClock } from './hooks/useClock';
 import { useNotes } from './hooks/useNotes';
 import { useLunarEvents } from './hooks/useLunarEvents';
 import { useLunarPresets } from './hooks/useLunarPresets';
+import { useTheme } from './hooks/useTheme';
 import { getLunarInfo, getHoliday, findBestDates } from './services/lunarService';
 import { NavSidebar, NavTab } from './components/NavSidebar';
 import { TodayView } from './components/views/TodayView';
@@ -41,6 +42,7 @@ export default function App() {
   const [auspiciousDates, setAuspiciousDates] = useState<AuspiciousDate[]>([]);
   const [userZodiac,      setUserZodiac]      = useState<string | null>(loadZodiac);
 
+  const { pref: themePref, cycle: cycleTheme } = useTheme();
   const { now, currentTraditionalHour } = useClock();
   const { notes, selectedDateNotes, newNoteContent, setNewNoteContent, addNote, deleteNote } =
     useNotes(selectedDate);
@@ -162,6 +164,8 @@ export default function App() {
               setCurrentDate(date);
             }}
             onOpenAbout={() => setIsAboutOpen(true)}
+            themePref={themePref}
+            onCycleTheme={cycleTheme}
           />
         )}
 

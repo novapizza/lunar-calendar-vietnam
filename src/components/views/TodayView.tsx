@@ -3,6 +3,7 @@ import { vi } from 'date-fns/locale';
 import {
   Clock, Heart, Hammer, Store, Flag, Frown, StickyNote, Plus, Trash2,
   ChevronLeft, ChevronRight, Sparkles, ThumbsUp, ThumbsDown, Minus, Undo2,
+  Sun, Moon, SunMoon,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
@@ -11,6 +12,13 @@ import { LunarInfo, UserNote } from '../../types';
 import { useSwipe } from '../../hooks/useSwipe';
 import { AboutLink } from '../AboutLink';
 import { InstallBanner } from '../InstallBanner';
+import type { ThemePref } from '../../hooks/useTheme';
+
+const THEME_BUTTON = {
+  system: { Icon: SunMoon, label: 'Giao diện: theo hệ thống' },
+  light:  { Icon: Sun,     label: 'Giao diện: sáng' },
+  dark:   { Icon: Moon,    label: 'Giao diện: tối' },
+} as const;
 
 const CHI_EMOJI: Record<string, string> = {
   'Tý': '🐭', 'Sửu': '🐂', 'Dần': '🐯', 'Mão': '🐱',
@@ -58,6 +66,8 @@ interface Props {
   onZodiacChange: (zodiac: string) => void;
   onDayChange: (date: Date) => void;
   onOpenAbout: () => void;
+  themePref: ThemePref;
+  onCycleTheme: () => void;
 }
 
 export function TodayView({
@@ -76,6 +86,8 @@ export function TodayView({
   onZodiacChange,
   onDayChange,
   onOpenAbout,
+  themePref,
+  onCycleTheme,
 }: Props) {
   const swipe = useSwipe(
     () => onDayChange(addDays(today, 1)),
@@ -84,6 +96,7 @@ export function TodayView({
   const viewingToday = isToday(today);
   const lunarDayLabel = getLunarDayLabel(lunarInfo.lunarDay, lunarInfo.lunarMonth);
   const rating = RATING[lunarInfo.rating];
+  const theme = THEME_BUTTON[themePref];
 
   const activities = [
     { key: 'wedding', label: 'Cưới hỏi',   Icon: Heart,  ok: lunarInfo.activities.wedding },
@@ -103,11 +116,16 @@ export function TodayView({
               {format(today, "EEEE, d 'tháng' M", { locale: vi })}
             </h1>
           </div>
-          {!viewingToday && (
-            <button onClick={() => onDayChange(new Date())} className="chip shrink-0 text-brand">
-              <Undo2 size={15} /> Hôm nay
+          <div className="flex items-center gap-1 shrink-0">
+            {!viewingToday && (
+              <button onClick={() => onDayChange(new Date())} className="chip text-brand">
+                <Undo2 size={15} /> Hôm nay
+              </button>
+            )}
+            <button onClick={onCycleTheme} className="icon-btn" aria-label={theme.label} title={theme.label}>
+              <theme.Icon size={20} />
             </button>
-          )}
+          </div>
         </header>
 
         <InstallBanner />

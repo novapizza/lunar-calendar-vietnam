@@ -78,8 +78,10 @@
   color-scheme: light;
 }
 
+/* Dark palette: follows the system unless the user picked a theme
+   (html[data-theme="light" | "dark"], set in index.html and useTheme). */
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --bg: #0e1116;
     --surface: #171b22;
     --surface-2: #1f242d;
@@ -108,6 +110,36 @@
 
     color-scheme: dark;
   }
+}
+
+:root[data-theme="dark"] {
+  --bg: #0e1116;
+  --surface: #171b22;
+  --surface-2: #1f242d;
+  --surface-3: #2a303a;
+  --line: #262c35;
+  --fg: #eceef1;
+  --fg-2: #a6acb6;
+  --fg-3: #6f7681;
+
+  --brand: #6ea6f0;
+  --brand-strong: #8db9f4;
+  --brand-soft: #1a2a40;
+  --on-brand: #0b1a2e;
+
+  --lunar: #f0796e;
+  --lunar-soft: #3a1f1d;
+  --gold: #f2bd4b;
+  --gold-soft: #3a2f17;
+
+  --good: #4cc282;
+  --good-soft: #15301f;
+  --bad: #f0796e;
+  --bad-soft: #3a1f1d;
+  --clash: #b294f0;
+  --clash-soft: #2a2140;
+
+  color-scheme: dark;
 }
 
 /* ==========================================================================
