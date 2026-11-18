@@ -9,7 +9,7 @@
       <circle cx="306" cy="214" r="128" fill="#000"/>
     </mask>
   </defs>
-  <rect width="512" height="512" fill="#124F8B"/>
+  <rect width="512" height="512" fill="#8A2F1C"/>
   <circle cx="246" cy="262" r="140" fill="url(#moon)" mask="url(#crescent)"/>
   <path d="M370 128 l12 27 27 12 -27 12 -12 27 -12 -27 -27 -12 27 -12z" fill="#FDE68A"/>
   <circle cx="404" cy="236" r="9" fill="#FDE68A" opacity=".8"/>

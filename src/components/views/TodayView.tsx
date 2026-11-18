@@ -138,11 +138,11 @@ export function TodayView({
             {/* Hero: solar + lunar date */}
             <section
               {...swipe}
-              className="relative overflow-hidden rounded-[1.75rem] text-white shadow-[var(--shadow-float)] bg-gradient-to-br from-[#2a6fc4] via-[#1d559c] to-[#123b6e]"
+              className="relative overflow-hidden rounded-[1.75rem] hero"
             >
               {/* decorative moon */}
-              <div className="pointer-events-none absolute -right-14 -top-16 w-56 h-56 rounded-full bg-[#fde68a]/8" aria-hidden="true" />
-              <div className="pointer-events-none absolute -right-2 -top-6 w-28 h-28 rounded-full bg-[#fde68a]/8" aria-hidden="true" />
+              <div className="pointer-events-none absolute -right-14 -top-16 w-56 h-56 rounded-full bg-hero-accent/8" aria-hidden="true" />
+              <div className="pointer-events-none absolute -right-2 -top-6 w-28 h-28 rounded-full bg-hero-accent/8" aria-hidden="true" />
 
               <div className="relative flex items-center justify-between px-3 pt-3">
                 <button
@@ -173,8 +173,8 @@ export function TodayView({
                   <p className="mt-1 text-sm font-semibold">Tháng {format(today, 'M, yyyy')}</p>
                 </div>
                 <div className="pl-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[#fde68a]/80">Âm lịch</p>
-                  <p className="text-[64px] md:text-[80px] leading-none font-extrabold tracking-tight mt-1 text-[#fde68a] tabular-nums">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-hero-accent/80">Âm lịch</p>
+                  <p className="text-[64px] md:text-[80px] leading-none font-extrabold tracking-tight mt-1 text-hero-accent tabular-nums">
                     {lunarInfo.lunarDay}
                   </p>
                   <p className="mt-1 text-sm font-semibold">
@@ -188,7 +188,7 @@ export function TodayView({
                   <Clock size={13} /> {format(now, 'HH:mm')} · Giờ {currentTraditionalHour}
                 </span>
                 {lunarDayLabel && (
-                  <span className="rounded-full bg-[#fde68a] text-[#5c3d00] px-3 py-1.5 text-xs font-bold">
+                  <span className="rounded-full bg-hero-accent text-hero-accent-ink px-3 py-1.5 text-xs font-bold">
                     {lunarDayLabel}
                   </span>
                 )}

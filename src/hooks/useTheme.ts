@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 export type ThemePref = 'system' | 'light' | 'dark';
 
 const STORAGE_KEY = 'theme';
-const THEME_COLORS = { light: '#F7F6F3', dark: '#0E1116' } as const;
+const THEME_COLORS = { light: '#FAF5EC', dark: '#0E1114' } as const;
 const darkQuery = () => window.matchMedia('(prefers-color-scheme: dark)');
 
 function loadPref(): ThemePref {

@@ -43,8 +43,8 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
         ) : (
           <>
             {/* Next event highlight */}
-            <section className="relative overflow-hidden rounded-[1.75rem] p-5 text-white shadow-[var(--shadow-float)] bg-gradient-to-br from-[#2a6fc4] via-[#1d559c] to-[#123b6e]">
-              <div className="pointer-events-none absolute -right-12 -top-12 w-44 h-44 rounded-full bg-[#fde68a]/8" aria-hidden="true" />
+            <section className="relative overflow-hidden rounded-[1.75rem] p-5 hero">
+              <div className="pointer-events-none absolute -right-12 -top-12 w-44 h-44 rounded-full bg-hero-accent/8" aria-hidden="true" />
               <p className="relative text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">Sự kiện tiếp theo</p>
               <div className="relative mt-2 flex items-end justify-between gap-4">
                 <div className="min-w-0">
@@ -55,7 +55,7 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-4xl md:text-5xl font-extrabold leading-none text-[#fde68a] tabular-nums">
+                  <p className="text-4xl md:text-5xl font-extrabold leading-none text-hero-accent tabular-nums">
                     {next.daysUntil === 0 ? '🎉' : next.daysUntil}
                   </p>
                   <p className="text-xs font-semibold text-white/75 mt-1">
