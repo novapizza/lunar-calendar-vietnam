@@ -10,8 +10,8 @@ import {
 import { vi } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
-  Heart, Hammer, Store, StickyNote, Flag, Frown,
-  Search, CalendarSearch, Download, Plus, Trash2, ThumbsUp, ThumbsDown, Minus,
+  Heart, Hammer, Store, StickyNote, Flag, FaceSlightlyFrowning,
+  Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WEEK_DAYS, CHI_NAMES } from '../../constants/calendar';
@@ -281,7 +281,7 @@ export function CalendarView({
                 )}
                 {selectedClash && (
                   <p className="flex items-center gap-2 rounded-xl bg-clash-soft px-3 py-2 text-sm font-semibold text-clash">
-                    <Frown size={14} /> Xung tuổi {userZodiac}
+                    <FaceSlightlyFrowning size={14} /> Xung tuổi {userZodiac}
                   </p>
                 )}
               </div>
@@ -319,7 +319,7 @@ export function CalendarView({
                       aria-label="Xoá ghi chú"
                       className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
                     >
-                      <Trash2 size={14} />
+                      <Trash size={14} />
                     </button>
                   </li>
                 ))}

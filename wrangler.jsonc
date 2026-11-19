@@ -3,5 +3,8 @@
   "compatibility_date": "2026-03-01",
   "assets": {
     "directory": "./dist"
-  }
+  },
+  // Required by `wrangler preview`, the non-production deploy command of
+  // Workers Builds. Empty: previews use the top-level settings above.
+  "previews": {}
 }

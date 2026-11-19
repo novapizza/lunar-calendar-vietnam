@@ -2,7 +2,7 @@ import { format, getWeek } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import {
   Sun, Moon, Clock, Star, Info, Heart, Hammer, Store,
-  StickyNote, Trash2, Plus, Flag, Search, Calendar as CalendarIcon, Download, Frown,
+  StickyNote, Trash, Plus, Flag, Search, Calendar as CalendarIcon, Download, FaceSlightlyFrowning,
 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { CHI_NAMES } from '../constants/calendar';
@@ -246,7 +246,7 @@ export function Sidebar({
                 onClick={() => onDeleteNote(note.id)}
                 className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-rose-500 hover:text-rose-700 transition-opacity"
               >
-                <Trash2 size={12} />
+                <Trash size={12} />
               </button>
               <p className="text-ink/80 pr-4 whitespace-pre-wrap">{note.content}</p>
             </div>
@@ -296,7 +296,7 @@ export function Sidebar({
             { icon: <Store size={12} className="text-amber-500" />,        label: 'Khai trương' },
             { icon: <StickyNote size={12} className="text-amber-500 fill-amber-100" />, label: 'Có ghi chú' },
             { icon: <Flag size={12} className="text-rose-500 fill-rose-100" />, label: 'Ngày lễ' },
-            { icon: <Frown size={12} className="text-purple-500 fill-purple-100" />, label: 'Xung tuổi' },
+            { icon: <FaceSlightlyFrowning size={12} className="text-purple-500 fill-purple-100" />, label: 'Xung tuổi' },
           ].map(({ icon, label }) => (
             <div key={label} className="flex items-center gap-2 text-[11px] font-medium text-olive">
               {icon} {label}
