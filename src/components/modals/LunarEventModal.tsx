@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CalendarHeart, Plus, Pencil, Trash2, Download, AlertTriangle, CheckCircle2, Check } from 'lucide-react';
+import { CalendarHeart, Plus, Pencil, Trash, Download, TriangleExclamationPoint, CircleCheck, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { LunarEvent } from '../../types';
 import { generateAndDownloadICS, ExportSummary } from '../../services/icsService';
@@ -170,7 +170,7 @@ export function LunarEventModal({
                     <Pencil size={16} />
                   </button>
                   <button onClick={() => handleDelete(event.id)} className="icon-btn hover:text-bad" aria-label="Xoá">
-                    <Trash2 size={16} />
+                    <Trash size={16} />
                   </button>
                 </li>
               ))}
@@ -255,12 +255,12 @@ export function LunarEventModal({
             {exportResult && (
               <div className="mt-3 flex flex-col gap-2">
                 <p className="flex items-center gap-2 rounded-2xl bg-good-soft px-4 py-3 text-sm font-semibold text-good">
-                  <CheckCircle2 size={17} /> Đã tạo {exportResult.totalEvents} sự kiện
+                  <CircleCheck size={17} /> Đã tạo {exportResult.totalEvents} sự kiện
                 </p>
                 {exportResult.skippedCount > 0 && (
                   <div className="rounded-2xl bg-gold-soft p-4">
                     <p className="flex items-center gap-2 text-xs font-bold text-fg mb-1.5">
-                      <AlertTriangle size={14} className="text-gold" /> Bỏ qua {exportResult.skippedCount} mục
+                      <TriangleExclamationPoint size={14} className="text-gold" /> Bỏ qua {exportResult.skippedCount} mục
                     </p>
                     <ul className="flex flex-col gap-0.5 text-xs text-fg-2">
                       {exportResult.skippedReasons.map((s, i) => (

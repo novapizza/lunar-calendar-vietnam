@@ -1,7 +1,7 @@
 import { format, getWeek, addDays, subDays, isToday } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import {
-  Clock, Heart, Hammer, Store, Flag, Frown, StickyNote, Plus, Trash2,
+  Clock, Heart, Hammer, Store, Flag, FaceSlightlyFrowning, StickyNote, Plus, Trash,
   ChevronLeft, ChevronRight, Sparkles, ThumbsUp, ThumbsDown, Minus, Undo2,
   Sun, Moon, SunMoon,
 } from 'lucide-react';
@@ -243,7 +243,7 @@ export function TodayView({
               </div>
               {zodiacClash && (
                 <Row
-                  icon={<Frown size={18} />}
+                  icon={<FaceSlightlyFrowning size={18} />}
                   tone="bg-clash-soft text-clash"
                   title={`Xung với tuổi ${userZodiac}`}
                   detail="Nên cân nhắc việc quan trọng"
@@ -325,7 +325,7 @@ export function TodayView({
                         aria-label="Xoá ghi chú"
                         className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
                       >
-                        <Trash2 size={15} />
+                        <Trash size={15} />
                       </button>
                     </li>
                   ))}
