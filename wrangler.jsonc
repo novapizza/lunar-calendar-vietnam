@@ -2,7 +2,7 @@
   "name": "lunar-calendar-vietnam",
   "compatibility_date": "2026-03-01",
   "assets": {
-    "directory": "./dist"
+    "directory": "./apps/web/dist"
   },
   // Required by `wrangler preview`, the non-production deploy command of
   // Workers Builds. Empty: previews use the top-level settings above.

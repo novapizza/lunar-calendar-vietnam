@@ -1,4 +1,6 @@
 import { LunarCalendar, CHI, getSolarDate } from '@dqcai/vn-lunar';
+import calendar from '@lunar/shared/data/calendar.json';
+import holidays from '@lunar/shared/data/holidays.json';
 import { LunarInfo, AuspiciousDate, UpcomingEvent } from '../types';
 
 export { LunarCalendar, CHI };
@@ -64,62 +66,27 @@ export function lunarToSolar(
 // Module-level constants (hoisted out of hot paths for clarity & performance)
 // ---------------------------------------------------------------------------
 
-/**
- * Maps a day's Chi index (0-11) to the six auspicious hour indices (Giờ Hoàng Đạo).
- * Pairs sharing the same hour set are listed together (e.g. 0 & 6 both map to Tý–Ngọ axis).
- */
-const GIO_HD_MAP: Readonly<Record<number, readonly number[]>> = {
-  0: [0, 1, 3, 6, 8, 9],  6: [0, 1, 3, 6, 8, 9],
-  1: [2, 3, 5, 8, 10, 11], 7: [2, 3, 5, 8, 10, 11],
-  2: [0, 1, 4, 5, 7, 10],  8: [0, 1, 4, 5, 7, 10],
-  3: [0, 2, 3, 6, 7, 9],   9: [0, 2, 3, 6, 7, 9],
-  4: [2, 4, 5, 8, 9, 11],  10: [2, 4, 5, 8, 9, 11],
-  5: [0, 1, 4, 6, 7, 10],  11: [0, 1, 4, 6, 7, 10],
-};
+/** Six auspicious hour indexes (Giờ Hoàng Đạo) for each day Chi index. */
+const GIO_HD_MAP: readonly (readonly number[])[] = calendar.gioHoangDao.byDayChi;
 
 /** The 12 Directors (Thập Nhị Trực), in cycle order starting from Kiến. */
-const TRUC_NAMES = [
-  'Kiến', 'Trừ', 'Mãn', 'Bình', 'Định', 'Chấp',
-  'Phá', 'Nguy', 'Thành', 'Thâu', 'Khai', 'Bế',
-] as const;
+const TRUC_NAMES: readonly string[] = calendar.truc.names;
 
-/**
- * Offset of each lunar month's Chi index within the 12-branch cycle.
- * Lunar month 1 starts at Dần (index 2), month 2 at Mão (index 3), etc.
- */
-const MONTH_CHI_START: Readonly<Record<number, number>> = {
-  1: 2, 2: 3, 3: 4, 4: 5, 5: 6, 6: 7,
-  7: 8, 8: 9, 9: 10, 10: 11, 11: 0, 12: 1,
-};
+/** Chi index at which each lunar month starts (index 0 = month 1, which starts at Dần). */
+const MONTH_CHI_START: readonly number[] = calendar.truc.monthChiStart;
 
-const GOOD_TRUC = new Set(['Trừ', 'Định', 'Nguy', 'Thành', 'Khai']);
-const BAD_TRUC  = new Set(['Phá', 'Bế', 'Chấp']);
+const GOOD_TRUC = new Set(calendar.truc.good);
+const BAD_TRUC  = new Set(calendar.truc.bad);
 
 // ---------------------------------------------------------------------------
-// Holiday data
+// Holiday data (shared/data/holidays.json)
 // ---------------------------------------------------------------------------
 
 /** Traditional lunar holidays keyed as "day-month". */
-export const VIETNAMESE_HOLIDAYS: Readonly<Record<string, string>> = {
-  '1-1':  'Tết Nguyên Đán',
-  '2-1':  'Tết Nguyên Đán',
-  '3-1':  'Tết Nguyên Đán',
-  '15-1': 'Rằm Tháng Giêng',
-  '10-3': 'Giỗ Tổ Hùng Vương',
-  '15-4': 'Lễ Phật Đản',
-  '5-5':  'Tết Đoan Ngọ',
-  '15-7': 'Lễ Vu Lan',
-  '15-8': 'Tết Trung Thu',
-  '23-12':'Tết Táo Quân',
-};
+export const VIETNAMESE_HOLIDAYS: Readonly<Record<string, string>> = holidays.lunar;
 
 /** Public solar holidays keyed as "day-month". */
-export const SOLAR_HOLIDAYS: Readonly<Record<string, string>> = {
-  '1-1': 'Tết Dương Lịch',
-  '30-4':'Giải phóng Miền Nam',
-  '1-5': 'Quốc tế Lao động',
-  '2-9': 'Quốc khánh',
-};
+export const SOLAR_HOLIDAYS: Readonly<Record<string, string>> = holidays.solar;
 
 // ---------------------------------------------------------------------------
 // Activity rules (used by the auspicious-date picker)
@@ -159,7 +126,7 @@ export function getLunarInfo(date: Date): LunarInfo {
   });
 
   // --- Thập Nhị Trực ---
-  const monthChiIdx = MONTH_CHI_START[Math.abs(lunar.lunarDate.month)] ?? 0;
+  const monthChiIdx = MONTH_CHI_START[Math.abs(lunar.lunarDate.month) - 1] ?? 0;
   const dayChiIdx   = CHI.indexOf(dayChi);
   const truc        = TRUC_NAMES[(dayChiIdx - monthChiIdx + 12) % 12];
 
@@ -172,9 +139,9 @@ export function getLunarInfo(date: Date): LunarInfo {
 
   // --- Activity suitability ---
   const activities: LunarInfo['activities'] = {
-    wedding: rating === 'good' && ['Thành', 'Định', 'Mãn'].includes(truc),
-    moving:  rating === 'good' && ['Khai',  'Thành', 'Kiến'].includes(truc),
-    opening: rating === 'good' && ['Khai',  'Mãn',   'Thành'].includes(truc),
+    wedding: rating === 'good' && calendar.activities.wedding.truc.includes(truc),
+    moving:  rating === 'good' && calendar.activities.moving.truc.includes(truc),
+    opening: rating === 'good' && calendar.activities.opening.truc.includes(truc),
   };
 
   return {

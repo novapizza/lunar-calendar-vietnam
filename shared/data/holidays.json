@@ -1,0 +1,21 @@
+{
+  "$comment": "Keys are \"day-month\". Lunar keys ignore the leap flag.",
+  "lunar": {
+    "1-1": "Tết Nguyên Đán",
+    "2-1": "Tết Nguyên Đán",
+    "3-1": "Tết Nguyên Đán",
+    "15-1": "Rằm Tháng Giêng",
+    "10-3": "Giỗ Tổ Hùng Vương",
+    "15-4": "Lễ Phật Đản",
+    "5-5": "Tết Đoan Ngọ",
+    "15-7": "Lễ Vu Lan",
+    "15-8": "Tết Trung Thu",
+    "23-12": "Tết Táo Quân"
+  },
+  "solar": {
+    "1-1": "Tết Dương Lịch",
+    "30-4": "Giải phóng Miền Nam",
+    "1-5": "Quốc tế Lao động",
+    "2-9": "Quốc khánh"
+  }
+}

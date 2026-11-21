@@ -1,7 +1,7 @@
 import { useId } from 'react';
 
 /**
- * The app logo (same drawing as public/icon.svg), drawn inline so its
+ * The app logo (same drawing as shared/design/icon.svg), drawn inline so its
  * background follows the mệnh palette through --logo. The installed app icon
  * (PNG files in public/) stays red: the system fixes it at install time.
  */
