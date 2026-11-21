@@ -34,6 +34,8 @@ interface Props {
   onCurrentDateChange: (date: Date) => void;
   onSelectedDateChange: (date: Date) => void;
   onOpenQuickPicker: () => void;
+  /** Month/year grid picker, opened from the month title. */
+  onOpenMonthPicker: () => void;
   onOpenAuspiciousPicker: () => void;
   onOpenLunarEventModal: () => void;
 }
@@ -66,6 +68,7 @@ export function CalendarView({
   onCurrentDateChange,
   onSelectedDateChange,
   onOpenQuickPicker,
+  onOpenMonthPicker,
   onOpenAuspiciousPicker,
   onOpenLunarEventModal,
 }: Props) {
@@ -117,7 +120,7 @@ export function CalendarView({
         <div className="max-w-6xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
           <div className="flex items-center gap-2">
             <button
-              onClick={onOpenQuickPicker}
+              onClick={onOpenMonthPicker}
               className="flex-1 min-w-0 text-left rounded-xl -mx-1 px-1 py-0.5 hover:bg-surface-2 transition-colors"
               aria-label="Chọn tháng, năm"
             >

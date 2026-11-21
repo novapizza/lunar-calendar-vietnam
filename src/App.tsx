@@ -16,6 +16,7 @@ import { TodayView } from './components/views/TodayView';
 import { CalendarView } from './components/views/CalendarView';
 import { EventsView } from './components/views/EventsView';
 import { QuickDatePickerModal } from './components/modals/QuickDatePickerModal';
+import { MonthYearPickerModal } from './components/modals/MonthYearPickerModal';
 import { AuspiciousDateModal } from './components/modals/AuspiciousDateModal';
 import { AboutModal } from './components/modals/AboutModal';
 import { LunarEventModal } from './components/modals/LunarEventModal';
@@ -34,6 +35,7 @@ export default function App() {
   const [selectedDate, setSelectedDate] = useState(() => new Date());
 
   const [isQuickPickerOpen,      setIsQuickPickerOpen]      = useState(false);
+  const [isMonthPickerOpen,      setIsMonthPickerOpen]      = useState(false);
   const [isAuspiciousPickerOpen, setIsAuspiciousPickerOpen] = useState(false);
   const [isAboutOpen,            setIsAboutOpen]            = useState(false);
   const [isLunarEventModalOpen,  setIsLunarEventModalOpen]  = useState(false);
@@ -75,7 +77,7 @@ export default function App() {
   );
 
   const anyModalOpen =
-    isQuickPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen;
+    isQuickPickerOpen || isMonthPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen;
 
   // While a modal is open: hide the chat bubble (body class) and let Escape close it.
   useEffect(() => {
@@ -84,6 +86,7 @@ export default function App() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setIsQuickPickerOpen(false);
+      setIsMonthPickerOpen(false);
       setIsAuspiciousPickerOpen(false);
       setIsAboutOpen(false);
       setIsLunarEventModalOpen(false);
@@ -188,6 +191,7 @@ export default function App() {
               setCurrentDate(date);
             }}
             onOpenQuickPicker={() => setIsQuickPickerOpen(true)}
+            onOpenMonthPicker={() => setIsMonthPickerOpen(true)}
             onOpenAuspiciousPicker={() => setIsAuspiciousPickerOpen(true)}
             onOpenLunarEventModal={() => setIsLunarEventModalOpen(true)}
           />
@@ -216,6 +220,18 @@ export default function App() {
             setSelectedDate(date);
             setIsQuickPickerOpen(false);
             setActiveTab('calendar');
+          }}
+        />
+      )}
+
+      {isMonthPickerOpen && (
+        <MonthYearPickerModal
+          value={currentDate}
+          onClose={() => setIsMonthPickerOpen(false)}
+          onSelect={date => {
+            // Same as the month arrows: change the shown month, keep the selected day.
+            setCurrentDate(date);
+            setIsMonthPickerOpen(false);
           }}
         />
       )}
