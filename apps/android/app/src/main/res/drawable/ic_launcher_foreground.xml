@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Crescent moon and star of shared/design/icon.svg (512 viewport), scaled into the adaptive-icon safe zone.
+     Crescent = circle (246,262) r140 minus circle (306,214) r128, written as two arcs. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="512"
+    android:viewportHeight="512">
+    <group android:pivotX="256" android:pivotY="256" android:scaleX="0.66" android:scaleY="0.66">
+        <path android:pathData="M371.55,323.95 A140,140 0 1,1 213.13,125.91 A128,128 0 0,0 371.55,323.95 Z">
+            <aapt:attr name="android:fillColor">
+                <gradient android:type="linear" android:startX="106" android:startY="122" android:endX="386" android:endY="402">
+                    <item android:offset="0" android:color="#FFFDE68A" />
+                    <item android:offset="1" android:color="#FFF59E0B" />
+                </gradient>
+            </aapt:attr>
+        </path>
+        <path android:fillColor="#FFFDE68A" android:pathData="M370,128 l12,27 27,12 -27,12 -12,27 -12,-27 -27,-12 27,-12z" />
+        <path android:fillColor="#CCFDE68A" android:pathData="M404,236 m-9,0 a9,9 0 1,0 18,0 a9,9 0 1,0 -18,0" />
+    </group>
+</vector>
