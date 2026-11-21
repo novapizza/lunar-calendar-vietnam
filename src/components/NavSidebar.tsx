@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { id: 'events' as NavTab, label: 'Sự kiện', Icon: Sparkles },
 ];
 
-/** Bottom tab bar on phones, slim left rail on tablet/desktop. */
+/** Bottom tab bar on compact windows (< 600px), slim left rail from md (600px). */
 export function NavSidebar({ activeTab, onTabChange }: Props) {
   return (
     <aside

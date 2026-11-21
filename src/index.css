@@ -7,6 +7,15 @@
    ========================================================================== */
 
 @theme inline {
+  /* Window size classes (Android's widths): compact < 600 (phones, foldable cover),
+     md 600 medium (foldable inner, tablet portrait), lg 840 expanded (tablet landscape),
+     xl 1200 large (laptop/desktop), 2xl 1600 extra-large. rem = 16px in media queries. */
+  --breakpoint-sm: 30rem;
+  --breakpoint-md: 37.5rem;
+  --breakpoint-lg: 52.5rem;
+  --breakpoint-xl: 75rem;
+  --breakpoint-2xl: 100rem;
+
   --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
 
@@ -192,7 +201,7 @@
     text-size-adjust: 100%;
   }
 
-  @media (max-width: 767px) {
+  @media (max-width: 599px) {
     html {
       font-size: 16px;
     }

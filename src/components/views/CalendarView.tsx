@@ -122,10 +122,10 @@ export function CalendarView({
   const goToToday = () => onSelectedDateChange(new Date());
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:overflow-hidden md:flex md:flex-col">
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain lg:overflow-hidden lg:flex lg:flex-col">
 
       {/* ───────── Header ───────── */}
-      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] md:static md:shrink-0">
+      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] lg:static lg:shrink-0">
         <div className="max-w-6xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
           <div className="flex items-center gap-2">
             <button
@@ -141,11 +141,11 @@ export function CalendarView({
               </span>
               <span className="block text-xs md:text-sm text-fg-2 truncate">{lunarSubtitle}</span>
             </button>
-            {/* Header "Hôm nay" only from sm up; on phones it sits first in the chip row
+            {/* Header "Hôm nay" only from md (600px) up; on phones it sits first in the chip row
                 below, so the month title keeps the full width. Wrapper divs carry the
                 visibility because btn-soft/chip set their own display. */}
             {!showingThisMonth && (
-              <div className="hidden sm:block shrink-0">
+              <div className="hidden md:block shrink-0">
                 <button onClick={goToToday} className="btn-soft px-3 py-2">
                   Hôm nay
                 </button>
@@ -161,7 +161,7 @@ export function CalendarView({
 
           <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
             {!showingThisMonth && (
-              <div className="sm:hidden shrink-0">
+              <div className="md:hidden shrink-0">
                 <button onClick={goToToday} className="chip text-brand">
                   <Undo2 size={15} /> Hôm nay
                 </button>
@@ -181,15 +181,15 @@ export function CalendarView({
       </header>
 
       {/* ───────── Body ───────── */}
-      <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 md:pb-6 md:flex-1 md:min-h-0 md:flex md:gap-6">
+      <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 lg:pb-6 lg:flex-1 lg:min-h-0 lg:flex lg:gap-6">
 
         {/* Month grid */}
         {/* Phones: 8px page gutter and 4px padding (instead of 16 + 8) so day cells get
-            ~3.4px wider. md: the card hugs the square grid instead of stretching. */}
-        <section className="card -mx-2 sm:mx-0 p-1 sm:p-3 md:flex-1 md:min-h-0 md:self-start md:max-h-full md:overflow-y-auto no-scrollbar" {...swipe}>
-          {/* Week-number column only from lg: at md the two-column layout leaves the grid ~300px. */}
-          <div className="grid grid-cols-7 lg:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 sm:gap-1 lg:gap-1.5">
-            <div className="hidden lg:block" />
+            ~3.4px wider. lg (two panes): the card hugs the square grid instead of stretching. */}
+        <section className="card -mx-2 md:mx-0 p-1 md:p-3 lg:flex-1 lg:min-h-0 lg:self-start lg:max-h-full lg:overflow-y-auto no-scrollbar" {...swipe}>
+          {/* Week-number column only from xl: the lg two-pane layout leaves the grid ~400px. */}
+          <div className="grid grid-cols-7 xl:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 md:gap-1 xl:gap-1.5">
+            <div className="hidden xl:block" />
             {WEEK_DAYS.map(d => (
               <div key={d} className={cn('py-2 text-center text-xs font-semibold', d === 'CN' ? 'text-lunar' : 'text-fg-3')}>
                 {d}
@@ -199,7 +199,7 @@ export function CalendarView({
             {weeks.map(week => [
               <div
                 key={`w${week[0].day.getTime()}`}
-                className="hidden lg:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
+                className="hidden xl:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
                 title="Tuần"
               >
                 {getWeek(week[0].day, { weekStartsOn: 1, locale: vi })}
@@ -287,7 +287,7 @@ export function CalendarView({
         </section>
 
         {/* Selected-day panel */}
-        <aside className="mt-4 md:mt-0 md:w-72 lg:w-80 md:shrink-0 md:overflow-y-auto no-scrollbar flex flex-col gap-3">
+        <aside className="mt-4 lg:mt-0 lg:w-72 xl:w-80 lg:shrink-0 lg:overflow-y-auto no-scrollbar flex flex-col gap-3">
           <section className="card p-4">
             <p className="section-label">Ngày đã chọn</p>
             <div className="flex items-end justify-between gap-3 mt-1">
@@ -363,7 +363,7 @@ export function CalendarView({
                     <button
                       onClick={() => onDeleteNote(note.id)}
                       aria-label="Xoá ghi chú"
-                      className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
+                      className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 transition"
                     >
                       <Trash size={14} />
                     </button>

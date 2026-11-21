@@ -130,7 +130,7 @@ export function TodayView({
 
         <InstallBanner />
 
-        <div className="grid gap-4 md:gap-6 md:grid-cols-[1.15fr_1fr] items-start">
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.15fr_1fr] items-start">
 
           {/* ───────────── Left column ───────────── */}
           <div className="flex flex-col gap-4">
@@ -323,7 +323,7 @@ export function TodayView({
                       <button
                         onClick={() => onDeleteNote(note.id)}
                         aria-label="Xoá ghi chú"
-                        className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
+                        className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 transition"
                       >
                         <Trash size={15} />
                       </button>

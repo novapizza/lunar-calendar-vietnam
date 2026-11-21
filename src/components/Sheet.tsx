@@ -25,7 +25,7 @@ interface Props {
  */
 export function Sheet({ title, heading, subtitle, icon, onClose, children, footer, size = 'md', tall }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6">
+    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-6">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in"
         onClick={onClose}
@@ -37,18 +37,18 @@ export function Sheet({ title, heading, subtitle, icon, onClose, children, foote
         aria-label={title}
         className={cn(
           'relative w-full flex flex-col bg-surface shadow-[var(--shadow-float)] animate-sheet-in',
-          'rounded-t-[1.75rem] sm:rounded-[1.75rem] overflow-hidden',
-          'max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:max-h-[min(88dvh,820px)]',
-          tall && 'h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] sm:h-auto',
-          size === 'md' ? 'sm:max-w-md' : 'sm:max-w-xl',
+          'rounded-t-[1.75rem] md:rounded-[1.75rem] overflow-hidden',
+          'max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] md:max-h-[min(88dvh,820px)]',
+          tall && 'h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] md:h-auto',
+          size === 'md' ? 'md:max-w-md' : 'md:max-w-xl',
         )}
       >
         {/* Grab handle (phones) */}
-        <div className="sm:hidden pt-2.5 pb-1 flex justify-center" aria-hidden="true">
+        <div className="md:hidden pt-2.5 pb-1 flex justify-center" aria-hidden="true">
           <div className="h-1.5 w-10 rounded-full bg-surface-3" />
         </div>
 
-        <header className="flex items-center gap-3 px-5 pt-2 pb-3 sm:pt-5">
+        <header className="flex items-center gap-3 px-5 pt-2 pb-3 md:pt-5">
           {icon && (
             <div className="w-10 h-10 shrink-0 rounded-2xl bg-brand-soft text-brand flex items-center justify-center">
               {icon}
@@ -68,7 +68,7 @@ export function Sheet({ title, heading, subtitle, icon, onClose, children, foote
         </div>
 
         {footer && (
-          <footer className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] sm:pb-5 border-t border-line bg-surface">
+          <footer className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-5 border-t border-line bg-surface">
             {footer}
           </footer>
         )}
