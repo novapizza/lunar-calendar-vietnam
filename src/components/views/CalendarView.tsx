@@ -122,11 +122,11 @@ export function CalendarView({
   const goToToday = () => onSelectedDateChange(new Date());
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain lg:overflow-hidden lg:flex lg:flex-col">
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain wide:overflow-hidden wide:flex wide:flex-col">
 
       {/* ───────── Header ───────── */}
-      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] lg:static lg:shrink-0">
-        <div className="max-w-6xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
+      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] wide:static wide:shrink-0">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenMonthPicker}
@@ -181,13 +181,15 @@ export function CalendarView({
       </header>
 
       {/* ───────── Body ───────── */}
-      <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 lg:pb-6 lg:flex-1 lg:min-h-0 lg:flex lg:gap-6">
+      <div className="max-w-6xl xl:max-w-7xl w-full mx-auto px-4 md:px-8 pb-10 wide:pb-6 wide:flex-1 wide:min-h-0 wide:flex wide:gap-6">
 
         {/* Month grid */}
         {/* Phones: 8px page gutter and 4px padding (instead of 16 + 8) so day cells get
-            ~3.4px wider. lg (two panes): the card hugs the square grid instead of stretching. */}
-        <section className="card -mx-2 md:mx-0 p-1 md:p-3 lg:flex-1 lg:min-h-0 lg:self-start lg:max-h-full lg:overflow-y-auto no-scrollbar" {...swipe}>
-          {/* Week-number column only from xl: the lg two-pane layout leaves the grid ~400px. */}
+            ~3.4px wider. From 600px `cal-fit` caps the width by the window height so the
+            whole month is visible. stack: centred. wide (two panes): takes the free width
+            up to that cap, then the day panel grows; the card hugs the grid. */}
+        <section className="card cal-fit -mx-2 md:mx-0 p-1 md:p-3 stack:mx-auto wide:flex-[999_1_0%] wide:min-w-0 wide:min-h-0 wide:self-start wide:max-h-full wide:overflow-y-auto no-scrollbar" {...swipe}>
+          {/* Week-number column only from xl: narrower two-pane windows leave the grid ~400px. */}
           <div className="grid grid-cols-7 xl:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 md:gap-1 xl:gap-1.5">
             <div className="hidden xl:block" />
             {WEEK_DAYS.map(d => (
@@ -286,9 +288,11 @@ export function CalendarView({
           </div>
         </section>
 
-        {/* Selected-day panel */}
-        <aside className="mt-4 lg:mt-0 lg:w-72 xl:w-80 lg:shrink-0 lg:overflow-y-auto no-scrollbar flex flex-col gap-3">
-          <section className="card p-4">
+        {/* Selected-day panel. Phones: cards stacked. stack: two columns (day card on the
+            left, hours + notes on the right). wide: a column beside the calendar, 18rem
+            wide and growing to 32rem once the calendar has reached its cap. */}
+        <aside className="mt-4 flex flex-col gap-3 stack:grid stack:grid-cols-2 stack:items-start stack:gap-4 wide:mt-0 wide:flex-[1_0_18rem] wide:max-w-[32rem] wide:min-w-0 wide:overflow-y-auto no-scrollbar">
+          <section className="card p-4 stack:row-span-2">
             <p className="section-label">Ngày đã chọn</p>
             <div className="flex items-end justify-between gap-3 mt-1">
               <div>

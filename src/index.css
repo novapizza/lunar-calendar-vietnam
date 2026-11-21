@@ -237,6 +237,41 @@
    Components
    ========================================================================== */
 
+/* Calendar layout modes (see CalendarView).
+   wide  = two panes: expanded width and not a tall portrait window (height > 1.15 x width),
+           e.g. tablets in landscape, laptops; an iPad Pro 12.9 in portrait is NOT wide.
+   stack = one column with the rail: every other window from 600px. */
+@custom-variant wide {
+  @media (min-width: 52.5rem) and (min-aspect-ratio: 20/23) { @slot; }
+}
+@custom-variant stack {
+  @media (min-width: 37.5rem) and (not ((min-width: 52.5rem) and (min-aspect-ratio: 20/23))) { @slot; }
+}
+
+/* Month card: its width is capped by the window height so six week rows always fit,
+   and by a 120px cell. Card height = header 9rem + bottom space 1.5rem + padding 1.5rem
+   + weekday row 2rem + legend 2rem + six gaps; cell = (width - extra) / 7.
+   Phones (< 600px) are sized by width only. */
+@layer components {
+  @media (min-width: 37.5rem) {
+    .cal-fit {
+      --cal-fit-chrome: 17.5rem;
+      --cal-fit-extra: 3rem;
+      max-width: clamp(
+        20rem,
+        calc((100dvh - env(safe-area-inset-top) - var(--cal-fit-chrome)) * 7 / 6 + var(--cal-fit-extra)),
+        calc(840px + var(--cal-fit-extra))
+      );
+    }
+  }
+  @media (min-width: 75rem) {
+    .cal-fit {
+      --cal-fit-chrome: 18.25rem;
+      --cal-fit-extra: calc(4.125rem + 28px);
+    }
+  }
+}
+
 @utility card {
   @apply bg-surface rounded-[var(--radius-card)] shadow-[var(--shadow-card)];
 }
