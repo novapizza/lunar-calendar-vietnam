@@ -10,6 +10,8 @@ import { useNotes } from './hooks/useNotes';
 import { useLunarEvents } from './hooks/useLunarEvents';
 import { useLunarPresets } from './hooks/useLunarPresets';
 import { useTheme } from './hooks/useTheme';
+import { useAccent } from './hooks/useAccent';
+import { menhOfBirthDate } from './lib/menh';
 import { getLunarInfo, getHoliday, findBestDates } from './services/lunarService';
 import { NavSidebar, NavTab } from './components/NavSidebar';
 import { TodayView } from './components/views/TodayView';
@@ -18,6 +20,7 @@ import { EventsView } from './components/views/EventsView';
 import { ToolsView } from './components/views/ToolsView';
 import { QuickDatePickerModal } from './components/modals/QuickDatePickerModal';
 import { MonthYearPickerModal } from './components/modals/MonthYearPickerModal';
+import { BirthDatePickerModal } from './components/modals/BirthDatePickerModal';
 import { AuspiciousDateModal } from './components/modals/AuspiciousDateModal';
 import { AboutModal } from './components/modals/AboutModal';
 import { LunarEventModal } from './components/modals/LunarEventModal';
@@ -26,8 +29,15 @@ import { AuspiciousDate } from './types';
 function loadZodiac(): string | null {
   try { return localStorage.getItem('userZodiac'); } catch { return null; }
 }
-function saveZodiac(value: string): void {
-  try { localStorage.setItem('userZodiac', value); } catch { /* quota */ }
+/** Solar birth date "YYYY-MM-DD"; gives the mệnh (main colour) and the zodiac. */
+function loadBirthDate(): string | null {
+  try { return localStorage.getItem('userBirthDate'); } catch { return null; }
+}
+function saveBirthDate(value: string | null): void {
+  try {
+    if (value) localStorage.setItem('userBirthDate', value);
+    else localStorage.removeItem('userBirthDate');
+  } catch { /* quota */ }
 }
 
 export default function App() {
@@ -40,12 +50,18 @@ export default function App() {
   const [isAuspiciousPickerOpen, setIsAuspiciousPickerOpen] = useState(false);
   const [isAboutOpen,            setIsAboutOpen]            = useState(false);
   const [isLunarEventModalOpen,  setIsLunarEventModalOpen]  = useState(false);
+  const [isBirthPickerOpen,      setIsBirthPickerOpen]      = useState(false);
 
   const [activeActivity,  setActiveActivity]  = useState<string | null>(null);
   const [auspiciousDates, setAuspiciousDates] = useState<AuspiciousDate[]>([]);
-  const [userZodiac,      setUserZodiac]      = useState<string | null>(loadZodiac);
+  const [userBirthDate,   setUserBirthDate]   = useState<string | null>(loadBirthDate);
+  /** Zodiac picked before the app asked for the birth date; used until one is entered. */
+  const [legacyZodiac] = useState<string | null>(loadZodiac);
 
   const { pref: themePref, setPref: setThemePref, cycle: cycleTheme } = useTheme();
+  const userMenh = useMemo(() => menhOfBirthDate(userBirthDate), [userBirthDate]);
+  const userZodiac: string | null = userMenh?.chi ?? legacyZodiac;
+  const { pref: accentPref, setPref: setAccentPref, palette } = useAccent(userMenh);
   const { now, currentTraditionalHour } = useClock();
   const { notes, selectedDateNotes, newNoteContent, setNewNoteContent, addNote, deleteNote } =
     useNotes(selectedDate);
@@ -78,7 +94,7 @@ export default function App() {
   );
 
   const anyModalOpen =
-    isQuickPickerOpen || isMonthPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen;
+    isQuickPickerOpen || isMonthPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen || isBirthPickerOpen;
 
   // While a modal is open: hide the chat bubble (body class) and let Escape close it.
   useEffect(() => {
@@ -91,6 +107,7 @@ export default function App() {
       setIsAuspiciousPickerOpen(false);
       setIsAboutOpen(false);
       setIsLunarEventModalOpen(false);
+      setIsBirthPickerOpen(false);
       setActiveActivity(null);
       setAuspiciousDates([]);
     };
@@ -131,9 +148,9 @@ export default function App() {
     setSelectedDate(next);
   };
 
-  const handleZodiacChange = (zodiac: string) => {
-    setUserZodiac(zodiac);
-    saveZodiac(zodiac);
+  const handleBirthDateChange = (value: string | null) => {
+    setUserBirthDate(value);
+    saveBirthDate(value);
   };
 
   const handleFindDates = (key: string) => {
@@ -171,6 +188,7 @@ export default function App() {
             currentTraditionalHour={currentTraditionalHour}
             lunarInfo={selectedLunarInfo}
             userZodiac={userZodiac}
+            userMenh={userMenh}
             zodiacClash={zodiacClash}
             holiday={holiday}
             todayNotes={selectedDateNotes}
@@ -178,7 +196,7 @@ export default function App() {
             onNewNoteChange={setNewNoteContent}
             onAddNote={addNote}
             onDeleteNote={deleteNote}
-            onZodiacChange={handleZodiacChange}
+            onOpenSettings={() => handleTabChange('tools')}
             onDayChange={date => {
               setSelectedDate(date);
               setCurrentDate(date);
@@ -218,9 +236,14 @@ export default function App() {
 
         {activeTab === 'tools' && (
           <ToolsView
-            userZodiac={userZodiac}
+            birthDate={userBirthDate}
+            userMenh={userMenh}
+            legacyZodiac={legacyZodiac}
+            accentPref={accentPref}
+            palette={palette}
             themePref={themePref}
-            onZodiacChange={handleZodiacChange}
+            onOpenBirthPicker={() => setIsBirthPickerOpen(true)}
+            onAccentChange={setAccentPref}
             onThemeChange={setThemePref}
             onOpenQuickPicker={() => setIsQuickPickerOpen(true)}
             onOpenAuspiciousPicker={() => setIsAuspiciousPickerOpen(true)}
@@ -262,6 +285,14 @@ export default function App() {
             showMonth(date);
             setIsMonthPickerOpen(false);
           }}
+        />
+      )}
+
+      {isBirthPickerOpen && (
+        <BirthDatePickerModal
+          value={userBirthDate}
+          onClose={() => setIsBirthPickerOpen(false)}
+          onSelect={handleBirthDateChange}
         />
       )}
 

@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
-import { CHI_NAMES } from '../../constants/calendar';
+import { ELEMENTS, type Menh } from '../../lib/menh';
 import { LunarInfo, UserNote } from '../../types';
 import { useSwipe } from '../../hooks/useSwipe';
 import { AboutLink } from '../AboutLink';
@@ -56,6 +56,7 @@ interface Props {
   currentTraditionalHour: string;
   lunarInfo: LunarInfo;
   userZodiac: string | null;
+  userMenh: Menh | null;
   zodiacClash: boolean | null;
   holiday: string | undefined;
   todayNotes: UserNote[];
@@ -63,7 +64,8 @@ interface Props {
   onNewNoteChange: (v: string) => void;
   onAddNote: () => void;
   onDeleteNote: (id: string) => void;
-  onZodiacChange: (zodiac: string) => void;
+  /** Opens "Tiện ích", where the birth date is entered. */
+  onOpenSettings: () => void;
   onDayChange: (date: Date) => void;
   onOpenAbout: () => void;
   themePref: ThemePref;
@@ -76,6 +78,7 @@ export function TodayView({
   currentTraditionalHour,
   lunarInfo,
   userZodiac,
+  userMenh,
   zodiacClash,
   holiday,
   todayNotes,
@@ -83,7 +86,7 @@ export function TodayView({
   onNewNoteChange,
   onAddNote,
   onDeleteNote,
-  onZodiacChange,
+  onOpenSettings,
   onDayChange,
   onOpenAbout,
   themePref,
@@ -270,17 +273,17 @@ export function TodayView({
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-fg">Tuổi của bạn</p>
-                  <p className="text-xs text-fg-2">Báo ngày xung tuổi</p>
+                  <p className="text-xs text-fg-2 truncate">
+                    {userMenh ? `Mệnh ${ELEMENTS[userMenh.element].name} · ${userMenh.napAm}` : 'Báo ngày xung tuổi'}
+                  </p>
                 </div>
-                <select
-                  value={userZodiac ?? ''}
-                  onChange={e => onZodiacChange(e.target.value)}
-                  aria-label="Chọn tuổi"
-                  className="field w-24 shrink-0 py-2 font-semibold cursor-pointer"
+                <button
+                  onClick={onOpenSettings}
+                  className="field w-auto shrink-0 py-2 font-semibold cursor-pointer whitespace-nowrap"
+                  aria-label={userZodiac ? `Tuổi ${userMenh?.canChi ?? userZodiac}, đổi ngày sinh` : 'Nhập ngày sinh'}
                 >
-                  <option value="">Chọn</option>
-                  {CHI_NAMES.map(chi => <option key={chi} value={chi}>{chi}</option>)}
-                </select>
+                  {userMenh?.canChi ?? userZodiac ?? 'Nhập ngày sinh'}
+                </button>
               </div>
               {zodiacClash && (
                 <Row
