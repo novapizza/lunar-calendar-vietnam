@@ -26,6 +26,12 @@
     "Tuất",
     "Hợi"
   ],
+  "canChiRules": {
+    "$comment": "Indexes into can/chi. jd = Julian day number of the solar date; y, m = lunar year and month (a leap month uses its month number).",
+    "day": "can (jd + 9) % 10, chi (jd + 1) % 12",
+    "month": "can (y * 12 + m + 3) % 10, chi (m + 1) % 12",
+    "year": "can (y + 6) % 10, chi (y + 8) % 12"
+  },
   "chiEmoji": {
     "Tý": "🐭",
     "Sửu": "🐃",

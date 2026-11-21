@@ -107,6 +107,12 @@ export const ACTIVITY_RULES: Readonly<Record<string, {
 // Core service functions
 // ---------------------------------------------------------------------------
 
+/** Can chi of a lunar month; a leap month shares its month's can chi. */
+export function monthCanChi(lunarMonth: number, lunarYear: number): string {
+  const m = Math.abs(lunarMonth);
+  return `${calendar.can[(lunarYear * 12 + m + 3) % 10]} ${calendar.chi[(m + 1) % 12]}`;
+}
+
 /** Converts a solar Date to a full LunarInfo object. */
 export function getLunarInfo(date: Date): LunarInfo {
   const d = date.getDate();
@@ -152,7 +158,9 @@ export function getLunarInfo(date: Date): LunarInfo {
     isLeap:       lunar.lunarDate.leap,
     // @dqcai/vn-lunar has a typo: "Bình" instead of "Bính" (丙) in its CAN array
     canChiDay:    lunar.dayCanChi.replace(/^Bình /, 'Bính '),
-    canChiMonth:  lunar.monthCanChi.replace(/^Bình /, 'Bính '),
+    // Ho Ngoc Duc's rule (shared/data/calendar.json canChiRules). @dqcai/vn-lunar's monthCanChi
+    // is one stem off (e.g. month 10 of 2026 is Kỷ Hợi, it says Mậu Hợi).
+    canChiMonth:  monthCanChi(lunar.lunarDate.month, lunar.lunarDate.year),
     canChiYear:   lunar.yearCanChi.replace(/^Bình /, 'Bính '),
     tietKhi:      'Đang cập nhật',
     gioHoangDao,
