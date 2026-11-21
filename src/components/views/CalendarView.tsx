@@ -184,10 +184,12 @@ export function CalendarView({
       <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 md:pb-6 md:flex-1 md:min-h-0 md:flex md:gap-6">
 
         {/* Month grid */}
-        {/* md: the card hugs the square grid instead of stretching to the column height. */}
-        <section className="card p-2 sm:p-3 md:flex-1 md:min-h-0 md:self-start md:max-h-full md:overflow-y-auto no-scrollbar" {...swipe}>
-          <div className="grid grid-cols-7 md:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 sm:gap-1 lg:gap-1.5">
-            <div className="hidden md:block" />
+        {/* Phones: 8px page gutter and 4px padding (instead of 16 + 8) so day cells get
+            ~3.4px wider. md: the card hugs the square grid instead of stretching. */}
+        <section className="card -mx-2 sm:mx-0 p-1 sm:p-3 md:flex-1 md:min-h-0 md:self-start md:max-h-full md:overflow-y-auto no-scrollbar" {...swipe}>
+          {/* Week-number column only from lg: at md the two-column layout leaves the grid ~300px. */}
+          <div className="grid grid-cols-7 lg:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 sm:gap-1 lg:gap-1.5">
+            <div className="hidden lg:block" />
             {WEEK_DAYS.map(d => (
               <div key={d} className={cn('py-2 text-center text-xs font-semibold', d === 'CN' ? 'text-lunar' : 'text-fg-3')}>
                 {d}
@@ -197,7 +199,7 @@ export function CalendarView({
             {weeks.map(week => [
               <div
                 key={`w${week[0].day.getTime()}`}
-                className="hidden md:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
+                className="hidden lg:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
                 title="Tuần"
               >
                 {getWeek(week[0].day, { weekStartsOn: 1, locale: vi })}
@@ -207,7 +209,8 @@ export function CalendarView({
                 const today    = isToday(day);
                 const inMonth  = isSameMonth(day, monthStart);
                 const sunday   = day.getDay() === 0;
-                const special  = lunar.lunarDay === 1 || lunar.lunarDay === 15 || !!dayHoliday;
+                const firstDay = lunar.lunarDay === 1;
+                const special  = firstDay || lunar.lunarDay === 15 || !!dayHoliday;
                 return (
                   <button
                     key={day.getTime()}
@@ -245,12 +248,18 @@ export function CalendarView({
                       className={cn(
                         'relative text-[11px] @min-[64px]:text-xs @min-[88px]:text-sm leading-none tabular-nums',
                         special ? 'text-lunar font-bold' : 'text-fg-3 font-medium',
+                        // "1/11" + dot is too wide to hang the dot off a centred number:
+                        // centre the whole group instead so both sides keep equal room.
+                        firstDay && 'inline-flex items-center',
                       )}
                     >
-                      {lunar.lunarDay === 1 ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
+                      {firstDay ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
                       {(lunar.rating !== 'neutral' || clash) && (
                         // Two dots stack vertically so they stay inside a ~40px cell.
-                        <span className={cn(DOT_SLOT, 'flex flex-col gap-px')} aria-hidden="true">
+                        <span
+                          className={cn(firstDay ? 'ml-[2px]' : DOT_SLOT, 'flex flex-col gap-px')}
+                          aria-hidden="true"
+                        >
                           {lunar.rating === 'good' && <span className={cn(DOT, 'bg-good')} />}
                           {lunar.rating === 'bad'  && <span className={cn(DOT, 'bg-bad/70')} />}
                           {clash && <span className={cn(DOT, 'bg-clash')} />}
@@ -278,7 +287,7 @@ export function CalendarView({
         </section>
 
         {/* Selected-day panel */}
-        <aside className="mt-4 md:mt-0 md:w-80 md:shrink-0 md:overflow-y-auto no-scrollbar flex flex-col gap-3">
+        <aside className="mt-4 md:mt-0 md:w-72 lg:w-80 md:shrink-0 md:overflow-y-auto no-scrollbar flex flex-col gap-3">
           <section className="card p-4">
             <p className="section-label">Ngày đã chọn</p>
             <div className="flex items-end justify-between gap-3 mt-1">
