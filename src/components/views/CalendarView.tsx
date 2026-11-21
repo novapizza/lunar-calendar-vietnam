@@ -31,7 +31,8 @@ interface Props {
   onNewNoteChange: (v: string) => void;
   onAddNote: () => void;
   onDeleteNote: (id: string) => void;
-  onCurrentDateChange: (date: Date) => void;
+  /** Show the month of `date`; the selected day moves into that month too. */
+  onShowMonth: (date: Date) => void;
   onSelectedDateChange: (date: Date) => void;
   onOpenQuickPicker: () => void;
   /** Month/year grid picker, opened from the month title. */
@@ -65,7 +66,7 @@ export function CalendarView({
   onNewNoteChange,
   onAddNote,
   onDeleteNote,
-  onCurrentDateChange,
+  onShowMonth,
   onSelectedDateChange,
   onOpenQuickPicker,
   onOpenMonthPicker,
@@ -103,14 +104,14 @@ export function CalendarView({
   }, [monthStart.getTime()]);
 
   const swipe = useSwipe(
-    () => onCurrentDateChange(addMonths(currentDate, 1)),
-    () => onCurrentDateChange(subMonths(currentDate, 1)),
+    () => onShowMonth(addMonths(currentDate, 1)),
+    () => onShowMonth(subMonths(currentDate, 1)),
   );
 
   const rating = RATING[selectedLunarInfo.rating];
   const selectedClash = clashes(userZodiac, selectedLunarInfo);
   const showingThisMonth = isSameMonth(currentDate, new Date());
-  const goToToday = () => { const t = new Date(); onCurrentDateChange(t); onSelectedDateChange(t); };
+  const goToToday = () => onSelectedDateChange(new Date());
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:overflow-hidden md:flex md:flex-col">
@@ -142,10 +143,10 @@ export function CalendarView({
                 </button>
               </div>
             )}
-            <button onClick={() => onCurrentDateChange(subMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng trước">
+            <button onClick={() => onShowMonth(subMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng trước">
               <ChevronLeft size={20} />
             </button>
-            <button onClick={() => onCurrentDateChange(addMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng sau">
+            <button onClick={() => onShowMonth(addMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng sau">
               <ChevronRight size={20} />
             </button>
           </div>

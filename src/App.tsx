@@ -114,6 +114,22 @@ export default function App() {
     }
   };
 
+  /**
+   * Show the month of `date` in the month calendar and move the selected day
+   * into it: same day number, or the 1st when that month is shorter
+   * (e.g. 31 -> April, 29 Feb -> 2027). Used by the month arrows, swipe and
+   * the month/year picker.
+   */
+  const showMonth = (date: Date) => {
+    const y = date.getFullYear();
+    const m = date.getMonth();
+    const day = selectedDate.getDate();
+    const daysInMonth = new Date(y, m + 1, 0).getDate();
+    const next = new Date(y, m, day <= daysInMonth ? day : 1);
+    setCurrentDate(next);
+    setSelectedDate(next);
+  };
+
   const handleZodiacChange = (zodiac: string) => {
     setUserZodiac(zodiac);
     saveZodiac(zodiac);
@@ -185,7 +201,7 @@ export default function App() {
             onNewNoteChange={setNewNoteContent}
             onAddNote={addNote}
             onDeleteNote={deleteNote}
-            onCurrentDateChange={setCurrentDate}
+            onShowMonth={showMonth}
             onSelectedDateChange={date => {
               setSelectedDate(date);
               setCurrentDate(date);
@@ -229,15 +245,7 @@ export default function App() {
           value={currentDate}
           onClose={() => setIsMonthPickerOpen(false)}
           onSelect={date => {
-            // Move the selected day into the chosen month: same day number,
-            // or the 1st when that month is shorter (e.g. 31 -> April, 29 Feb -> 2027).
-            const y = date.getFullYear();
-            const m = date.getMonth();
-            const day = selectedDate.getDate();
-            const daysInMonth = new Date(y, m + 1, 0).getDate();
-            const next = new Date(y, m, day <= daysInMonth ? day : 1);
-            setCurrentDate(next);
-            setSelectedDate(next);
+            showMonth(date);
             setIsMonthPickerOpen(false);
           }}
         />
