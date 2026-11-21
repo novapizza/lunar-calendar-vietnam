@@ -23,7 +23,7 @@ export function UpdatePrompt() {
   return (
     <div
       role="status"
-      className="fixed left-3 right-3 md:left-auto md:right-6 md:w-80 z-[60] bottom-[calc(4.75rem+env(safe-area-inset-bottom))] md:bottom-6 flex items-center gap-3 rounded-2xl bg-fg text-bg px-4 py-3 shadow-[var(--shadow-float)] animate-sheet-in"
+      className="fixed left-3 right-3 book:left-[calc(50%+0.75rem)] rail:left-auto rail:right-6 rail:w-80 z-[60] bottom-[calc(4.75rem+env(safe-area-inset-bottom))] rail:bottom-6 flex items-center gap-3 rounded-2xl bg-fg text-bg px-4 py-3 shadow-[var(--shadow-float)] animate-sheet-in"
     >
       <RefreshCw size={16} className="shrink-0 opacity-70" />
       <span className="flex-1 text-sm">Đã có phiên bản mới</span>

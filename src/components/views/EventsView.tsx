@@ -29,33 +29,36 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
-      <div className="max-w-2xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
-        <header className="mb-4 md:mb-6">
+      <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
+        {/* book (unfolded foldable): two panes split at the fold; left = title + next
+            event, right = the list. */}
+        <div className="book:grid book:grid-cols-2 book:grid-rows-[auto_1fr] book:gap-x-4 book:items-start">
+        <header className="mb-4 rail:mb-6 book:col-start-1">
           <p className="section-label">Sắp diễn ra</p>
-          <h1 className="text-2xl md:text-3xl font-extrabold text-fg">Ngày lễ & sự kiện</h1>
+          <h1 className="text-2xl rail:text-3xl font-extrabold text-fg">Ngày lễ & sự kiện</h1>
         </header>
 
         {!next ? (
-          <div className="card p-10 text-center">
+          <div className="card p-10 text-center book:col-start-1">
             <CalendarX2 size={40} className="mx-auto mb-3 text-fg-3" />
             <p className="font-semibold text-fg-2">Không có sự kiện trong 6 tháng tới</p>
           </div>
         ) : (
           <>
             {/* Next event highlight */}
-            <section className="relative overflow-hidden rounded-[1.75rem] p-5 hero">
+            <section className="relative overflow-hidden rounded-[1.75rem] p-5 hero book:col-start-1 book:row-start-2">
               <div className="pointer-events-none absolute -right-12 -top-12 w-44 h-44 rounded-full bg-hero-accent/8" aria-hidden="true" />
               <p className="relative text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">Sự kiện tiếp theo</p>
               <div className="relative mt-2 flex items-end justify-between gap-4">
                 <div className="min-w-0">
-                  <h2 className="text-xl md:text-2xl font-extrabold leading-tight">{next.title}</h2>
+                  <h2 className="text-xl rail:text-2xl font-extrabold leading-tight">{next.title}</h2>
                   <p className="mt-1 text-sm text-white/80 capitalize">
                     {format(next.solarDate, 'EEEE, d/M/yyyy', { locale: vi })}
                     {next.source === 'lunar' && ` · ${next.lunarDay}/${next.lunarMonth} âm`}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
-                  <p className="text-4xl md:text-5xl font-extrabold leading-none text-hero-accent tabular-nums">
+                  <p className="text-4xl rail:text-5xl font-extrabold leading-none text-hero-accent tabular-nums">
                     {next.daysUntil === 0 ? '🎉' : next.daysUntil}
                   </p>
                   <p className="text-xs font-semibold text-white/75 mt-1">
@@ -65,8 +68,11 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
               </div>
             </section>
 
+            {/* Month groups: one column; from lg (840px) two newspaper columns,
+                read top to bottom then across. */}
+            <div className="mt-6 lg:columns-2 lg:gap-6 book:mt-0 book:col-start-2 book:row-start-1 book:row-span-2">
             {groups.map(([month, list]) => (
-              <section key={month} className="mt-6">
+              <section key={month} className="mb-6 break-inside-avoid">
                 <h2 className="section-label mb-2 px-1">{month}</h2>
                 <ul className="card divide-y divide-line overflow-hidden">
                   {list.map(event => (
@@ -97,8 +103,10 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
                 </ul>
               </section>
             ))}
+            </div>
           </>
         )}
+        </div>
 
         <AboutLink onClick={onOpenAbout} />
       </div>

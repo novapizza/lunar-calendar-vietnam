@@ -23,7 +23,9 @@ export default defineConfig(() => {
           start_url: '/',
           scope: '/',
           display: 'standalone',
-          orientation: 'portrait',
+          // Tablets and unfolded foldables rotate; phones are kept portrait at runtime
+          // (src/lib/orientation.ts + RotateOverlay).
+          orientation: 'any',
           theme_color: '#FAF5EC',
           background_color: '#FAF5EC',
           categories: ['lifestyle', 'utilities'],

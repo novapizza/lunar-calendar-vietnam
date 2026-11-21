@@ -7,6 +7,15 @@
    ========================================================================== */
 
 @theme inline {
+  /* Window size classes (Android's widths): compact < 600 (phones, foldable cover),
+     md 600 medium (foldable inner, tablet portrait), lg 840 expanded (tablet landscape),
+     xl 1200 large (laptop/desktop), 2xl 1600 extra-large. rem = 16px in media queries. */
+  --breakpoint-sm: 30rem;
+  --breakpoint-md: 37.5rem;
+  --breakpoint-lg: 52.5rem;
+  --breakpoint-xl: 75rem;
+  --breakpoint-2xl: 100rem;
+
   --font-sans: "Be Vietnam Pro", ui-sans-serif, system-ui, -apple-system, sans-serif;
   --font-display: "Be Vietnam Pro", ui-sans-serif, system-ui, sans-serif;
 
@@ -192,7 +201,8 @@
     text-size-adjust: 100%;
   }
 
-  @media (max-width: 767px) {
+  /* Phones, and the two phone-sized panes of an unfolded foldable (book). */
+  @media (max-width: 599px), (min-width: 37.5rem) and (max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) {
     html {
       font-size: 16px;
     }
@@ -227,6 +237,62 @@
 /* ==========================================================================
    Components
    ========================================================================== */
+
+/* Layout modes. Exactly one of book / stack / wide applies from 600px; below 600px
+   (phones, foldable cover screen) none does.
+
+   book  = an unfolded foldable: 600-839px wide and roughly square (3:4 to 4:3), e.g.
+           Galaxy Z Fold inner 619x720 / 720x619, Pixel Fold inner 692x717. The screen is
+           split into two equal panes at the fold; each pane is laid out like a phone
+           (16px root font, bottom tab bar, bottom sheets inside the right pane).
+   rail  = every other window from 600px: left navigation rail, tablet/desktop type scale.
+           Use `rail:` where the phone and tablet styles differ (it replaces `md:`).
+   wide  = rail + two calendar panes: >= 840px and not a tall portrait window
+           (height > 1.15 x width); tablets in landscape, laptops.
+   stack = rail + one column: the remaining windows (tablets in portrait).
+
+   Order matters: later variants override earlier ones. */
+@custom-variant rail {
+  @media (min-width: 37.5rem) and (not ((max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3))) { @slot; }
+}
+@custom-variant book {
+  @media (min-width: 37.5rem) and (max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) { @slot; }
+}
+@custom-variant wide {
+  @media (min-width: 52.5rem) and (min-aspect-ratio: 20/23) { @slot; }
+}
+@custom-variant stack {
+  @media (min-width: 37.5rem) and (not ((max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3))) and (not ((min-width: 52.5rem) and (min-aspect-ratio: 20/23))) { @slot; }
+}
+/* A phone held sideways (the app is portrait-only on phones). The aspect-ratio guard
+   keeps an on-screen keyboard that shrinks a portrait viewport from matching. */
+@custom-variant phone-landscape {
+  @media (orientation: landscape) and (max-height: 479px) and (min-aspect-ratio: 3/2) and (pointer: coarse) { @slot; }
+}
+
+/* Month card: its width is capped by the window height so six week rows always fit,
+   and by a 120px cell. Card height = header 9rem + bottom space 1.5rem + padding 1.5rem
+   + weekday row 2rem + legend 2rem + six gaps; cell = (width - extra) / 7.
+   Phones (< 600px) are sized by width only. */
+@layer components {
+  @media (min-width: 37.5rem) {
+    .cal-fit {
+      --cal-fit-chrome: 17.5rem;
+      --cal-fit-extra: 3rem;
+      max-width: clamp(
+        20rem,
+        calc((100dvh - env(safe-area-inset-top) - var(--cal-fit-chrome)) * 7 / 6 + var(--cal-fit-extra)),
+        calc(840px + var(--cal-fit-extra))
+      );
+    }
+  }
+  @media (min-width: 75rem) {
+    .cal-fit {
+      --cal-fit-chrome: 18.25rem;
+      --cal-fit-extra: calc(4.125rem + 28px);
+    }
+  }
+}
 
 @utility card {
   @apply bg-surface rounded-[var(--radius-card)] shadow-[var(--shadow-card)];

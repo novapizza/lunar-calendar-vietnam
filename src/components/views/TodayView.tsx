@@ -106,13 +106,26 @@ export function TodayView({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
-      <div className="max-w-5xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
+      <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
+
+        {/* Three groups: A date (hero, can chi), B the day (assessment, activities),
+            C hours + notes.
+            < 840px: one column, A B C stacked.
+            lg 840px: A | B side by side, C below across both.
+            xl 1200px: A | B | C, three equal columns.
+            B and C lay their two cards side by side whenever their own width allows
+            (container queries: C from 560px, B from 620px), which covers C at lg and
+            tablets in portrait.
+            book (unfolded foldable): two equal panes split at the fold; left = header +
+            A, right = B + C. The two pane wrappers are display:contents everywhere else. */}
+        <div className="grid gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-3 items-start book:grid-cols-2">
+        <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
 
         {/* Page header */}
-        <header className="flex items-end justify-between gap-3 mb-4 md:mb-6">
+        <header className="col-span-full flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="section-label">{viewingToday ? 'Hôm nay' : 'Đang xem'}</p>
-            <h1 className="text-2xl md:text-3xl font-extrabold text-fg capitalize truncate">
+            <h1 className="text-2xl book:text-xl rail:text-3xl font-extrabold text-fg capitalize truncate">
               {format(today, "EEEE, d 'tháng' M", { locale: vi })}
             </h1>
           </div>
@@ -130,9 +143,7 @@ export function TodayView({
 
         <InstallBanner />
 
-        <div className="grid gap-4 md:gap-6 md:grid-cols-[1.15fr_1fr] items-start">
-
-          {/* ───────────── Left column ───────────── */}
+          {/* ───────────── A: the date ───────────── */}
           <div className="flex flex-col gap-4">
 
             {/* Hero: solar + lunar date */}
@@ -167,14 +178,14 @@ export function TodayView({
               <div className="relative grid grid-cols-2 px-5 pt-2 pb-5">
                 <div className="pr-4 border-r border-white/15">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">Dương lịch</p>
-                  <p className="text-[64px] md:text-[80px] leading-none font-extrabold tracking-tight mt-1 tabular-nums">
+                  <p className="text-[64px] rail:text-[80px] leading-none font-extrabold tracking-tight mt-1 tabular-nums">
                     {format(today, 'd')}
                   </p>
                   <p className="mt-1 text-sm font-semibold">Tháng {format(today, 'M, yyyy')}</p>
                 </div>
                 <div className="pl-5">
                   <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-hero-accent/80">Âm lịch</p>
-                  <p className="text-[64px] md:text-[80px] leading-none font-extrabold tracking-tight mt-1 text-hero-accent tabular-nums">
+                  <p className="text-[64px] rail:text-[80px] leading-none font-extrabold tracking-tight mt-1 text-hero-accent tabular-nums">
                     {lunarInfo.lunarDay}
                   </p>
                   <p className="mt-1 text-sm font-semibold">
@@ -214,6 +225,13 @@ export function TodayView({
                 </div>
               ))}
             </section>
+          </div>
+        </div>
+
+        <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
+          {/* ───────────── B: the day ───────────── */}
+          <div className="@container">
+          <div className="flex flex-col gap-4 @min-[620px]:grid @min-[620px]:grid-cols-2 @min-[620px]:gap-6 @min-[620px]:items-start">
 
             {/* Day assessment */}
             <section className="card divide-y divide-line">
@@ -250,10 +268,6 @@ export function TodayView({
                 />
               )}
             </section>
-          </div>
-
-          {/* ───────────── Right column ───────────── */}
-          <div className="flex flex-col gap-4">
 
             {/* Activities */}
             <section className="card p-4">
@@ -284,6 +298,12 @@ export function TodayView({
                 </p>
               )}
             </section>
+          </div>
+          </div>
+
+          {/* ───────────── C: hours + notes ───────────── */}
+          <div className="@container lg:col-span-2 xl:col-span-1">
+          <div className="flex flex-col gap-4 @min-[560px]:grid @min-[560px]:grid-cols-[1.15fr_1fr] @min-[560px]:gap-6 @min-[560px]:items-start">
 
             {/* Giờ Hoàng Đạo */}
             <section className="card p-4">
@@ -296,7 +316,7 @@ export function TodayView({
                     <div
                       key={gio}
                       className={cn(
-                        'rounded-xl px-2 py-2.5 text-center',
+                        'rounded-xl px-1 py-2.5 text-center whitespace-nowrap',
                         isNow ? 'bg-brand text-on-brand' : 'bg-brand-soft',
                       )}
                     >
@@ -323,7 +343,7 @@ export function TodayView({
                       <button
                         onClick={() => onDeleteNote(note.id)}
                         aria-label="Xoá ghi chú"
-                        className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad md:opacity-0 md:group-hover:opacity-100 transition"
+                        className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 transition"
                       >
                         <Trash size={15} />
                       </button>
@@ -343,6 +363,8 @@ export function TodayView({
               </button>
             </section>
           </div>
+          </div>
+        </div>
         </div>
 
         <AboutLink onClick={onOpenAbout} />
