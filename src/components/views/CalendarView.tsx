@@ -11,7 +11,7 @@ import { vi } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
   Heart, Hammer, Store, StickyNote, Flag, FaceSlightlyFrowning,
-  Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus,
+  Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus, Undo2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WEEK_DAYS, CHI_NAMES } from '../../constants/calendar';
@@ -107,6 +107,7 @@ export function CalendarView({
   const rating = RATING[selectedLunarInfo.rating];
   const selectedClash = clashes(userZodiac, selectedLunarInfo);
   const showingThisMonth = isSameMonth(currentDate, new Date());
+  const goToToday = () => { const t = new Date(); onCurrentDateChange(t); onSelectedDateChange(t); };
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:overflow-hidden md:flex md:flex-col">
@@ -120,20 +121,23 @@ export function CalendarView({
               className="flex-1 min-w-0 text-left rounded-xl -mx-1 px-1 py-0.5 hover:bg-surface-2 transition-colors"
               aria-label="Chọn tháng, năm"
             >
-              <span className="flex items-center gap-1 text-2xl md:text-3xl font-extrabold text-fg">
+              {/* One line always: 20px at 320px wide, 24px from 375px, 30px on md+. */}
+              <span className="flex items-center gap-1 whitespace-nowrap text-[clamp(1.25rem,6.4vw,1.5rem)] md:text-3xl font-extrabold text-fg">
                 Tháng {format(currentDate, 'M')}
                 <span className="text-fg-3 font-bold">{format(currentDate, 'yyyy')}</span>
                 <ChevronDown size={20} className="text-fg-3 mt-1 shrink-0" />
               </span>
               <span className="block text-xs md:text-sm text-fg-2 truncate">{lunarSubtitle}</span>
             </button>
+            {/* Header "Hôm nay" only from sm up; on phones it sits first in the chip row
+                below, so the month title keeps the full width. Wrapper divs carry the
+                visibility because btn-soft/chip set their own display. */}
             {!showingThisMonth && (
-              <button
-                onClick={() => { const t = new Date(); onCurrentDateChange(t); onSelectedDateChange(t); }}
-                className="btn-soft px-3 py-2"
-              >
-                Hôm nay
-              </button>
+              <div className="hidden sm:block shrink-0">
+                <button onClick={goToToday} className="btn-soft px-3 py-2">
+                  Hôm nay
+                </button>
+              </div>
             )}
             <button onClick={() => onCurrentDateChange(subMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng trước">
               <ChevronLeft size={20} />
@@ -144,6 +148,13 @@ export function CalendarView({
           </div>
 
           <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            {!showingThisMonth && (
+              <div className="sm:hidden shrink-0">
+                <button onClick={goToToday} className="chip text-brand">
+                  <Undo2 size={15} /> Hôm nay
+                </button>
+              </div>
+            )}
             <button onClick={onOpenAuspiciousPicker} className="chip">
               <Search size={15} className="text-brand" /> Tìm ngày tốt
             </button>
