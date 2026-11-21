@@ -78,6 +78,8 @@
   --brand-strong: #8a2f1c;
   --brand-soft: #f7e4dc;
   --on-brand: #ffffff;
+  /* logo background: the light brand-strong, kept in dark mode too */
+  --logo: #8a2f1c;
 
   /* crimson: holidays, Mồng 1, Rằm, Sunday */
   --lunar: #c4302b;
@@ -134,9 +136,9 @@
     --clash: #b99be0;
     --clash-soft: #2a2238;
 
-    --hero-from: #3d1c13;
-    --hero-via: #2a1611;
-    --hero-to: #171a1f;
+    --hero-from: #7a2c1b;
+    --hero-via: #561f14;
+    --hero-to: #2a1712;
     --hero-accent: #f2c46c;
     --hero-accent-ink: #3a2400;
 
@@ -173,9 +175,9 @@
   --clash: #b99be0;
   --clash-soft: #2a2238;
 
-  --hero-from: #3d1c13;
-  --hero-via: #2a1611;
-  --hero-to: #171a1f;
+  --hero-from: #7a2c1b;
+  --hero-via: #561f14;
+  --hero-to: #2a1712;
   --hero-accent: #f2c46c;
   --hero-accent-ink: #3a2400;
 
@@ -194,6 +196,7 @@
 
 /* Hỏa: son đỏ (= mặc định) */
 [data-palette="hoa"] {
+  --logo: #8a2f1c;
   --brand: #a83c25;
   --brand-strong: #8a2f1c;
   --brand-soft: #f7e4dc;
@@ -209,9 +212,9 @@
     --brand-strong: #e46a4f;
     --brand-soft: #36201a;
     --on-brand: #ffffff;
-    --hero-from: #3d1c13;
-    --hero-via: #2a1611;
-    --hero-to: #171a1f;
+    --hero-from: #7a2c1b;
+    --hero-via: #561f14;
+    --hero-to: #2a1712;
   }
 }
 :root[data-theme="dark"][data-palette="hoa"],
@@ -220,13 +223,14 @@
   --brand-strong: #e46a4f;
   --brand-soft: #36201a;
   --on-brand: #ffffff;
-  --hero-from: #3d1c13;
-  --hero-via: #2a1611;
-  --hero-to: #171a1f;
+  --hero-from: #7a2c1b;
+  --hero-via: #561f14;
+  --hero-to: #2a1712;
 }
 
 /* Kim: bạc */
 [data-palette="kim"] {
+  --logo: #434b57;
   --brand: #56606e;
   --brand-strong: #434b57;
   --brand-soft: #e7e9ed;
@@ -242,9 +246,9 @@
     --brand-strong: #b3bcc8;
     --brand-soft: #23282f;
     --on-brand: #12161b;
-    --hero-from: #2a3038;
-    --hero-via: #1f242b;
-    --hero-to: #171a1f;
+    --hero-from: #4a5462;
+    --hero-via: #353d48;
+    --hero-to: #1e2329;
   }
 }
 :root[data-theme="dark"][data-palette="kim"],
@@ -253,13 +257,14 @@
   --brand-strong: #b3bcc8;
   --brand-soft: #23282f;
   --on-brand: #12161b;
-  --hero-from: #2a3038;
-  --hero-via: #1f242b;
-  --hero-to: #171a1f;
+  --hero-from: #4a5462;
+  --hero-via: #353d48;
+  --hero-to: #1e2329;
 }
 
 /* Thủy: xanh dương */
 [data-palette="thuy"] {
+  --logo: #184a7d;
   --brand: #1f5c99;
   --brand-strong: #184a7d;
   --brand-soft: #dfe8f4;
@@ -275,9 +280,9 @@
     --brand-strong: #6ea8e6;
     --brand-soft: #17253a;
     --on-brand: #0a1626;
-    --hero-from: #15263d;
-    --hero-via: #121d2d;
-    --hero-to: #171a1f;
+    --hero-from: #1d4a7a;
+    --hero-via: #163a60;
+    --hero-to: #0f1f33;
   }
 }
 :root[data-theme="dark"][data-palette="thuy"],
@@ -286,13 +291,14 @@
   --brand-strong: #6ea8e6;
   --brand-soft: #17253a;
   --on-brand: #0a1626;
-  --hero-from: #15263d;
-  --hero-via: #121d2d;
-  --hero-to: #171a1f;
+  --hero-from: #1d4a7a;
+  --hero-via: #163a60;
+  --hero-to: #0f1f33;
 }
 
 /* Mộc: xanh lá */
 [data-palette="moc"] {
+  --logo: #24563a;
   --brand: #2f6b45;
   --brand-strong: #24563a;
   --brand-soft: #dfede2;
@@ -308,9 +314,9 @@
     --brand-strong: #6cc28f;
     --brand-soft: #172a1f;
     --on-brand: #0b1a11;
-    --hero-from: #173323;
-    --hero-via: #13251b;
-    --hero-to: #171a1f;
+    --hero-from: #1f5537;
+    --hero-via: #183f2a;
+    --hero-to: #10231a;
   }
 }
 :root[data-theme="dark"][data-palette="moc"],
@@ -319,13 +325,14 @@
   --brand-strong: #6cc28f;
   --brand-soft: #172a1f;
   --on-brand: #0b1a11;
-  --hero-from: #173323;
-  --hero-via: #13251b;
-  --hero-to: #171a1f;
+  --hero-from: #1f5537;
+  --hero-via: #183f2a;
+  --hero-to: #10231a;
 }
 
 /* Thổ: nâu đất */
 [data-palette="tho"] {
+  --logo: #704611;
   --brand: #8a5716;
   --brand-strong: #704611;
   --brand-soft: #f4e5cb;
@@ -341,9 +348,9 @@
     --brand-strong: #e2af62;
     --brand-soft: #33281a;
     --on-brand: #241604;
-    --hero-from: #35260f;
-    --hero-via: #28200f;
-    --hero-to: #171a1f;
+    --hero-from: #6b4614;
+    --hero-via: #4f340f;
+    --hero-to: #2a1d0a;
   }
 }
 :root[data-theme="dark"][data-palette="tho"],
@@ -352,9 +359,9 @@
   --brand-strong: #e2af62;
   --brand-soft: #33281a;
   --on-brand: #241604;
-  --hero-from: #35260f;
-  --hero-via: #28200f;
-  --hero-to: #171a1f;
+  --hero-from: #6b4614;
+  --hero-via: #4f340f;
+  --hero-to: #2a1d0a;
 }
 
 /* ==========================================================================
