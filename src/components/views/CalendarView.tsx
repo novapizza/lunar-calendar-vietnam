@@ -47,6 +47,14 @@ const RATING = {
   neutral: { label: 'Bình thường',     Icon: Minus,      tone: 'bg-surface-2 text-fg-2' },
 } as const;
 
+/**
+ * Day-cell marker dot. One size everywhere: cells are only ~40px wide at 320px
+ * and ~43px in the md two-column layout, so the dots must stay this small.
+ */
+const DOT = 'block w-[5px] h-[5px] rounded-full';
+/** Places dots right after a number without moving the number off-centre. */
+const DOT_SLOT = 'absolute left-full top-1/2 -translate-y-1/2 ml-[2px]';
+
 function clashes(userZodiac: string | null, info: LunarInfo): boolean {
   if (!userZodiac) return false;
   const userIdx = CHI_NAMES.indexOf(userZodiac as typeof CHI_NAMES[number]);
@@ -206,40 +214,51 @@ export function CalendarView({
                     aria-label={format(day, "d 'tháng' M", { locale: vi })}
                     aria-pressed={selected}
                     className={cn(
-                      'group relative flex flex-col items-center pt-1.5 pb-1 h-[62px] sm:h-[76px] md:h-auto md:min-h-[84px] rounded-2xl transition-colors',
-                      !selected && 'hover:bg-surface-2',
+                      // The whole cell (solar + lunar) carries the state:
+                      // today = soft fill, selected = brand outline (both when they coincide).
+                      'group relative flex flex-col items-center justify-center gap-0.5 h-[62px] sm:h-[76px] md:h-auto md:min-h-[84px] md:justify-start md:pt-3 rounded-2xl transition-colors',
+                      today && 'bg-brand-soft',
+                      selected && 'ring-2 ring-inset ring-brand',
+                      !selected && !today && 'hover:bg-surface-2',
                       !inMonth && 'opacity-35',
                     )}
                   >
+                    {/* Solar day; note dot sits to its right without shifting the number. */}
                     <span
                       className={cn(
-                        'w-9 h-9 flex items-center justify-center rounded-full text-[15px] sm:text-base font-semibold tabular-nums transition-colors',
-                        selected ? 'bg-brand text-on-brand font-bold'
-                          : today ? 'text-brand font-bold ring-2 ring-brand ring-inset'
+                        'relative text-[17px] sm:text-lg leading-none font-semibold tabular-nums',
+                        today ? 'text-brand font-bold'
                           : sunday ? 'text-lunar' : 'text-fg',
+                        selected && 'font-bold',
                       )}
                     >
                       {format(day, 'd')}
+                      {hasNote && (
+                        <span className={cn(DOT_SLOT, DOT, 'bg-gold')} aria-hidden="true" />
+                      )}
                     </span>
+                    {/* Lunar day; day-quality and zodiac-clash dots (both from the lunar day) to its right. */}
                     <span
                       className={cn(
-                        'text-[10px] sm:text-[11px] leading-tight tabular-nums mt-0.5',
+                        'relative text-[11px] sm:text-xs leading-none tabular-nums',
                         special ? 'text-lunar font-bold' : 'text-fg-3 font-medium',
                       )}
                     >
                       {lunar.lunarDay === 1 ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
+                      {(lunar.rating !== 'neutral' || clash) && (
+                        // Two dots stack vertically so they stay inside a ~40px cell.
+                        <span className={cn(DOT_SLOT, 'flex flex-col gap-px')} aria-hidden="true">
+                          {lunar.rating === 'good' && <span className={cn(DOT, 'bg-good')} />}
+                          {lunar.rating === 'bad'  && <span className={cn(DOT, 'bg-bad/70')} />}
+                          {clash && <span className={cn(DOT, 'bg-clash')} />}
+                        </span>
+                      )}
                     </span>
                     {dayHoliday && (
                       <span className="hidden md:block w-full px-1 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate">
                         {dayHoliday}
                       </span>
                     )}
-                    <span className="mt-auto flex gap-[3px] h-1.5" aria-hidden="true">
-                      {lunar.rating === 'good' && <span className="w-1.5 h-1.5 rounded-full bg-good" />}
-                      {lunar.rating === 'bad'  && <span className="w-1.5 h-1.5 rounded-full bg-bad/70" />}
-                      {hasNote && <span className="w-1.5 h-1.5 rounded-full bg-gold" />}
-                      {clash && <span className="w-1.5 h-1.5 rounded-full bg-clash" />}
-                    </span>
                   </button>
                 );
               }),
