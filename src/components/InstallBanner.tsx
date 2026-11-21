@@ -7,6 +7,7 @@ import {
   onInstallAvailabilityChange,
   promptInstall,
 } from '../lib/pwa';
+import { AppLogo } from './AppLogo';
 
 const DISMISS_KEY = 'installBannerDismissedAt';
 const DISMISS_DAYS = 30;
@@ -43,7 +44,7 @@ export function InstallBanner() {
 
   return (
     <div className="card col-span-full flex items-center gap-3 p-3 pl-3.5">
-      <img src="/pwa-64x64.png" alt="" className="w-10 h-10 rounded-xl shrink-0" />
+      <AppLogo className="w-10 h-10 rounded-xl shrink-0" />
       <div className="flex-1 min-w-0">
         <div className="text-sm font-bold text-fg">Cài Lịch Âm lên màn hình chính</div>
         {ios ? (

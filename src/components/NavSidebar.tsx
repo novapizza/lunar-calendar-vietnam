@@ -1,5 +1,6 @@
 import { CalendarDays, LayoutGrid, Sparkles } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { AppLogo } from './AppLogo';
 
 export type NavTab = 'today' | 'calendar' | 'events' | 'tools';
 
@@ -19,9 +20,7 @@ const TOOLS_LABEL = 'Tiện ích và cài đặt';
 /** The app logo doubles as the entry to the tools & settings view. */
 function Logo({ active, className }: { active: boolean; className?: string }) {
   return (
-    <img
-      src="/pwa-64x64.png"
-      alt=""
+    <AppLogo
       className={cn(
         'rounded-xl transition-shadow',
         active && 'ring-2 ring-brand ring-offset-2 ring-offset-surface',
