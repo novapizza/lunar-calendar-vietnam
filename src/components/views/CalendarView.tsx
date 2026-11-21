@@ -184,8 +184,9 @@ export function CalendarView({
       <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 md:pb-6 md:flex-1 md:min-h-0 md:flex md:gap-6">
 
         {/* Month grid */}
-        <section className="card p-2 sm:p-3 md:flex-1 md:min-h-0 md:overflow-y-auto no-scrollbar" {...swipe}>
-          <div className="grid grid-cols-7 md:grid-cols-[28px_repeat(7,minmax(0,1fr))]">
+        {/* md: the card hugs the square grid instead of stretching to the column height. */}
+        <section className="card p-2 sm:p-3 md:flex-1 md:min-h-0 md:self-start md:max-h-full md:overflow-y-auto no-scrollbar" {...swipe}>
+          <div className="grid grid-cols-7 md:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 sm:gap-1 lg:gap-1.5">
             <div className="hidden md:block" />
             {WEEK_DAYS.map(d => (
               <div key={d} className={cn('py-2 text-center text-xs font-semibold', d === 'CN' ? 'text-lunar' : 'text-fg-3')}>
