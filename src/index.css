@@ -185,6 +185,179 @@
 }
 
 /* ==========================================================================
+   Palettes by mệnh (html[data-palette], set by useAccent; none = default red)
+   The attribute also works on any element, so a swatch can preview a palette:
+   <span data-palette="moc" class="bg-brand">.
+   Light rules beat :root by order; dark rules carry one more selector part
+   so they beat both the light rule and the base dark palette.
+   ========================================================================== */
+
+/* Hỏa: son đỏ (= mặc định) */
+[data-palette="hoa"] {
+  --brand: #a83c25;
+  --brand-strong: #8a2f1c;
+  --brand-soft: #f7e4dc;
+  --on-brand: #ffffff;
+  --hero-from: #b4452b;
+  --hero-via: #92331f;
+  --hero-to: #631d13;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-palette="hoa"],
+  :root:not([data-theme="light"]) [data-palette="hoa"] {
+    --brand: #d4553b;
+    --brand-strong: #e46a4f;
+    --brand-soft: #36201a;
+    --on-brand: #ffffff;
+    --hero-from: #3d1c13;
+    --hero-via: #2a1611;
+    --hero-to: #171a1f;
+  }
+}
+:root[data-theme="dark"][data-palette="hoa"],
+:root[data-theme="dark"] [data-palette="hoa"] {
+  --brand: #d4553b;
+  --brand-strong: #e46a4f;
+  --brand-soft: #36201a;
+  --on-brand: #ffffff;
+  --hero-from: #3d1c13;
+  --hero-via: #2a1611;
+  --hero-to: #171a1f;
+}
+
+/* Kim: bạc */
+[data-palette="kim"] {
+  --brand: #56606e;
+  --brand-strong: #434b57;
+  --brand-soft: #e7e9ed;
+  --on-brand: #ffffff;
+  --hero-from: #6b7684;
+  --hero-via: #4f5866;
+  --hero-to: #2e343d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-palette="kim"],
+  :root:not([data-theme="light"]) [data-palette="kim"] {
+    --brand: #9aa5b4;
+    --brand-strong: #b3bcc8;
+    --brand-soft: #23282f;
+    --on-brand: #12161b;
+    --hero-from: #2a3038;
+    --hero-via: #1f242b;
+    --hero-to: #171a1f;
+  }
+}
+:root[data-theme="dark"][data-palette="kim"],
+:root[data-theme="dark"] [data-palette="kim"] {
+  --brand: #9aa5b4;
+  --brand-strong: #b3bcc8;
+  --brand-soft: #23282f;
+  --on-brand: #12161b;
+  --hero-from: #2a3038;
+  --hero-via: #1f242b;
+  --hero-to: #171a1f;
+}
+
+/* Thủy: xanh dương */
+[data-palette="thuy"] {
+  --brand: #1f5c99;
+  --brand-strong: #184a7d;
+  --brand-soft: #dfe8f4;
+  --on-brand: #ffffff;
+  --hero-from: #2a6aa8;
+  --hero-via: #1d4f82;
+  --hero-to: #0f2c4d;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-palette="thuy"],
+  :root:not([data-theme="light"]) [data-palette="thuy"] {
+    --brand: #5596dc;
+    --brand-strong: #6ea8e6;
+    --brand-soft: #17253a;
+    --on-brand: #0a1626;
+    --hero-from: #15263d;
+    --hero-via: #121d2d;
+    --hero-to: #171a1f;
+  }
+}
+:root[data-theme="dark"][data-palette="thuy"],
+:root[data-theme="dark"] [data-palette="thuy"] {
+  --brand: #5596dc;
+  --brand-strong: #6ea8e6;
+  --brand-soft: #17253a;
+  --on-brand: #0a1626;
+  --hero-from: #15263d;
+  --hero-via: #121d2d;
+  --hero-to: #171a1f;
+}
+
+/* Mộc: xanh lá */
+[data-palette="moc"] {
+  --brand: #2f6b45;
+  --brand-strong: #24563a;
+  --brand-soft: #dfede2;
+  --on-brand: #ffffff;
+  --hero-from: #3a7d52;
+  --hero-via: #2a6040;
+  --hero-to: #163a27;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-palette="moc"],
+  :root:not([data-theme="light"]) [data-palette="moc"] {
+    --brand: #55b07a;
+    --brand-strong: #6cc28f;
+    --brand-soft: #172a1f;
+    --on-brand: #0b1a11;
+    --hero-from: #173323;
+    --hero-via: #13251b;
+    --hero-to: #171a1f;
+  }
+}
+:root[data-theme="dark"][data-palette="moc"],
+:root[data-theme="dark"] [data-palette="moc"] {
+  --brand: #55b07a;
+  --brand-strong: #6cc28f;
+  --brand-soft: #172a1f;
+  --on-brand: #0b1a11;
+  --hero-from: #173323;
+  --hero-via: #13251b;
+  --hero-to: #171a1f;
+}
+
+/* Thổ: nâu đất */
+[data-palette="tho"] {
+  --brand: #8a5716;
+  --brand-strong: #704611;
+  --brand-soft: #f4e5cb;
+  --on-brand: #ffffff;
+  --hero-from: #966222;
+  --hero-via: #764c14;
+  --hero-to: #4a2f0b;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"])[data-palette="tho"],
+  :root:not([data-theme="light"]) [data-palette="tho"] {
+    --brand: #d39b48;
+    --brand-strong: #e2af62;
+    --brand-soft: #33281a;
+    --on-brand: #241604;
+    --hero-from: #35260f;
+    --hero-via: #28200f;
+    --hero-to: #171a1f;
+  }
+}
+:root[data-theme="dark"][data-palette="tho"],
+:root[data-theme="dark"] [data-palette="tho"] {
+  --brand: #d39b48;
+  --brand-strong: #e2af62;
+  --brand-soft: #33281a;
+  --on-brand: #241604;
+  --hero-from: #35260f;
+  --hero-via: #28200f;
+  --hero-to: #171a1f;
+}
+
+/* ==========================================================================
    Base
    ========================================================================== */
 
