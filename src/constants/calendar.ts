@@ -14,3 +14,10 @@ export const WEEK_DAYS_SHORT = ['Th 2', 'Th 3', 'Th 4', 'Th 5', 'Th 6', 'Th 7', 
 
 /** Solar year range available in selectors. */
 export const YEAR_RANGE = { start: 1900, count: 200 } as const;
+
+/** Emoji for each Địa Chi. Sửu is the buffalo (trâu) and Mão the cat in the Vietnamese zodiac. */
+export const CHI_EMOJI: Readonly<Record<string, string>> = {
+  'Tý': '🐭', 'Sửu': '🐃', 'Dần': '🐯', 'Mão': '🐱',
+  'Thìn': '🐲', 'Tỵ': '🐍', 'Ngọ': '🐴', 'Mùi': '🐐',
+  'Thân': '🐒', 'Dậu': '🐓', 'Tuất': '🐕', 'Hợi': '🐷',
+};
