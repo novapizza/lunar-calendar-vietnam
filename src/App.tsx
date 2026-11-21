@@ -15,6 +15,7 @@ import { NavSidebar, NavTab } from './components/NavSidebar';
 import { TodayView } from './components/views/TodayView';
 import { CalendarView } from './components/views/CalendarView';
 import { EventsView } from './components/views/EventsView';
+import { ToolsView } from './components/views/ToolsView';
 import { QuickDatePickerModal } from './components/modals/QuickDatePickerModal';
 import { MonthYearPickerModal } from './components/modals/MonthYearPickerModal';
 import { AuspiciousDateModal } from './components/modals/AuspiciousDateModal';
@@ -44,7 +45,7 @@ export default function App() {
   const [auspiciousDates, setAuspiciousDates] = useState<AuspiciousDate[]>([]);
   const [userZodiac,      setUserZodiac]      = useState<string | null>(loadZodiac);
 
-  const { pref: themePref, cycle: cycleTheme } = useTheme();
+  const { pref: themePref, setPref: setThemePref, cycle: cycleTheme } = useTheme();
   const { now, currentTraditionalHour } = useClock();
   const { notes, selectedDateNotes, newNoteContent, setNewNoteContent, addNote, deleteNote } =
     useNotes(selectedDate);
@@ -214,6 +215,19 @@ export default function App() {
         )}
 
         {activeTab === 'events' && <EventsView onOpenAbout={() => setIsAboutOpen(true)} />}
+
+        {activeTab === 'tools' && (
+          <ToolsView
+            userZodiac={userZodiac}
+            themePref={themePref}
+            onZodiacChange={handleZodiacChange}
+            onThemeChange={setThemePref}
+            onOpenQuickPicker={() => setIsQuickPickerOpen(true)}
+            onOpenAuspiciousPicker={() => setIsAuspiciousPickerOpen(true)}
+            onOpenLunarEventModal={() => setIsLunarEventModalOpen(true)}
+            onOpenAbout={() => setIsAboutOpen(true)}
+          />
+        )}
       </main>
 
       {/* Modals */}

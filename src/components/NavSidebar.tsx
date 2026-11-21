@@ -1,7 +1,7 @@
-import { CalendarDays, LayoutGrid, Sparkles } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Sparkles, Blocks } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-export type NavTab = 'today' | 'calendar' | 'events';
+export type NavTab = 'today' | 'calendar' | 'events' | 'tools';
 
 interface Props {
   activeTab: NavTab;
@@ -12,9 +12,13 @@ const NAV_ITEMS = [
   { id: 'today' as NavTab, label: 'Hôm nay', Icon: CalendarDays },
   { id: 'calendar' as NavTab, label: 'Lịch', Icon: LayoutGrid },
   { id: 'events' as NavTab, label: 'Sự kiện', Icon: Sparkles },
+  { id: 'tools' as NavTab, label: 'Tiện ích', Icon: Blocks },
 ];
 
-/** Bottom tab bar on compact windows (< 600px), slim left rail from md (600px). */
+/**
+ * Bottom tab bar on phones and unfolded foldables (book), slim left rail elsewhere.
+ * Four items, so in book mode two sit on each side of the fold.
+ */
 export function NavSidebar({ activeTab, onTabChange }: Props) {
   return (
     <aside
