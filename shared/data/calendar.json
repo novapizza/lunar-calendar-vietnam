@@ -1,0 +1,232 @@
+{
+  "$comment": "Names and rules of the Vietnamese lunar calendar. Indexes are 0-based; chi index 0 = Tý.",
+  "can": [
+    "Giáp",
+    "Ất",
+    "Bính",
+    "Đinh",
+    "Mậu",
+    "Kỷ",
+    "Canh",
+    "Tân",
+    "Nhâm",
+    "Quý"
+  ],
+  "chi": [
+    "Tý",
+    "Sửu",
+    "Dần",
+    "Mão",
+    "Thìn",
+    "Tỵ",
+    "Ngọ",
+    "Mùi",
+    "Thân",
+    "Dậu",
+    "Tuất",
+    "Hợi"
+  ],
+  "chiEmoji": {
+    "Tý": "🐭",
+    "Sửu": "🐃",
+    "Dần": "🐯",
+    "Mão": "🐱",
+    "Thìn": "🐲",
+    "Tỵ": "🐍",
+    "Ngọ": "🐴",
+    "Mùi": "🐐",
+    "Thân": "🐒",
+    "Dậu": "🐓",
+    "Tuất": "🐕",
+    "Hợi": "🐷"
+  },
+  "weekDays": [
+    "T2",
+    "T3",
+    "T4",
+    "T5",
+    "T6",
+    "T7",
+    "CN"
+  ],
+  "weekDaysShort": [
+    "Th 2",
+    "Th 3",
+    "Th 4",
+    "Th 5",
+    "Th 6",
+    "Th 7",
+    "CN"
+  ],
+  "gioHoangDao": {
+    "$comment": "byDayChi[i] = chi indexes of the six auspicious hours on a day whose chi index is i. Hour of chi k spans (2k-1)h to (2k+1)h, Tý = 23h-1h.",
+    "byDayChi": [
+      [
+        0,
+        1,
+        3,
+        6,
+        8,
+        9
+      ],
+      [
+        2,
+        3,
+        5,
+        8,
+        10,
+        11
+      ],
+      [
+        0,
+        1,
+        4,
+        5,
+        7,
+        10
+      ],
+      [
+        0,
+        2,
+        3,
+        6,
+        7,
+        9
+      ],
+      [
+        2,
+        4,
+        5,
+        8,
+        9,
+        11
+      ],
+      [
+        0,
+        1,
+        4,
+        6,
+        7,
+        10
+      ],
+      [
+        0,
+        1,
+        3,
+        6,
+        8,
+        9
+      ],
+      [
+        2,
+        3,
+        5,
+        8,
+        10,
+        11
+      ],
+      [
+        0,
+        1,
+        4,
+        5,
+        7,
+        10
+      ],
+      [
+        0,
+        2,
+        3,
+        6,
+        7,
+        9
+      ],
+      [
+        2,
+        4,
+        5,
+        8,
+        9,
+        11
+      ],
+      [
+        0,
+        1,
+        4,
+        6,
+        7,
+        10
+      ]
+    ]
+  },
+  "truc": {
+    "$comment": "Thập Nhị Trực: truc = names[(dayChi - monthChiStart[lunarMonth-1] + 12) % 12]. good/bad decide the day rating; any other trực is neutral.",
+    "names": [
+      "Kiến",
+      "Trừ",
+      "Mãn",
+      "Bình",
+      "Định",
+      "Chấp",
+      "Phá",
+      "Nguy",
+      "Thành",
+      "Thâu",
+      "Khai",
+      "Bế"
+    ],
+    "monthChiStart": [
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      0,
+      1
+    ],
+    "good": [
+      "Trừ",
+      "Định",
+      "Nguy",
+      "Thành",
+      "Khai"
+    ],
+    "bad": [
+      "Phá",
+      "Bế",
+      "Chấp"
+    ]
+  },
+  "activities": {
+    "$comment": "An activity suits a day only when the day is rated good and its trực is listed here.",
+    "wedding": {
+      "label": "Cưới hỏi",
+      "truc": [
+        "Thành",
+        "Định",
+        "Mãn"
+      ]
+    },
+    "moving": {
+      "label": "Chuyển nhà",
+      "truc": [
+        "Khai",
+        "Thành",
+        "Kiến"
+      ]
+    },
+    "opening": {
+      "label": "Khai trương",
+      "truc": [
+        "Khai",
+        "Mãn",
+        "Thành"
+      ]
+    }
+  }
+}

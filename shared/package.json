@@ -1,0 +1,14 @@
+{
+  "name": "@lunar/shared",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Data, design tokens and test vectors shared by the web, iOS and Android apps.",
+  "type": "module",
+  "scripts": {
+    "gen": "node scripts/gen-tokens.mjs && node scripts/gen-test-vectors.mjs",
+    "check": "node scripts/gen-tokens.mjs --check && node scripts/gen-test-vectors.mjs --check"
+  },
+  "dependencies": {
+    "@dqcai/vn-lunar": "^1.0.1"
+  }
+}

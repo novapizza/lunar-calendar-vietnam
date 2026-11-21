@@ -50,10 +50,10 @@ A Vietnamese lunar calendar single-page application built with React 19, TypeScr
 - Every conversion is verified by converting back to lunar; day 30 in a 29-day month (tháng thiếu) moves to day 29 and the event description says so
 
 ### Design
-- Modern, calm UI built on semantic design tokens (`src/index.css`) — warm neutral surfaces, brand blue, traditional red/gold for lunar markers
+- Modern, calm UI built on semantic design tokens (`shared/design/tokens.json`, generated into `apps/web/src/theme.generated.css`) — warm neutral surfaces, brand blue, traditional red/gold for lunar markers
 - **Be Vietnam Pro** typeface (designed for Vietnamese diacritics)
 - **Automatic dark mode** following the device setting
-- Popups are bottom sheets on phones and centred dialogs on desktop (`src/components/Sheet.tsx`)
+- Popups are bottom sheets on phones and centred dialogs on desktop (`apps/web/src/components/Sheet.tsx`)
 - The Botpress chat widget loads on tablet/desktop only — never on phones
 
 ### Mobile & Installable App (PWA)
@@ -81,92 +81,45 @@ A Vietnamese lunar calendar single-page application built with React 19, TypeScr
 
 ---
 
-## Project Structure
+## Repository layout
+
+Three apps and the data they share, in one repository (npm workspaces for the JavaScript parts).
 
 ```
-src/
-├── App.tsx                          # Root orchestrator — calendar grid + modal state
-├── main.tsx
-├── index.css
-├── types.ts                         # LunarInfo, AuspiciousDate, UserNote, LunarEvent
-├── vite-env.d.ts                    # Vite + PWA virtual module types
-├── constants/
-│   └── calendar.ts                  # CHI_NAMES, WEEK_DAYS, YEAR_RANGE
-├── lib/
-│   ├── utils.ts                     # cn() helper (clsx + tailwind-merge)
-│   └── pwa.ts                       # Install-prompt capture, standalone / iOS detection
-├── hooks/
-│   ├── useClock.ts                  # Live clock + current traditional hour
-│   ├── useNotes.ts                  # Per-day notes CRUD + localStorage
-│   ├── useLunarEvents.ts            # Lunar event CRUD + localStorage
-│   └── useSwipe.ts                  # Horizontal swipe gestures
-├── services/
-│   ├── lunarService.ts              # getLunarInfo, lunarToSolar (verified), findBestDates
-│   └── icsService.ts                # RFC 5545 ICS generation + download
-└── components/
-    ├── NavSidebar.tsx               # Bottom tab bar (mobile) / left rail (desktop)
-    ├── Sheet.tsx                    # Shared bottom-sheet / dialog shell for all modals
-    ├── InstallBanner.tsx            # "Install the app" banner
-    ├── UpdatePrompt.tsx             # Service-worker registration + update toast
-    ├── AboutLink.tsx
-    ├── views/                       # TodayView, CalendarView, EventsView
-    └── modals/
-        ├── QuickDatePickerModal.tsx
-        ├── AuspiciousDateModal.tsx
-        ├── LunarEventModal.tsx
-        └── AboutModal.tsx
+apps/
+  web/        React + Vite PWA (this README's features). Deployed by Cloudflare Workers Builds.
+  ios/        Swift / SwiftUI app + widgets (planned, see apps/ios/README.md)
+  android/    Kotlin / Jetpack Compose app + widgets (planned, see apps/android/README.md)
+shared/       Language-neutral source of truth for all three apps
+  data/         calendar.json (can, chi, giờ hoàng đạo, trực, activities), holidays.json,
+                menh.json (nạp âm, elements), presets.json
+  design/       tokens.json (colours: light/dark + one palette per mệnh), icon.svg (logo master)
+  test-vectors/ lunar-days.json, menh.json: expected results every app must reproduce
+  scripts/      gen-tokens.mjs, gen-test-vectors.mjs
+wrangler.jsonc  Cloudflare deploy config (serves apps/web/dist)
 ```
+
+**Rule:** data and colours are edited in `shared/` only. Generated files (`apps/web/src/theme.generated.css`, `apps/web/public/icon.svg`, `shared/test-vectors/*`) are rebuilt with `npm run gen`; `npm run check` fails when one is out of date.
+
+Web source (`apps/web/src/`): `services/lunarService.ts` (lunar info, verified lunar → solar, auspicious dates), `lib/menh.ts` (mệnh from birth date), `services/icsService.ts` (.ics export), `components/views/*` (Hôm nay, Lịch, Sự kiện, Tiện ích), `components/modals/*`, `hooks/*`.
 
 ---
 
 ## Getting Started
 
-### Prerequisites
-
-- **Node.js** 18 or later
-- **npm** 9 or later
-
-### Install dependencies
+Requires Node.js 24 (`.node-version`; Cloudflare reads it too). All commands run from the repository root.
 
 ```bash
-npm install
+npm install            # installs every workspace
+npm run dev            # web app at http://localhost:3000
+npm run lint           # type check the web app
+npm run build          # production build -> apps/web/dist (sw.js, manifest.webmanifest)
+npm run preview        # serve the production build locally
+npm run gen            # regenerate theme CSS, logo copy and test vectors from shared/
+npm run check          # fail if a generated file is out of date
 ```
 
-### Run in development mode
-
-```bash
-npm run dev
-```
-
-Opens at **http://localhost:3000**. The server is accessible on the local network at the IP shown in the terminal output.
-
-### Type check
-
-```bash
-npm run lint
-```
-
-### Build for production
-
-```bash
-npm run build
-```
-
-Output is written to `dist/` (including `sw.js` and `manifest.webmanifest`). Serve it with any static file host over HTTPS — service workers need HTTPS (or `localhost`). `public/_headers` keeps `sw.js` uncached on Cloudflare so updates reach users.
-
-### Regenerate app icons
-
-Icons are generated from `public/icon.svg`:
-
-```bash
-npm run generate-pwa-assets
-```
-
-### Preview the production build locally
-
-```bash
-npm run preview
-```
+`apps/web/public/_headers` keeps `sw.js` uncached on Cloudflare so updates reach users. App icons for the web are generated from `apps/web/public/icon.svg` (a copy of `shared/design/icon.svg`): `npm run generate-pwa-assets -w @lunar/web`.
 
 ---
 

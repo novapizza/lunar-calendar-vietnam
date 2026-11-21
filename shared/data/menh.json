@@ -1,0 +1,154 @@
+{
+  "$comment": "Mệnh of a lunar year y: i = ((y - 1984) mod 60); can = calendar.can[i % 10], chi = calendar.chi[i % 12], napAm[i >> 1]. Order checked against the 納音 table on ja.wikipedia.org (2026-11-21).",
+  "cycleStartYear": 1984,
+  "elements": {
+    "kim": {
+      "name": "Kim",
+      "color": "Bạc",
+      "generatedBy": "tho"
+    },
+    "thuy": {
+      "name": "Thủy",
+      "color": "Xanh dương",
+      "generatedBy": "kim"
+    },
+    "moc": {
+      "name": "Mộc",
+      "color": "Xanh lá",
+      "generatedBy": "thuy"
+    },
+    "hoa": {
+      "name": "Hỏa",
+      "color": "Đỏ",
+      "generatedBy": "moc"
+    },
+    "tho": {
+      "name": "Thổ",
+      "color": "Nâu đất",
+      "generatedBy": "hoa"
+    }
+  },
+  "napAm": [
+    {
+      "name": "Hải Trung Kim",
+      "element": "kim"
+    },
+    {
+      "name": "Lư Trung Hỏa",
+      "element": "hoa"
+    },
+    {
+      "name": "Đại Lâm Mộc",
+      "element": "moc"
+    },
+    {
+      "name": "Lộ Bàng Thổ",
+      "element": "tho"
+    },
+    {
+      "name": "Kiếm Phong Kim",
+      "element": "kim"
+    },
+    {
+      "name": "Sơn Đầu Hỏa",
+      "element": "hoa"
+    },
+    {
+      "name": "Giản Hạ Thủy",
+      "element": "thuy"
+    },
+    {
+      "name": "Thành Đầu Thổ",
+      "element": "tho"
+    },
+    {
+      "name": "Bạch Lạp Kim",
+      "element": "kim"
+    },
+    {
+      "name": "Dương Liễu Mộc",
+      "element": "moc"
+    },
+    {
+      "name": "Tuyền Trung Thủy",
+      "element": "thuy"
+    },
+    {
+      "name": "Ốc Thượng Thổ",
+      "element": "tho"
+    },
+    {
+      "name": "Tích Lịch Hỏa",
+      "element": "hoa"
+    },
+    {
+      "name": "Tùng Bách Mộc",
+      "element": "moc"
+    },
+    {
+      "name": "Trường Lưu Thủy",
+      "element": "thuy"
+    },
+    {
+      "name": "Sa Trung Kim",
+      "element": "kim"
+    },
+    {
+      "name": "Sơn Hạ Hỏa",
+      "element": "hoa"
+    },
+    {
+      "name": "Bình Địa Mộc",
+      "element": "moc"
+    },
+    {
+      "name": "Bích Thượng Thổ",
+      "element": "tho"
+    },
+    {
+      "name": "Kim Bạch Kim",
+      "element": "kim"
+    },
+    {
+      "name": "Phú Đăng Hỏa",
+      "element": "hoa"
+    },
+    {
+      "name": "Thiên Hà Thủy",
+      "element": "thuy"
+    },
+    {
+      "name": "Đại Trạch Thổ",
+      "element": "tho"
+    },
+    {
+      "name": "Thoa Xuyến Kim",
+      "element": "kim"
+    },
+    {
+      "name": "Tang Đố Mộc",
+      "element": "moc"
+    },
+    {
+      "name": "Đại Khê Thủy",
+      "element": "thuy"
+    },
+    {
+      "name": "Sa Trung Thổ",
+      "element": "tho"
+    },
+    {
+      "name": "Thiên Thượng Hỏa",
+      "element": "hoa"
+    },
+    {
+      "name": "Thạch Lựu Mộc",
+      "element": "moc"
+    },
+    {
+      "name": "Đại Hải Thủy",
+      "element": "thuy"
+    }
+  ],
+  "birthDateMin": "1900-01-31"
+}
