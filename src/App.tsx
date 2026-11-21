@@ -158,7 +158,7 @@ export default function App() {
   // -------------------------------------------------------------------------
 
   return (
-    <div className="h-dvh flex flex-col md:flex-row overflow-hidden bg-bg">
+    <div className="h-dvh flex flex-col rail:flex-row overflow-hidden bg-bg">
 
       <NavSidebar activeTab={activeTab} onTabChange={handleTabChange} />
 

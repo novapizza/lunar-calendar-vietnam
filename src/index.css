@@ -201,7 +201,8 @@
     text-size-adjust: 100%;
   }
 
-  @media (max-width: 599px) {
+  /* Phones, and the two phone-sized panes of an unfolded foldable (book). */
+  @media (max-width: 599px), (min-width: 37.5rem) and (max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) {
     html {
       font-size: 16px;
     }
@@ -237,15 +238,36 @@
    Components
    ========================================================================== */
 
-/* Calendar layout modes (see CalendarView).
-   wide  = two panes: expanded width and not a tall portrait window (height > 1.15 x width),
-           e.g. tablets in landscape, laptops; an iPad Pro 12.9 in portrait is NOT wide.
-   stack = one column with the rail: every other window from 600px. */
+/* Layout modes. Exactly one of book / stack / wide applies from 600px; below 600px
+   (phones, foldable cover screen) none does.
+
+   book  = an unfolded foldable: 600-839px wide and roughly square (3:4 to 4:3), e.g.
+           Galaxy Z Fold inner 619x720 / 720x619, Pixel Fold inner 692x717. The screen is
+           split into two equal panes at the fold; each pane is laid out like a phone
+           (16px root font, bottom tab bar, bottom sheets inside the right pane).
+   rail  = every other window from 600px: left navigation rail, tablet/desktop type scale.
+           Use `rail:` where the phone and tablet styles differ (it replaces `md:`).
+   wide  = rail + two calendar panes: >= 840px and not a tall portrait window
+           (height > 1.15 x width); tablets in landscape, laptops.
+   stack = rail + one column: the remaining windows (tablets in portrait).
+
+   Order matters: later variants override earlier ones. */
+@custom-variant rail {
+  @media (min-width: 37.5rem) and (not ((max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3))) { @slot; }
+}
+@custom-variant book {
+  @media (min-width: 37.5rem) and (max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3) { @slot; }
+}
 @custom-variant wide {
   @media (min-width: 52.5rem) and (min-aspect-ratio: 20/23) { @slot; }
 }
 @custom-variant stack {
-  @media (min-width: 37.5rem) and (not ((min-width: 52.5rem) and (min-aspect-ratio: 20/23))) { @slot; }
+  @media (min-width: 37.5rem) and (not ((max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3))) and (not ((min-width: 52.5rem) and (min-aspect-ratio: 20/23))) { @slot; }
+}
+/* A phone held sideways (the app is portrait-only on phones). The aspect-ratio guard
+   keeps an on-screen keyboard that shrinks a portrait viewport from matching. */
+@custom-variant phone-landscape {
+  @media (orientation: landscape) and (max-height: 479px) and (min-aspect-ratio: 3/2) and (pointer: coarse) { @slot; }
 }
 
 /* Month card: its width is capped by the window height so six week rows always fit,

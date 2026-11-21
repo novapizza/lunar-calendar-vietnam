@@ -21,11 +21,12 @@ interface Props {
 /**
  * Modal shell used by every popup.
  * Phones: bottom sheet that slides up, with a grab handle and safe-area padding.
+ * Unfolded foldable (book): the same bottom sheet, inside the right pane only.
  * Desktop: centred dialog. Backdrop tap closes it; Escape is handled in App.
  */
 export function Sheet({ title, heading, subtitle, icon, onClose, children, footer, size = 'md', tall }: Props) {
   return (
-    <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center md:p-6">
+    <div className="fixed inset-0 z-50 flex items-end rail:items-center justify-center rail:p-6 book:justify-end">
       <div
         className="absolute inset-0 bg-black/40 backdrop-blur-[2px] animate-fade-in"
         onClick={onClose}
@@ -36,19 +37,19 @@ export function Sheet({ title, heading, subtitle, icon, onClose, children, foote
         aria-modal="true"
         aria-label={title}
         className={cn(
-          'relative w-full flex flex-col bg-surface shadow-[var(--shadow-float)] animate-sheet-in',
-          'rounded-t-[1.75rem] md:rounded-[1.75rem] overflow-hidden',
-          'max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] md:max-h-[min(88dvh,820px)]',
-          tall && 'h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] md:h-auto',
-          size === 'md' ? 'md:max-w-md' : 'md:max-w-xl',
+          'relative w-full book:w-1/2 flex flex-col bg-surface shadow-[var(--shadow-float)] animate-sheet-in',
+          'rounded-t-[1.75rem] rail:rounded-[1.75rem] overflow-hidden',
+          'max-h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] rail:max-h-[min(88dvh,820px)]',
+          tall && 'h-[calc(100dvh-env(safe-area-inset-top)-0.75rem)] rail:h-auto',
+          size === 'md' ? 'rail:max-w-md' : 'rail:max-w-xl',
         )}
       >
         {/* Grab handle (phones) */}
-        <div className="md:hidden pt-2.5 pb-1 flex justify-center" aria-hidden="true">
+        <div className="rail:hidden pt-2.5 pb-1 flex justify-center" aria-hidden="true">
           <div className="h-1.5 w-10 rounded-full bg-surface-3" />
         </div>
 
-        <header className="flex items-center gap-3 px-5 pt-2 pb-3 md:pt-5">
+        <header className="flex items-center gap-3 px-5 pt-2 pb-3 rail:pt-5">
           {icon && (
             <div className="w-10 h-10 shrink-0 rounded-2xl bg-brand-soft text-brand flex items-center justify-center">
               {icon}
@@ -68,7 +69,7 @@ export function Sheet({ title, heading, subtitle, icon, onClose, children, foote
         </div>
 
         {footer && (
-          <footer className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] md:pb-5 border-t border-line bg-surface">
+          <footer className="px-5 pt-3 pb-[max(1rem,env(safe-area-inset-bottom))] rail:pb-5 border-t border-line bg-surface">
             {footer}
           </footer>
         )}

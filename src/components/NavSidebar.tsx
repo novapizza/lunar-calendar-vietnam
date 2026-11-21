@@ -21,11 +21,11 @@ export function NavSidebar({ activeTab, onTabChange }: Props) {
       className="
         order-last shrink-0 z-30 bg-surface border-t border-line
         pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)] pr-[env(safe-area-inset-right)]
-        md:order-first md:w-[88px] md:border-t-0 md:border-r md:pb-0 md:pr-0 md:pt-5 md:flex md:flex-col md:items-center
+        rail:order-first rail:w-[88px] rail:border-t-0 rail:border-r rail:pb-0 rail:pr-0 rail:pt-5 rail:flex rail:flex-col rail:items-center
       "
     >
-      <img src="/pwa-64x64.png" alt="Lịch Âm" className="hidden md:block w-10 h-10 rounded-xl mb-6" />
-      <nav className="flex md:flex-col w-full md:gap-2 md:px-2" aria-label="Điều hướng chính">
+      <img src="/pwa-64x64.png" alt="Lịch Âm" className="hidden rail:block w-10 h-10 rounded-xl mb-6" />
+      <nav className="flex rail:flex-col w-full rail:gap-2 rail:px-2" aria-label="Điều hướng chính">
         {NAV_ITEMS.map(({ id, label, Icon }) => {
           const active = activeTab === id;
           return (
@@ -33,7 +33,7 @@ export function NavSidebar({ activeTab, onTabChange }: Props) {
               key={id}
               onClick={() => onTabChange(id)}
               aria-current={active ? 'page' : undefined}
-              className="group flex-1 flex flex-col items-center gap-1 pt-2 pb-1.5 md:py-2"
+              className="group flex-1 flex flex-col items-center gap-1 pt-2 pb-1.5 rail:py-2"
             >
               <span
                 className={cn(

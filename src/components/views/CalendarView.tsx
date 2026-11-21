@@ -122,11 +122,13 @@ export function CalendarView({
   const goToToday = () => onSelectedDateChange(new Date());
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain wide:overflow-hidden wide:flex wide:flex-col">
+    // book (unfolded foldable): two equal panes split at the fold. Left = header + month
+    // grid, right = the selected-day panel, each scrolling on its own.
+    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain wide:overflow-hidden wide:flex wide:flex-col book:overflow-hidden book:grid book:grid-cols-2 book:grid-rows-[auto_minmax(0,1fr)]">
 
       {/* ───────── Header ───────── */}
-      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] wide:static wide:shrink-0">
-        <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
+      <header className="sticky top-0 z-10 bg-bg/90 backdrop-blur-md pt-[env(safe-area-inset-top)] wide:static wide:shrink-0 book:static book:col-start-1 book:row-start-1">
+        <div className="max-w-6xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-3 rail:pt-6 pb-3 book:pr-2">
           <div className="flex items-center gap-2">
             <button
               onClick={onOpenMonthPicker}
@@ -134,18 +136,18 @@ export function CalendarView({
               aria-label="Chọn tháng, năm"
             >
               {/* One line always: 20px at 320px wide, 24px from 375px, 30px on md+. */}
-              <span className="flex items-center gap-1 whitespace-nowrap text-[clamp(1.25rem,6.4vw,1.5rem)] md:text-3xl font-extrabold text-fg">
+              <span className="flex items-center gap-1 whitespace-nowrap text-[clamp(1.25rem,6.4vw,1.5rem)] book:text-xl rail:text-3xl font-extrabold text-fg">
                 Tháng {format(currentDate, 'M')}
                 <span className="text-fg-3 font-bold">{format(currentDate, 'yyyy')}</span>
                 <ChevronDown size={20} className="text-fg-3 mt-1 shrink-0" />
               </span>
-              <span className="block text-xs md:text-sm text-fg-2 truncate">{lunarSubtitle}</span>
+              <span className="block text-xs rail:text-sm text-fg-2 truncate">{lunarSubtitle}</span>
             </button>
             {/* Header "Hôm nay" only from md (600px) up; on phones it sits first in the chip row
                 below, so the month title keeps the full width. Wrapper divs carry the
                 visibility because btn-soft/chip set their own display. */}
             {!showingThisMonth && (
-              <div className="hidden md:block shrink-0">
+              <div className="hidden rail:block shrink-0">
                 <button onClick={goToToday} className="btn-soft px-3 py-2">
                   Hôm nay
                 </button>
@@ -159,9 +161,9 @@ export function CalendarView({
             </button>
           </div>
 
-          <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+          <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar -mx-4 px-4 book:mr-0 book:pr-0 rail:mx-0 rail:px-0">
             {!showingThisMonth && (
-              <div className="md:hidden shrink-0">
+              <div className="rail:hidden shrink-0">
                 <button onClick={goToToday} className="chip text-brand">
                   <Undo2 size={15} /> Hôm nay
                 </button>
@@ -181,16 +183,16 @@ export function CalendarView({
       </header>
 
       {/* ───────── Body ───────── */}
-      <div className="max-w-6xl xl:max-w-7xl w-full mx-auto px-4 md:px-8 pb-10 wide:pb-6 wide:flex-1 wide:min-h-0 wide:flex wide:gap-6">
+      <div className="max-w-6xl xl:max-w-7xl w-full mx-auto px-4 rail:px-8 pb-10 book:contents wide:pb-6 wide:flex-1 wide:min-h-0 wide:flex wide:gap-6">
 
         {/* Month grid */}
         {/* Phones: 8px page gutter and 4px padding (instead of 16 + 8) so day cells get
             ~3.4px wider. From 600px `cal-fit` caps the width by the window height so the
             whole month is visible. stack: centred. wide (two panes): takes the free width
             up to that cap, then the day panel grows; the card hugs the grid. */}
-        <section className="card cal-fit -mx-2 md:mx-0 p-1 md:p-3 stack:mx-auto wide:flex-[999_1_0%] wide:min-w-0 wide:min-h-0 wide:self-start wide:max-h-full wide:overflow-y-auto no-scrollbar" {...swipe}>
+        <section className="card cal-fit -mx-2 rail:mx-0 p-1 rail:p-3 book:mx-2 book:mb-2 book:col-start-1 book:row-start-2 book:self-start book:max-h-[calc(100%-0.5rem)] book:overflow-y-auto stack:mx-auto wide:flex-[999_1_0%] wide:min-w-0 wide:min-h-0 wide:self-start wide:max-h-full wide:overflow-y-auto no-scrollbar" {...swipe}>
           {/* Week-number column only from xl: narrower two-pane windows leave the grid ~400px. */}
-          <div className="grid grid-cols-7 xl:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 md:gap-1 xl:gap-1.5">
+          <div className="grid grid-cols-7 xl:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 rail:max-xl:gap-1 xl:gap-1.5">
             <div className="hidden xl:block" />
             {WEEK_DAYS.map(d => (
               <div key={d} className={cn('py-2 text-center text-xs font-semibold', d === 'CN' ? 'text-lunar' : 'text-fg-3')}>
@@ -288,10 +290,10 @@ export function CalendarView({
           </div>
         </section>
 
-        {/* Selected-day panel. Phones: cards stacked. stack: two columns (day card on the
+        {/* Selected-day panel. Phones: cards stacked. book: the whole right pane. stack: two columns (day card on the
             left, hours + notes on the right). wide: a column beside the calendar, 18rem
             wide and growing to 32rem once the calendar has reached its cap. */}
-        <aside className="mt-4 flex flex-col gap-3 stack:grid stack:grid-cols-2 stack:items-start stack:gap-4 wide:mt-0 wide:flex-[1_0_18rem] wide:max-w-[32rem] wide:min-w-0 wide:overflow-y-auto no-scrollbar">
+        <aside className="mt-4 flex flex-col gap-3 book:mt-0 book:col-start-2 book:row-start-1 book:row-span-2 book:overflow-y-auto book:px-2 book:pb-4 book:pt-[calc(env(safe-area-inset-top)+0.75rem)] stack:grid stack:grid-cols-2 stack:items-start stack:gap-4 wide:mt-0 wide:flex-[1_0_18rem] wide:max-w-[32rem] wide:min-w-0 wide:overflow-y-auto no-scrollbar">
           <section className="card p-4 stack:row-span-2">
             <p className="section-label">Ngày đã chọn</p>
             <div className="flex items-end justify-between gap-3 mt-1">
