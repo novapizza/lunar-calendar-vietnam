@@ -106,7 +106,7 @@ export function TodayView({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
-      <div className="max-w-5xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
+      <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
 
         {/* Page header */}
         <header className="flex items-end justify-between gap-3 mb-4 md:mb-6">
@@ -130,9 +130,17 @@ export function TodayView({
 
         <InstallBanner />
 
-        <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.15fr_1fr] items-start">
+        {/* Three groups: A date (hero, can chi), B the day (assessment, activities),
+            C hours + notes.
+            < 840px: one column, A B C stacked.
+            lg 840px: A | B side by side, C below across both.
+            xl 1200px: A | B | C, three equal columns.
+            B and C lay their two cards side by side whenever their own width allows
+            (container queries: C from 560px, B from 620px), which covers C at lg and
+            foldable inner screens / tablets in portrait. */}
+        <div className="grid gap-4 md:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-3 items-start">
 
-          {/* ───────────── Left column ───────────── */}
+          {/* ───────────── A: the date ───────────── */}
           <div className="flex flex-col gap-4">
 
             {/* Hero: solar + lunar date */}
@@ -214,6 +222,11 @@ export function TodayView({
                 </div>
               ))}
             </section>
+          </div>
+
+          {/* ───────────── B: the day ───────────── */}
+          <div className="@container">
+          <div className="flex flex-col gap-4 @min-[620px]:grid @min-[620px]:grid-cols-2 @min-[620px]:gap-6 @min-[620px]:items-start">
 
             {/* Day assessment */}
             <section className="card divide-y divide-line">
@@ -250,10 +263,6 @@ export function TodayView({
                 />
               )}
             </section>
-          </div>
-
-          {/* ───────────── Right column ───────────── */}
-          <div className="flex flex-col gap-4">
 
             {/* Activities */}
             <section className="card p-4">
@@ -284,6 +293,12 @@ export function TodayView({
                 </p>
               )}
             </section>
+          </div>
+          </div>
+
+          {/* ───────────── C: hours + notes ───────────── */}
+          <div className="@container lg:col-span-2 xl:col-span-1">
+          <div className="flex flex-col gap-4 @min-[560px]:grid @min-[560px]:grid-cols-[1.15fr_1fr] @min-[560px]:gap-6 @min-[560px]:items-start">
 
             {/* Giờ Hoàng Đạo */}
             <section className="card p-4">
@@ -296,7 +311,7 @@ export function TodayView({
                     <div
                       key={gio}
                       className={cn(
-                        'rounded-xl px-2 py-2.5 text-center',
+                        'rounded-xl px-1 py-2.5 text-center whitespace-nowrap',
                         isNow ? 'bg-brand text-on-brand' : 'bg-brand-soft',
                       )}
                     >
@@ -342,6 +357,7 @@ export function TodayView({
                 <Plus size={16} /> Lưu ghi chú
               </button>
             </section>
+          </div>
           </div>
         </div>
 

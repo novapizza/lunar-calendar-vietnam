@@ -29,7 +29,7 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
-      <div className="max-w-2xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
+      <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 md:px-8 pt-4 md:pt-8 pb-10">
         <header className="mb-4 md:mb-6">
           <p className="section-label">Sắp diễn ra</p>
           <h1 className="text-2xl md:text-3xl font-extrabold text-fg">Ngày lễ & sự kiện</h1>
@@ -65,8 +65,11 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
               </div>
             </section>
 
+            {/* Month groups: one column; from lg (840px) two newspaper columns,
+                read top to bottom then across. */}
+            <div className="mt-6 lg:columns-2 lg:gap-6">
             {groups.map(([month, list]) => (
-              <section key={month} className="mt-6">
+              <section key={month} className="mb-6 break-inside-avoid">
                 <h2 className="section-label mb-2 px-1">{month}</h2>
                 <ul className="card divide-y divide-line overflow-hidden">
                   {list.map(event => (
@@ -97,6 +100,7 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
                 </ul>
               </section>
             ))}
+            </div>
           </>
         )}
 
