@@ -2,8 +2,9 @@
 //   node shared/scripts/gen-test-vectors.mjs           write shared/test-vectors/*.json
 //   node shared/scripts/gen-test-vectors.mjs --check   exit 1 if a file is out of date
 //
-// Reference: the lunar library the web app uses (@dqcai/vn-lunar, Hồ Ngọc Đức's
-// algorithm, UTC+7) plus the rules in shared/data. The web app computes the same
+// Reference: the lunar library the web app uses (@dqcai/vn-lunar: Hồ Ngọc Đức's
+// precomputed year tables, UTC+7, the same values as shared/data/lunar-years.json)
+// plus the rules in shared/data. The web app computes the same
 // values (checked in the browser when this was written); the iOS and Android
 // ports are correct when their unit tests reproduce these files.
 
@@ -22,6 +23,9 @@ const check = process.argv.includes('--check');
 const fixCan = s => s.replace(/^Bình /, 'Bính ');
 const iso = (y, m, d) => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
 
+// Month can chi by Ho Ngoc Duc's rule; @dqcai/vn-lunar's own monthCanChi is one stem off.
+const monthCanChi = (m, y) => `${calendar.can[(y * 12 + m + 3) % 10]} ${calendar.chi[(m + 1) % 12]}`;
+
 function dayRow(y, m, d) {
   const l = LunarCalendar.fromSolar(d, m, y);
   const ld = l.lunarDate;
@@ -32,7 +36,7 @@ function dayRow(y, m, d) {
   const rating = calendar.truc.good.includes(truc) ? 'good' : calendar.truc.bad.includes(truc) ? 'bad' : 'neutral';
   return [
     iso(y, m, d), ld.day, Math.abs(ld.month), ld.year, ld.leap ? 1 : 0,
-    dayCanChi, fixCan(l.monthCanChi), fixCan(l.yearCanChi),
+    dayCanChi, monthCanChi(Math.abs(ld.month), ld.year), fixCan(l.yearCanChi),
     truc, rating, calendar.gioHoangDao.byDayChi[dayChi].join(' '),
   ];
 }

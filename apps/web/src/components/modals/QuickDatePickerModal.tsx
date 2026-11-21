@@ -94,17 +94,18 @@ export function QuickDatePickerModal({ initialDate, onClose, onSelect }: Props) 
               key={day.getTime()}
               onClick={() => pick(day)}
               className={cn(
-                'mx-auto w-10 h-11 flex flex-col items-center justify-center rounded-xl transition-colors',
+                // Same spacing as the month grid's day cells: no line leading, 2px between the numbers.
+                'mx-auto w-10 h-11 flex flex-col items-center justify-center gap-0.5 rounded-xl transition-colors',
                 !isSameMonth(day, viewDate) && 'opacity-30',
                 isSel ? 'bg-brand text-on-brand' : 'hover:bg-surface-2',
                 !isSel && isToday(day) && 'ring-2 ring-brand ring-inset',
               )}
             >
-              <span className={cn('text-sm font-semibold tabular-nums', !isSel && day.getDay() === 0 && 'text-lunar')}>
+              <span className={cn('text-sm leading-none font-semibold tabular-nums', !isSel && day.getDay() === 0 && 'text-lunar')}>
                 {format(day, 'd')}
               </span>
               <span className={cn(
-                'text-[9px] tabular-nums',
+                'text-[9px] leading-none tabular-nums',
                 isSel ? 'text-on-brand/80' : lunar.lunarDay === 1 || lunar.lunarDay === 15 ? 'text-lunar font-bold' : 'text-fg-3',
               )}>
                 {lunar.lunarDay === 1 ? `1/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}

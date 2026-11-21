@@ -1,0 +1,9 @@
+# Generated and shared files are compared byte for byte by `npm run check`:
+# keep them LF on every checkout, also where core.autocrlf is true (Windows).
+shared/** text eol=lf
+apps/web/src/theme.generated.css text eol=lf
+apps/web/public/icon.svg text eol=lf
+# Binary data used by the apps.
+*.png binary
+*.ico binary
+*.jar binary

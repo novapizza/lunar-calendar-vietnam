@@ -89,10 +89,10 @@ Three apps and the data they share, in one repository (npm workspaces for the Ja
 apps/
   web/        React + Vite PWA (this README's features). Deployed by Cloudflare Workers Builds.
   ios/        Swift / SwiftUI app + widgets (planned, see apps/ios/README.md)
-  android/    Kotlin / Jetpack Compose app + widgets (planned, see apps/android/README.md)
+  android/    Kotlin / Jetpack Compose app (first screen; see apps/android/README.md)
 shared/       Language-neutral source of truth for all three apps
-  data/         calendar.json (can, chi, giờ hoàng đạo, trực, activities), holidays.json,
-                menh.json (nạp âm, elements), presets.json
+  data/         calendar.json (can, chi, can chi rules, giờ hoàng đạo, trực, activities), holidays.json,
+                menh.json (nạp âm, elements), presets.json, lunar-years.json (lunar year table 1900–2099)
   design/       tokens.json (colours: light/dark + one palette per mệnh), icon.svg (logo master)
   test-vectors/ lunar-days.json, menh.json: expected results every app must reproduce
   scripts/      gen-tokens.mjs, gen-test-vectors.mjs
