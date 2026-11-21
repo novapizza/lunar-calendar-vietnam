@@ -214,9 +214,11 @@ export function CalendarView({
                     aria-label={format(day, "d 'tháng' M", { locale: vi })}
                     aria-pressed={selected}
                     className={cn(
-                      // The whole cell (solar + lunar) carries the state:
-                      // today = soft fill, selected = brand outline (both when they coincide).
-                      'group relative flex flex-col items-center justify-center gap-0.5 h-[62px] sm:h-[76px] md:h-auto md:min-h-[84px] md:justify-start md:pt-3 rounded-2xl transition-colors',
+                      // Square cell; text sizes follow the cell's own width (container query),
+                      // since the width depends on the layout, not only the screen.
+                      // The whole cell carries the state: today = soft fill,
+                      // selected = brand outline (both when they coincide).
+                      '@container group relative flex flex-col items-center justify-center gap-0.5 aspect-square rounded-xl transition-colors',
                       today && 'bg-brand-soft',
                       selected && 'ring-2 ring-inset ring-brand',
                       !selected && !today && 'hover:bg-surface-2',
@@ -226,7 +228,7 @@ export function CalendarView({
                     {/* Solar day; note dot sits to its right without shifting the number. */}
                     <span
                       className={cn(
-                        'relative text-[17px] sm:text-lg leading-none font-semibold tabular-nums',
+                        'relative text-[17px] @min-[64px]:text-xl @min-[88px]:text-2xl leading-none font-semibold tabular-nums',
                         today ? 'text-brand font-bold'
                           : sunday ? 'text-lunar' : 'text-fg',
                         selected && 'font-bold',
@@ -240,7 +242,7 @@ export function CalendarView({
                     {/* Lunar day; day-quality and zodiac-clash dots (both from the lunar day) to its right. */}
                     <span
                       className={cn(
-                        'relative text-[11px] sm:text-xs leading-none tabular-nums',
+                        'relative text-[11px] @min-[64px]:text-xs @min-[88px]:text-sm leading-none tabular-nums',
                         special ? 'text-lunar font-bold' : 'text-fg-3 font-medium',
                       )}
                     >
@@ -255,7 +257,7 @@ export function CalendarView({
                       )}
                     </span>
                     {dayHoliday && (
-                      <span className="hidden md:block w-full px-1 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate">
+                      <span className="hidden @min-[88px]:block w-full px-1.5 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate text-center">
                         {dayHoliday}
                       </span>
                     )}
