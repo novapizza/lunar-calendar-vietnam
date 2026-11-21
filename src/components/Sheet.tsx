@@ -3,7 +3,10 @@ import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
 
 interface Props {
+  /** Dialog name for screen readers; also the visible heading unless `heading` is given. */
   title: string;
+  /** Custom header content (e.g. navigation) shown instead of the title text. */
+  heading?: ReactNode;
   subtitle?: string;
   icon?: ReactNode;
   onClose: () => void;
@@ -20,7 +23,7 @@ interface Props {
  * Phones: bottom sheet that slides up, with a grab handle and safe-area padding.
  * Desktop: centred dialog. Backdrop tap closes it; Escape is handled in App.
  */
-export function Sheet({ title, subtitle, icon, onClose, children, footer, size = 'md', tall }: Props) {
+export function Sheet({ title, heading, subtitle, icon, onClose, children, footer, size = 'md', tall }: Props) {
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center sm:p-6">
       <div
@@ -52,7 +55,7 @@ export function Sheet({ title, subtitle, icon, onClose, children, footer, size =
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <h2 className="text-lg font-bold text-fg leading-tight">{title}</h2>
+            {heading ?? <h2 className="text-lg font-bold text-fg leading-tight">{title}</h2>}
             {subtitle && <p className="text-xs text-fg-2 mt-0.5">{subtitle}</p>}
           </div>
           <button onClick={onClose} aria-label="Đóng" className="icon-btn -mr-2 bg-surface-2">

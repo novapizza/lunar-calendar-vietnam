@@ -11,7 +11,7 @@ import { vi } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
   Heart, Hammer, Store, StickyNote, Flag, FaceSlightlyFrowning,
-  Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus,
+  Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus, Undo2,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WEEK_DAYS, CHI_NAMES } from '../../constants/calendar';
@@ -31,9 +31,12 @@ interface Props {
   onNewNoteChange: (v: string) => void;
   onAddNote: () => void;
   onDeleteNote: (id: string) => void;
-  onCurrentDateChange: (date: Date) => void;
+  /** Show the month of `date`; the selected day moves into that month too. */
+  onShowMonth: (date: Date) => void;
   onSelectedDateChange: (date: Date) => void;
   onOpenQuickPicker: () => void;
+  /** Month/year grid picker, opened from the month title. */
+  onOpenMonthPicker: () => void;
   onOpenAuspiciousPicker: () => void;
   onOpenLunarEventModal: () => void;
 }
@@ -43,6 +46,14 @@ const RATING = {
   bad:     { label: 'Ngày xấu',        Icon: ThumbsDown, tone: 'bg-bad-soft text-bad' },
   neutral: { label: 'Bình thường',     Icon: Minus,      tone: 'bg-surface-2 text-fg-2' },
 } as const;
+
+/**
+ * Day-cell marker dot. One size everywhere: cells are only ~40px wide at 320px
+ * and ~43px in the md two-column layout, so the dots must stay this small.
+ */
+const DOT = 'block w-[5px] h-[5px] rounded-full';
+/** Places dots right after a number without moving the number off-centre. */
+const DOT_SLOT = 'absolute left-full top-1/2 -translate-y-1/2 ml-[2px]';
 
 function clashes(userZodiac: string | null, info: LunarInfo): boolean {
   if (!userZodiac) return false;
@@ -63,9 +74,10 @@ export function CalendarView({
   onNewNoteChange,
   onAddNote,
   onDeleteNote,
-  onCurrentDateChange,
+  onShowMonth,
   onSelectedDateChange,
   onOpenQuickPicker,
+  onOpenMonthPicker,
   onOpenAuspiciousPicker,
   onOpenLunarEventModal,
 }: Props) {
@@ -100,13 +112,14 @@ export function CalendarView({
   }, [monthStart.getTime()]);
 
   const swipe = useSwipe(
-    () => onCurrentDateChange(addMonths(currentDate, 1)),
-    () => onCurrentDateChange(subMonths(currentDate, 1)),
+    () => onShowMonth(addMonths(currentDate, 1)),
+    () => onShowMonth(subMonths(currentDate, 1)),
   );
 
   const rating = RATING[selectedLunarInfo.rating];
   const selectedClash = clashes(userZodiac, selectedLunarInfo);
   const showingThisMonth = isSameMonth(currentDate, new Date());
+  const goToToday = () => onSelectedDateChange(new Date());
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain md:overflow-hidden md:flex md:flex-col">
@@ -116,34 +129,44 @@ export function CalendarView({
         <div className="max-w-6xl mx-auto px-4 md:px-8 pt-3 md:pt-6 pb-3">
           <div className="flex items-center gap-2">
             <button
-              onClick={onOpenQuickPicker}
+              onClick={onOpenMonthPicker}
               className="flex-1 min-w-0 text-left rounded-xl -mx-1 px-1 py-0.5 hover:bg-surface-2 transition-colors"
               aria-label="Chọn tháng, năm"
             >
-              <span className="flex items-center gap-1 text-2xl md:text-3xl font-extrabold text-fg">
+              {/* One line always: 20px at 320px wide, 24px from 375px, 30px on md+. */}
+              <span className="flex items-center gap-1 whitespace-nowrap text-[clamp(1.25rem,6.4vw,1.5rem)] md:text-3xl font-extrabold text-fg">
                 Tháng {format(currentDate, 'M')}
                 <span className="text-fg-3 font-bold">{format(currentDate, 'yyyy')}</span>
                 <ChevronDown size={20} className="text-fg-3 mt-1 shrink-0" />
               </span>
               <span className="block text-xs md:text-sm text-fg-2 truncate">{lunarSubtitle}</span>
             </button>
+            {/* Header "Hôm nay" only from sm up; on phones it sits first in the chip row
+                below, so the month title keeps the full width. Wrapper divs carry the
+                visibility because btn-soft/chip set their own display. */}
             {!showingThisMonth && (
-              <button
-                onClick={() => { const t = new Date(); onCurrentDateChange(t); onSelectedDateChange(t); }}
-                className="btn-soft px-3 py-2"
-              >
-                Hôm nay
-              </button>
+              <div className="hidden sm:block shrink-0">
+                <button onClick={goToToday} className="btn-soft px-3 py-2">
+                  Hôm nay
+                </button>
+              </div>
             )}
-            <button onClick={() => onCurrentDateChange(subMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng trước">
+            <button onClick={() => onShowMonth(subMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng trước">
               <ChevronLeft size={20} />
             </button>
-            <button onClick={() => onCurrentDateChange(addMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng sau">
+            <button onClick={() => onShowMonth(addMonths(currentDate, 1))} className="icon-btn" aria-label="Tháng sau">
               <ChevronRight size={20} />
             </button>
           </div>
 
           <div className="flex gap-2 mt-3 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            {!showingThisMonth && (
+              <div className="sm:hidden shrink-0">
+                <button onClick={goToToday} className="chip text-brand">
+                  <Undo2 size={15} /> Hôm nay
+                </button>
+              </div>
+            )}
             <button onClick={onOpenAuspiciousPicker} className="chip">
               <Search size={15} className="text-brand" /> Tìm ngày tốt
             </button>
@@ -161,9 +184,12 @@ export function CalendarView({
       <div className="max-w-6xl w-full mx-auto px-4 md:px-8 pb-10 md:pb-6 md:flex-1 md:min-h-0 md:flex md:gap-6">
 
         {/* Month grid */}
-        <section className="card p-2 sm:p-3 md:flex-1 md:min-h-0 md:overflow-y-auto no-scrollbar" {...swipe}>
-          <div className="grid grid-cols-7 md:grid-cols-[28px_repeat(7,minmax(0,1fr))]">
-            <div className="hidden md:block" />
+        {/* Phones: 8px page gutter and 4px padding (instead of 16 + 8) so day cells get
+            ~3.4px wider. md: the card hugs the square grid instead of stretching. */}
+        <section className="card -mx-2 sm:mx-0 p-1 sm:p-3 md:flex-1 md:min-h-0 md:self-start md:max-h-full md:overflow-y-auto no-scrollbar" {...swipe}>
+          {/* Week-number column only from lg: at md the two-column layout leaves the grid ~300px. */}
+          <div className="grid grid-cols-7 lg:grid-cols-[28px_repeat(7,minmax(0,1fr))] gap-0.5 sm:gap-1 lg:gap-1.5">
+            <div className="hidden lg:block" />
             {WEEK_DAYS.map(d => (
               <div key={d} className={cn('py-2 text-center text-xs font-semibold', d === 'CN' ? 'text-lunar' : 'text-fg-3')}>
                 {d}
@@ -173,7 +199,7 @@ export function CalendarView({
             {weeks.map(week => [
               <div
                 key={`w${week[0].day.getTime()}`}
-                className="hidden md:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
+                className="hidden lg:flex items-center justify-center text-[10px] font-semibold text-fg-3 tabular-nums"
                 title="Tuần"
               >
                 {getWeek(week[0].day, { weekStartsOn: 1, locale: vi })}
@@ -183,7 +209,8 @@ export function CalendarView({
                 const today    = isToday(day);
                 const inMonth  = isSameMonth(day, monthStart);
                 const sunday   = day.getDay() === 0;
-                const special  = lunar.lunarDay === 1 || lunar.lunarDay === 15 || !!dayHoliday;
+                const firstDay = lunar.lunarDay === 1;
+                const special  = firstDay || lunar.lunarDay === 15 || !!dayHoliday;
                 return (
                   <button
                     key={day.getTime()}
@@ -191,40 +218,59 @@ export function CalendarView({
                     aria-label={format(day, "d 'tháng' M", { locale: vi })}
                     aria-pressed={selected}
                     className={cn(
-                      'group relative flex flex-col items-center pt-1.5 pb-1 h-[62px] sm:h-[76px] md:h-auto md:min-h-[84px] rounded-2xl transition-colors',
-                      !selected && 'hover:bg-surface-2',
+                      // Square cell; text sizes follow the cell's own width (container query),
+                      // since the width depends on the layout, not only the screen.
+                      // The whole cell carries the state: today = soft fill,
+                      // selected = brand outline (both when they coincide).
+                      '@container group relative flex flex-col items-center justify-center gap-0.5 aspect-square rounded-xl transition-colors',
+                      today && 'bg-brand-soft',
+                      selected && 'ring-2 ring-inset ring-brand',
+                      !selected && !today && 'hover:bg-surface-2',
                       !inMonth && 'opacity-35',
                     )}
                   >
+                    {/* Solar day; note dot sits to its right without shifting the number. */}
                     <span
                       className={cn(
-                        'w-9 h-9 flex items-center justify-center rounded-full text-[15px] sm:text-base font-semibold tabular-nums transition-colors',
-                        selected ? 'bg-brand text-on-brand font-bold'
-                          : today ? 'text-brand font-bold ring-2 ring-brand ring-inset'
+                        'relative text-[17px] @min-[64px]:text-xl @min-[88px]:text-2xl leading-none font-semibold tabular-nums',
+                        today ? 'text-brand font-bold'
                           : sunday ? 'text-lunar' : 'text-fg',
+                        selected && 'font-bold',
                       )}
                     >
                       {format(day, 'd')}
+                      {hasNote && (
+                        <span className={cn(DOT_SLOT, DOT, 'bg-gold')} aria-hidden="true" />
+                      )}
                     </span>
+                    {/* Lunar day; day-quality and zodiac-clash dots (both from the lunar day) to its right. */}
                     <span
                       className={cn(
-                        'text-[10px] sm:text-[11px] leading-tight tabular-nums mt-0.5',
+                        'relative text-[11px] @min-[64px]:text-xs @min-[88px]:text-sm leading-none tabular-nums',
                         special ? 'text-lunar font-bold' : 'text-fg-3 font-medium',
+                        // "1/11" + dot is too wide to hang the dot off a centred number:
+                        // centre the whole group instead so both sides keep equal room.
+                        firstDay && 'inline-flex items-center',
                       )}
                     >
-                      {lunar.lunarDay === 1 ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
+                      {firstDay ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
+                      {(lunar.rating !== 'neutral' || clash) && (
+                        // Two dots stack vertically so they stay inside a ~40px cell.
+                        <span
+                          className={cn(firstDay ? 'ml-[2px]' : DOT_SLOT, 'flex flex-col gap-px')}
+                          aria-hidden="true"
+                        >
+                          {lunar.rating === 'good' && <span className={cn(DOT, 'bg-good')} />}
+                          {lunar.rating === 'bad'  && <span className={cn(DOT, 'bg-bad/70')} />}
+                          {clash && <span className={cn(DOT, 'bg-clash')} />}
+                        </span>
+                      )}
                     </span>
                     {dayHoliday && (
-                      <span className="hidden md:block w-full px-1 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate">
+                      <span className="hidden @min-[88px]:block w-full px-1.5 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate text-center">
                         {dayHoliday}
                       </span>
                     )}
-                    <span className="mt-auto flex gap-[3px] h-1.5" aria-hidden="true">
-                      {lunar.rating === 'good' && <span className="w-1.5 h-1.5 rounded-full bg-good" />}
-                      {lunar.rating === 'bad'  && <span className="w-1.5 h-1.5 rounded-full bg-bad/70" />}
-                      {hasNote && <span className="w-1.5 h-1.5 rounded-full bg-gold" />}
-                      {clash && <span className="w-1.5 h-1.5 rounded-full bg-clash" />}
-                    </span>
                   </button>
                 );
               }),
@@ -241,7 +287,7 @@ export function CalendarView({
         </section>
 
         {/* Selected-day panel */}
-        <aside className="mt-4 md:mt-0 md:w-80 md:shrink-0 md:overflow-y-auto no-scrollbar flex flex-col gap-3">
+        <aside className="mt-4 md:mt-0 md:w-72 lg:w-80 md:shrink-0 md:overflow-y-auto no-scrollbar flex flex-col gap-3">
           <section className="card p-4">
             <p className="section-label">Ngày đã chọn</p>
             <div className="flex items-end justify-between gap-3 mt-1">
