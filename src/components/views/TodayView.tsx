@@ -8,6 +8,8 @@ import {
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 import { ELEMENTS, type Menh } from '../../lib/menh';
+import { CHI_EMOJI } from '../../constants/calendar';
+import { GioHoangDao } from '../GioHoangDao';
 import { LunarInfo, UserNote } from '../../types';
 import { useSwipe } from '../../hooks/useSwipe';
 import { AboutLink } from '../AboutLink';
@@ -20,12 +22,6 @@ const THEME_BUTTON = {
   dark:   { Icon: Moon,    label: 'Giao diện: tối' },
 } as const;
 
-const CHI_EMOJI: Record<string, string> = {
-  'Tý': '🐭', 'Sửu': '🐂', 'Dần': '🐯', 'Mão': '🐱',
-  'Thìn': '🐲', 'Tỵ': '🐍', 'Ngọ': '🐴', 'Mùi': '🐐',
-  'Thân': '🐒', 'Dậu': '🐓', 'Tuất': '🐕', 'Hợi': '🐷',
-};
-
 function getChiEmoji(canChi: string): string {
   return CHI_EMOJI[canChi.split(' ')[1] ?? ''] ?? '🗓️';
 }
@@ -36,12 +32,6 @@ function getLunarDayLabel(lunarDay: number, lunarMonth: number): string | null {
   if (lunarDay === 1 && m !== 1) return 'Mồng 1';
   if (lunarDay === 15 && m !== 1) return 'Ngày rằm';
   return null;
-}
-
-/** "Tý (23h-1h)" → { name: "Tý", hours: "23h–1h" } */
-function parseGio(gio: string) {
-  const m = gio.match(/^(\S+)\s*\((.*)\)$/);
-  return m ? { name: m[1], hours: m[2].replace('-', '–') } : { name: gio, hours: '' };
 }
 
 const RATING = {
@@ -331,30 +321,7 @@ export function TodayView({
           <div className="@container lg:col-span-2 xl:col-span-1">
           <div className="flex flex-col gap-4 @min-[560px]:grid @min-[560px]:grid-cols-[1.15fr_1fr] @min-[560px]:gap-6 @min-[560px]:items-start">
 
-            {/* Giờ Hoàng Đạo */}
-            <section className="card p-4">
-              <h2 className="section-label mb-3">Giờ hoàng đạo</h2>
-              <div className="grid grid-cols-3 gap-2">
-                {lunarInfo.gioHoangDao.map(gio => {
-                  const { name, hours } = parseGio(gio);
-                  const isNow = viewingToday && name === currentTraditionalHour;
-                  return (
-                    <div
-                      key={gio}
-                      className={cn(
-                        'rounded-xl px-1 py-2.5 text-center whitespace-nowrap',
-                        isNow ? 'bg-brand text-on-brand' : 'bg-brand-soft',
-                      )}
-                    >
-                      <p className={cn('text-sm font-bold', isNow ? 'text-on-brand' : 'text-brand')}>{name}</p>
-                      <p className={cn('text-[11px] tabular-nums', isNow ? 'text-on-brand/80' : 'text-fg-2')}>
-                        {isNow ? 'Đang diễn ra' : hours}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+            <GioHoangDao hours={lunarInfo.gioHoangDao} currentHour={viewingToday ? currentTraditionalHour : null} />
 
             {/* Notes */}
             <section className="card p-4">

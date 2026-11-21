@@ -210,6 +210,7 @@ export default function App() {
         {activeTab === 'calendar' && (
           <CalendarView
             currentDate={currentDate}
+            currentTraditionalHour={currentTraditionalHour}
             selectedDate={selectedDate}
             notes={notes}
             userZodiac={userZodiac}

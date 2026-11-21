@@ -18,9 +18,12 @@ import { WEEK_DAYS, CHI_NAMES } from '../../constants/calendar';
 import { getLunarInfo, getHoliday } from '../../services/lunarService';
 import { LunarInfo, UserNote } from '../../types';
 import { useSwipe } from '../../hooks/useSwipe';
+import { GioHoangDao } from '../GioHoangDao';
 
 interface Props {
   currentDate: Date;
+  /** Chi of the hour now (highlighted in Giờ hoàng đạo when today is selected). */
+  currentTraditionalHour: string;
   selectedDate: Date;
   notes: UserNote[];
   userZodiac: string | null;
@@ -63,6 +66,7 @@ function clashes(userZodiac: string | null, info: LunarInfo): boolean {
 }
 
 export function CalendarView({
+  currentTraditionalHour,
   currentDate,
   selectedDate,
   notes,
@@ -348,16 +352,10 @@ export function CalendarView({
             )}
           </section>
 
-          <section className="card p-4">
-            <p className="section-label mb-2">Giờ hoàng đạo</p>
-            <div className="flex flex-wrap gap-1.5">
-              {selectedLunarInfo.gioHoangDao.map(gio => (
-                <span key={gio} className="rounded-lg bg-brand-soft px-2 py-1 text-xs font-semibold text-brand">
-                  {gio.replace('-', '–')}
-                </span>
-              ))}
-            </div>
-          </section>
+          <GioHoangDao
+            hours={selectedLunarInfo.gioHoangDao}
+            currentHour={isToday(selectedDate) ? currentTraditionalHour : null}
+          />
 
           <section className="card p-4">
             <p className="section-label mb-2 flex items-center gap-1.5"><StickyNote size={13} /> Ghi chú</p>
