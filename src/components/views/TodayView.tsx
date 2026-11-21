@@ -117,23 +117,46 @@ export function TodayView({
             (container queries: C from 560px, B from 620px), which covers C at lg and
             tablets in portrait.
             book (unfolded foldable): two equal panes split at the fold; left = header +
-            A, right = B + C. The two pane wrappers are display:contents everywhere else. */}
-        <div className="grid gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-3 items-start book:grid-cols-2">
+            A, right = B + C. The two pane wrappers are display:contents everywhere else.
+            grid-cols-1 (minmax(0, 1fr)) matters: an implicit column grows to the widest
+            item's min-content, and the header's one-line title made the whole page wider
+            than the screen. */}
+        <div className="grid grid-cols-1 gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-3 items-start book:grid-cols-2">
         <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
 
         {/* Page header */}
         <header className="col-span-full flex items-end justify-between gap-3">
           <div className="min-w-0">
             <p className="section-label">{viewingToday ? 'Hôm nay' : 'Đang xem'}</p>
-            <h1 className="text-2xl book:text-xl rail:text-3xl font-extrabold text-fg capitalize truncate">
+            {/* One line even for the longest date ("Chủ Nhật, 27 Tháng 12") next to the two
+                header buttons: 16.6px at 320px wide up to 24px from 462px; in a foldable
+                pane (about half the window) 16-19px; 30px with the rail. */}
+            <h1 className="text-[clamp(1rem,5.2vw,1.5rem)] book:text-[clamp(1rem,2.6vw,1.25rem)] rail:text-3xl font-extrabold text-fg capitalize truncate">
               {format(today, "EEEE, d 'tháng' M", { locale: vi })}
             </h1>
           </div>
           <div className="flex items-center gap-1 shrink-0">
+            {/* Back to today: icon only on phones / foldable panes so the title keeps its
+                room, a labelled chip with the rail. Wrappers carry the visibility because
+                icon-btn / chip set their own display. */}
             {!viewingToday && (
-              <button onClick={() => onDayChange(new Date())} className="chip text-brand">
-                <Undo2 size={15} /> Hôm nay
-              </button>
+              <>
+                <div className="rail:hidden">
+                  <button
+                    onClick={() => onDayChange(new Date())}
+                    className="icon-btn bg-brand-soft text-brand"
+                    aria-label="Về hôm nay"
+                    title="Về hôm nay"
+                  >
+                    <Undo2 size={18} />
+                  </button>
+                </div>
+                <div className="hidden rail:block">
+                  <button onClick={() => onDayChange(new Date())} className="chip text-brand">
+                    <Undo2 size={15} /> Hôm nay
+                  </button>
+                </div>
+              </>
             )}
             <button onClick={onCycleTheme} className="icon-btn" aria-label={theme.label} title={theme.label}>
               <theme.Icon size={20} />

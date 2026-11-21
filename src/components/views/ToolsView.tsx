@@ -44,7 +44,7 @@ export function ToolsView({
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
       <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
-        <div className="grid gap-4 rail:gap-6 items-start lg:grid-cols-2 book:grid-cols-2">
+        <div className="grid grid-cols-1 gap-4 rail:gap-6 items-start lg:grid-cols-2 book:grid-cols-2">
 
           {/* ───────────── Tools ───────────── */}
           <div className="flex flex-col gap-4 min-w-0">
