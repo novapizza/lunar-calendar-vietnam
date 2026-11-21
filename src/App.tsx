@@ -229,8 +229,15 @@ export default function App() {
           value={currentDate}
           onClose={() => setIsMonthPickerOpen(false)}
           onSelect={date => {
-            // Same as the month arrows: change the shown month, keep the selected day.
-            setCurrentDate(date);
+            // Move the selected day into the chosen month: same day number,
+            // or the 1st when that month is shorter (e.g. 31 -> April, 29 Feb -> 2027).
+            const y = date.getFullYear();
+            const m = date.getMonth();
+            const day = selectedDate.getDate();
+            const daysInMonth = new Date(y, m + 1, 0).getDate();
+            const next = new Date(y, m, day <= daysInMonth ? day : 1);
+            setCurrentDate(next);
+            setSelectedDate(next);
             setIsMonthPickerOpen(false);
           }}
         />
