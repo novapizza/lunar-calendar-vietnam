@@ -30,23 +30,25 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
       <div className="max-w-2xl lg:max-w-5xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
-        {/* book (unfolded foldable): two panes split at the fold; left = title + next
-            event, right = the list. */}
-        <div className="book:grid book:grid-cols-2 book:grid-rows-[auto_1fr] book:gap-x-4 book:items-start">
-        <header className="mb-4 rail:mb-6 book:col-start-1">
+        {/* book (unfolded foldable): two panes split at the fold (same 1rem gap as Today),
+            filled as one flow: title, next event, then the months, top to bottom then across,
+            balanced by the browser. A fixed left pane (title + next event) left most of it
+            empty and squeezed the whole list into the right pane (2026-11-22, 738x845). */}
+        <div className="book:columns-2 book:gap-4 book:[&>*]:break-inside-avoid">
+        <header className="mb-4 rail:mb-6">
           <p className="section-label">Sắp diễn ra</p>
           <h1 className="text-2xl rail:text-3xl font-extrabold text-fg">Ngày lễ & sự kiện</h1>
         </header>
 
         {!next ? (
-          <div className="card p-10 text-center book:col-start-1">
+          <div className="card p-10 text-center">
             <CalendarX2 size={40} className="mx-auto mb-3 text-fg-3" />
             <p className="font-semibold text-fg-2">Không có sự kiện trong 6 tháng tới</p>
           </div>
         ) : (
           <>
             {/* Next event highlight */}
-            <section className="relative overflow-hidden rounded-[1.75rem] p-5 hero book:col-start-1 book:row-start-2">
+            <section className="relative overflow-hidden rounded-[1.75rem] p-5 hero">
               <div className="pointer-events-none absolute -right-12 -top-12 w-44 h-44 rounded-full bg-hero-accent/8" aria-hidden="true" />
               <p className="relative text-[11px] font-semibold uppercase tracking-[0.12em] text-white/65">Sự kiện tiếp theo</p>
               <div className="relative mt-2 flex items-end justify-between gap-4">
@@ -69,8 +71,9 @@ export function EventsView({ onOpenAbout }: { onOpenAbout: () => void }) {
             </section>
 
             {/* Month groups: one column; from lg (840px) two newspaper columns,
-                read top to bottom then across. */}
-            <div className="mt-6 lg:columns-2 lg:gap-6 book:mt-0 book:col-start-2 book:row-start-1 book:row-span-2">
+                read top to bottom then across. In book they continue the page's own two
+                columns, so this wrapper may break between months (break-inside: auto). */}
+            <div className="mt-6 lg:columns-2 lg:gap-6 book:break-inside-auto!">
             {groups.map(([month, list]) => (
               <section key={month} className="mb-6 break-inside-avoid">
                 <h2 className="section-label mb-2 px-1">{month}</h2>
