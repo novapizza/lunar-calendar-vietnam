@@ -32,7 +32,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
-import io.github.novapizza.licham.SheetKind
 import io.github.novapizza.licham.Tab
 import io.github.novapizza.licham.core.DayFacts
 import io.github.novapizza.licham.core.DayInfo
@@ -58,7 +57,6 @@ fun TodayScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
         Activities(info)
         GioHoangDaoCard(info, hourChi)
         NotesCard(state.notesOn(state.selectedDate), { state.addNote(state.selectedDate, it) }, state::deleteNote)
-        AboutLink { state.sheet = SheetKind.ABOUT }
     }
 
     if (!wide && LocalHinge.current == null) {
@@ -111,8 +109,9 @@ private fun Assessment(state: AppState, info: DayInfo) {
     }
 }
 
+/** "Việc nên làm": the three activities and the Trừ note; also the Calendar's day panel. */
 @Composable
-private fun Activities(info: DayInfo) {
+internal fun Activities(info: DayInfo) {
     val c = LocalLichAmColors.current
     Card {
         SectionLabel("Việc nên làm")

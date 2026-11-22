@@ -16,6 +16,23 @@ export type LunarToSolarResult =
   | { ok: true; solar: SolarYMD; adjustedDay: boolean }
   | { ok: false; reason: 'leap_month_not_found' | 'conversion_error' };
 
+export interface LunarMonth { month: number; leap: boolean; days: 29 | 30; first: SolarYMD }
+
+/**
+ * The 12 or 13 months of lunar year `year` in order (a leap month right after its regular
+ * month), each with its length and solar first day. Months outside the tables are left out.
+ */
+export function getLunarMonths(year: number): LunarMonth[] {
+  const out: LunarMonth[] = [];
+  for (let m = 1; m <= 12; m++) {
+    for (const leap of [false, true]) {
+      const first = convertExact(1, m, year, leap);
+      if (first) out.push({ month: m, leap, days: convertExact(30, m, year, leap) ? 30 : 29, first });
+    }
+  }
+  return out;
+}
+
 /** Converts once and verifies the result by converting back to lunar. */
 function convertExact(day: number, month: number, lunarYear: number, isLeap: boolean): SolarYMD | null {
   try {
@@ -120,6 +137,17 @@ export function getObservances(lunarDay: number, lunarMonth: number, date: Date)
     if (FESTIVALS_LUNAR[lunarKey]) out.push({ title: FESTIVALS_LUNAR[lunarKey], kind: 'festival', source: 'lunar' });
   }
   return out;
+}
+
+/** Lunar month names as printed on tear-off calendars ("Tháng Giêng" … "Tháng Chạp"); month 11 is "Mười Một", not the old "Một" (read as month 1, 2026-11-22). */
+export const LUNAR_MONTH_NAMES = ['Giêng', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'Tám', 'Chín', 'Mười', 'Mười Một', 'Chạp'];
+
+/** "Mồng 1" / "Ngày rằm" for lunar day 1/15, excluding 1/1 and 15/1 (named holidays). */
+export function getLunarDayLabel(lunarDay: number, lunarMonth: number): string | null {
+  const m = Math.abs(lunarMonth);
+  if (lunarDay === 1 && m !== 1) return 'Mồng 1';
+  if (lunarDay === 15 && m !== 1) return 'Ngày rằm';
+  return null;
 }
 
 /** The first commemorative day or festival of a day (shown on the sheet when it has no holiday). */

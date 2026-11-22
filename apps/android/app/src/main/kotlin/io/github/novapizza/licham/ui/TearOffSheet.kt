@@ -86,7 +86,7 @@ import java.time.LocalDateTime
 import kotlin.math.hypot
 
 /** Lunar month names as printed on tear-off calendars ("Tháng Giêng" … "Tháng Chạp"); month 11 is "Mười Một", not the old "Một" (read as month 1, 2026-11-22). */
-private val LUNAR_MONTH_NAMES = listOf("Giêng", "Hai", "Ba", "Tư", "Năm", "Sáu", "Bảy", "Tám", "Chín", "Mười", "Mười Một", "Chạp")
+internal val LUNAR_MONTH_NAMES = listOf("Giêng", "Hai", "Ba", "Tư", "Năm", "Sáu", "Bảy", "Tám", "Chín", "Mười", "Mười Một", "Chạp")
 
 private val SheetShape = RoundedCornerShape(20.dp)
 private val PadShape = RoundedCornerShape(bottomStart = 20.dp, bottomEnd = 20.dp)

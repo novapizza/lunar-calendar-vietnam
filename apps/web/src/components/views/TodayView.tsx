@@ -1,16 +1,15 @@
 import { isToday } from 'date-fns';
 import {
-  Heart, Hammer, Store, FaceSlightlyFrowning, StickyNote, Plus, Trash,
-  Sparkles, ThumbsUp, ThumbsDown, Minus,
+  FaceSlightlyFrowning, StickyNote, Plus, Trash, ThumbsUp, ThumbsDown, Minus,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
 import { ELEMENTS, type Menh } from '../../lib/menh';
 import { CHI_EMOJI } from '../../constants/calendar';
 import { GioHoangDao } from '../GioHoangDao';
+import { ActivitiesCard } from '../ActivitiesCard';
 import { LunarInfo, UserNote } from '../../types';
 import { TearOffSheet } from '../TearOffSheet';
-import { AboutLink } from '../AboutLink';
 import { InstallBanner } from '../InstallBanner';
 import type { ThemePref } from '../../hooks/useTheme';
 
@@ -39,7 +38,6 @@ interface Props {
   /** Opens "Tiện ích", where the birth date is entered. */
   onOpenSettings: () => void;
   onDayChange: (date: Date) => void;
-  onOpenAbout: () => void;
   themePref: ThemePref;
   onCycleTheme: () => void;
 }
@@ -61,18 +59,11 @@ export function TodayView({
   onDeleteNote,
   onOpenSettings,
   onDayChange,
-  onOpenAbout,
   themePref,
   onCycleTheme,
 }: Props) {
   const viewingToday = isToday(today);
   const rating = RATING[lunarInfo.rating];
-
-  const activities = [
-    { key: 'wedding', label: 'Cưới hỏi',   Icon: Heart,  ok: lunarInfo.activities.wedding },
-    { key: 'moving',  label: 'Chuyển nhà', Icon: Hammer, ok: lunarInfo.activities.moving },
-    { key: 'opening', label: 'Khai trương', Icon: Store,  ok: lunarInfo.activities.opening },
-  ];
 
   // overflow-x-clip: the page-turn strips (TearOffSheet) are cut at 25° and reach past the right
   // edge (scroll width 612px on a 427px screen, 2026-11-22); they must not scroll the page.
@@ -115,9 +106,9 @@ export function TodayView({
         </div>
 
         {/* ───────────── The day's cards, one flow in balanced columns ───────────── */}
-        {/* The about link sits in this column, not under the grid: below the grid it made the page
-            scroll past the sticky date column's end and carried the sheet up with it. So does the
-            page's bottom padding in two-pane layouts (a sticky box stays inside its grid). */}
+        {/* The page's bottom padding sits in this column in two-pane layouts: under the grid it made
+            the page scroll past the sticky date column's end and carried the sheet up with it (a
+            sticky box stays inside its grid). App info is in Tools only. */}
         <div className="min-w-0 lg:pb-10 book:pb-10">
         <div className="columns-[20rem] gap-4 rail:gap-6 [&>*]:mb-4 rail:[&>*]:mb-6 [&>*]:break-inside-avoid">
 
@@ -157,35 +148,7 @@ export function TodayView({
               )}
             </section>
 
-            {/* Activities */}
-            <section className="card p-4">
-              <h2 className="section-label mb-3">Việc nên làm</h2>
-              <ul className="flex flex-col gap-2">
-                {activities.map(({ key, label, Icon, ok }) => (
-                  <li key={key} className="flex items-center gap-3">
-                    <div className={cn(
-                      'w-9 h-9 shrink-0 rounded-xl flex items-center justify-center',
-                      ok ? 'bg-good-soft text-good' : 'bg-surface-2 text-fg-3',
-                    )}>
-                      <Icon size={17} />
-                    </div>
-                    <span className={cn('flex-1 text-sm font-semibold', ok ? 'text-fg' : 'text-fg-2')}>{label}</span>
-                    <span className={cn(
-                      'rounded-full px-2.5 py-1 text-[11px] font-bold',
-                      ok ? 'bg-good-soft text-good' : 'bg-surface-2 text-fg-3',
-                    )}>
-                      {ok ? 'Tốt' : 'Không hợp'}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-              {lunarInfo.truc === 'Trừ' && (
-                <p className="mt-3 flex gap-2 rounded-xl bg-surface-2 p-3 text-xs text-fg-2 leading-relaxed">
-                  <Sparkles size={14} className="shrink-0 mt-0.5 text-gold" />
-                  Ngày Trừ: tốt để dọn dẹp, chữa bệnh, giải toả mâu thuẫn.
-                </p>
-              )}
-            </section>
+            <ActivitiesCard info={lunarInfo} />
 
             <GioHoangDao hours={lunarInfo.gioHoangDao} currentHour={viewingToday ? currentTraditionalHour : null} />
 
@@ -222,7 +185,6 @@ export function TodayView({
               </button>
             </section>
         </div>
-        <AboutLink onClick={onOpenAbout} inPane />
         </div>
         </div>
       </div>
