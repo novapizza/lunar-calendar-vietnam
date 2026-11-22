@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Widgets: hero-accent / hero-accent-ink of shared/design/tokens.json (dark). -->
+    <color name="widget_gold">#F2C46C</color>
+    <color name="widget_gold_ink">#3A2400</color>
+    <color name="widget_gold_frame">#73F2C46C</color>
+    <color name="widget_gold_frame_inner">#40F2C46C</color>
+    <color name="widget_gold_ring">#8CF2C46C</color>
+</resources>

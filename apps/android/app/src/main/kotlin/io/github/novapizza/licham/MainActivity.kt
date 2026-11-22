@@ -1,6 +1,7 @@
 package io.github.novapizza.licham
 
 import android.content.Context
+import android.content.Intent
 import android.content.pm.ActivityInfo
 import android.content.res.Configuration
 import android.graphics.Color
@@ -25,10 +26,15 @@ import io.github.novapizza.licham.ui.Hinge
 import io.github.novapizza.licham.ui.LocalHinge
 import io.github.novapizza.licham.ui.LichAmTheme
 import io.github.novapizza.licham.ui.MAX_FONT_SCALE
+import io.github.novapizza.licham.core.SolarDate
+import io.github.novapizza.licham.widget.WidgetClock
+import io.github.novapizza.licham.widget.WidgetLinks
 import kotlinx.coroutines.delay
 import java.time.LocalDateTime
 
 class MainActivity : ComponentActivity() {
+    private lateinit var state: AppState
+
     /** Follow the phone's font size only up to MAX_FONT_SCALE (every window of the app reads this configuration). */
     override fun attachBaseContext(newBase: Context) {
         val config = newBase.resources.configuration
@@ -44,7 +50,9 @@ class MainActivity : ComponentActivity() {
             requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         }
         enableEdgeToEdge()
-        val state = AppState(applicationContext)
+        state = AppState(applicationContext)
+        // Opened from a widget: its tab and day (not again when the activity is recreated).
+        if (savedInstanceState == null) openFromWidget(intent)
         setContent {
             val dark = when (state.themePref) {
                 ThemePref.SYSTEM -> isSystemInDarkTheme()
@@ -79,5 +87,24 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        openFromWidget(intent)
+    }
+
+    /** A widget tap: Hôm nay, or the Calendar on the tapped day (widget/WidgetLinks). */
+    private fun openFromWidget(intent: Intent?) {
+        val tab = intent?.getStringExtra(WidgetLinks.EXTRA_TAB)?.let { name -> Tab.entries.firstOrNull { it.name == name } } ?: return
+        state.sheet = null
+        state.selectTab(tab)
+        intent.getStringExtra(WidgetLinks.EXTRA_DATE)?.let(SolarDate::parse)?.let(state::selectDate)
+    }
+
+    /** Widgets follow the app's palette and theme: redraw them when the app leaves the screen. */
+    override fun onStop() {
+        super.onStop()
+        WidgetClock.refresh(applicationContext)
     }
 }
