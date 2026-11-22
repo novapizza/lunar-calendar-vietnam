@@ -77,20 +77,18 @@ export function TodayView({
     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-clip overscroll-contain pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
 
-        {/* Three groups: A date (hero, can chi), B the day (assessment, activities),
-            C hours + notes.
-            < 840px: one column, A B C stacked.
-            lg 840px: A | B side by side, C below across both.
-            xl 1200px: A | B | C, three equal columns.
-            B and C lay their two cards side by side whenever their own width allows
-            (container queries: C from 560px, B from 620px), which covers C at lg and
-            tablets in portrait.
-            book (unfolded foldable): two equal panes split at the fold; left = header +
-            A, right = B + C. The two pane wrappers are display:contents everywhere else.
+        {/* Two parts: A the date (the tear-off sheet) and the day's cards (assessment,
+            activities, giờ hoàng đạo, notes) in one flow.
+            < 840px: one column. lg 840px: A | cards. xl 1200px: A | cards over two thirds.
+            The cards are CSS columns at least 20rem wide: one column where only that fits,
+            two where there is room, balanced by the browser, so no card waits in a row of its
+            own under the sheet (giờ hoàng đạo and notes did at lg, leaving a gap beside them).
+            book (unfolded foldable): two equal panes split at the fold; left = A, right = the
+            cards. The pane wrapper is display:contents everywhere else.
             grid-cols-1 (minmax(0, 1fr)) matters: an implicit column grows to the widest
-            item's min-content, and the header's one-line title made the whole page wider
-            than the screen. */}
-        <div className="grid grid-cols-1 gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-3 items-start book:grid-cols-2">
+            item's min-content, and a one-line title once made the whole page wider than the
+            screen. */}
+        <div className="grid grid-cols-1 gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-[1fr_2fr] items-start book:grid-cols-2">
         <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
 
         <InstallBanner />
@@ -108,10 +106,8 @@ export function TodayView({
           />
         </div>
 
-        <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
-          {/* ───────────── B: the day ───────────── */}
-          <div className="@container">
-          <div className="flex flex-col gap-4 @min-[620px]:grid @min-[620px]:grid-cols-2 @min-[620px]:gap-6 @min-[620px]:items-start">
+        {/* ───────────── The day's cards, one flow in balanced columns ───────────── */}
+        <div className="min-w-0 columns-[20rem] gap-4 rail:gap-6 [&>*]:mb-4 rail:[&>*]:mb-6 [&>*]:break-inside-avoid">
 
             {/* Day assessment */}
             <section className="card divide-y divide-line">
@@ -178,12 +174,6 @@ export function TodayView({
                 </p>
               )}
             </section>
-          </div>
-          </div>
-
-          {/* ───────────── C: hours + notes ───────────── */}
-          <div className="@container lg:col-span-2 xl:col-span-1">
-          <div className="flex flex-col gap-4 @min-[560px]:grid @min-[560px]:grid-cols-[1.15fr_1fr] @min-[560px]:gap-6 @min-[560px]:items-start">
 
             <GioHoangDao hours={lunarInfo.gioHoangDao} currentHour={viewingToday ? currentTraditionalHour : null} />
 
@@ -219,8 +209,6 @@ export function TodayView({
                 <Plus size={16} /> Lưu ghi chú
               </button>
             </section>
-          </div>
-          </div>
         </div>
         </div>
 
