@@ -198,7 +198,10 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
             <span className="h-px w-8 bg-current opacity-40" aria-hidden="true" />
             <span className={cn(
               'text-[13px] font-semibold uppercase tracking-[0.4em] pl-[0.4em]',
-              red ? 'rounded-full bg-hero-accent px-3 py-1 text-hero-accent-ink' : 'text-white',
+              // Same padding every day, the seal only adds the fill: padded on Sundays alone, the
+              // line was 8px taller and the whole sheet with it (2026-11-22).
+              'rounded-full px-3 py-1',
+              red ? 'bg-hero-accent text-hero-accent-ink' : 'text-white',
             )}>
               {format(date, 'EEEE', { locale: vi })}
             </span>

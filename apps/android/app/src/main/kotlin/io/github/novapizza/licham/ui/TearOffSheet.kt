@@ -385,7 +385,8 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
                 Text(
                     d.weekdayName().uppercase(), color = if (red) c.heroAccentInk else Color.White, fontSize = 13.sp, lineHeight = 19.5.sp,
                     fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.em,
-                    modifier = if (red) Modifier.clip(Pill).background(accent).padding(horizontal = 12.dp, vertical = 4.dp) else Modifier,
+                    // Same padding every day, the seal only adds the fill (padded on Sundays alone, the sheet grew 8dp).
+                    modifier = (if (red) Modifier.clip(Pill).background(accent) else Modifier).padding(horizontal = 12.dp, vertical = 4.dp),
                 )
                 Box(Modifier.width(32.dp).height(1.dp).background(accent.copy(alpha = 0.4f)))
             }
