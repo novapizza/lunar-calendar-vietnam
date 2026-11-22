@@ -12,7 +12,9 @@ import kotlin.math.sin
  * (paper wrapping round a cylinder, the back of the sheet showing), the fold runs diagonally
  * across the sheet towards the top-left, and the folded sheet leaves past that corner.
  *
- * A port of apps/web/src/lib/pageCurl.ts (same constants, same steps): keep the two in step.
+ * Same curve and constants as apps/web/src/lib/pageCurl.ts: keep the two in step. The web cuts
+ * the sheet into fixed strips (cheap to composite in a browser); here, drawing on a canvas, the
+ * pieces follow the fold (a flat piece, CURL_BANDS bands round the curl, the folded piece).
  * Coordinates: x right, y down, z towards the viewer, px, origin at the page's top-left.
  */
 object PageCurl {

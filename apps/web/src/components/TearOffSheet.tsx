@@ -1,10 +1,10 @@
-import { Fragment, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { format, getWeek, addDays, subDays, isToday } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Undo2, Sun, Moon, SunMoon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { useSwipe } from '../hooks/useSwipe';
-import { curlFrame, PERSPECTIVE, PIECES, TILT_DEG, TURN_MS } from '../lib/pageCurl';
+import { curlFrame, foldFrame, PERSPECTIVE, STRIPS, TILT_DEG, TURN_MS } from '../lib/pageCurl';
 import type { LunarInfo } from '../types';
 import type { ThemePref } from '../hooks/useTheme';
 
@@ -70,6 +70,16 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
     setTurn({ from: shown, forward: date.getTime() > shown.date.getTime(), id: (turn?.id ?? 0) + 1 });
     setShown(face);
   }
+  // The sheet PageTurn's strips hold between turns. Rebuilding their 48 copies when a turn ends
+  // cost a ~40ms frame (desktop, measured 2026-11-22), so it waits until the browser is idle.
+  const [prepared, setPrepared] = useState<Face>(face);
+  useEffect(() => {
+    if (turn || prepared.date.getTime() === date.getTime()) return;
+    const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
+    const cancel = window.cancelIdleCallback ?? window.clearTimeout;
+    const id = ric(() => setPrepared({ date, lunarInfo, holiday }), { timeout: 1500 });
+    return () => cancel(id);
+  }, [turn, date, lunarInfo, holiday, prepared]);
 
   const lunarMonth = Math.abs(lunarInfo.lunarMonth);
   const theme = THEME_BUTTON[themePref];
@@ -113,19 +123,20 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
           <div className="absolute inset-x-0 bottom-0 h-px bg-hero-accent/70" aria-hidden="true" />
         </div>
 
-        {/* The sheet. During a turn: the sheet underneath (the new day going forward, the old one
-            going back) and the turning sheet above it. The rings are drawn here so they stay over
-            the sheet; during a turn PageTurn draws them again between the flat paper and the
-            lifted paper. */}
+        {/* The sheet: underneath, the live sheet (the new day going forward, the old one going
+            back) with the rings over it; above it, PageTurn's strips, always mounted, holding the
+            sheet that turns next. */}
         <div className="relative">
           {sheet(turn && !turn.forward ? turn.from : face, true)}
           <span className="tear-ring left-[26%]" style={{ top: 'calc(30px - 3rem)' }} aria-hidden="true" />
           <span className="tear-ring right-[26%]" style={{ top: 'calc(30px - 3rem)' }} aria-hidden="true" />
-          {turn && (
-            <PageTurn key={turn.id} forward={turn.forward} onDone={() => setTurn(null)}>
-              {sheet(turn.forward ? turn.from : face, false)}
-            </PageTurn>
-          )}
+          <PageTurn
+            face={turn ? (turn.forward ? turn.from : face) : prepared}
+            turn={turn}
+            now={now}
+            currentTraditionalHour={currentTraditionalHour}
+            onDone={() => setTurn(null)}
+          />
         </div>
 
       </section>
@@ -244,98 +255,174 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
 }
 
 /**
- * The turning sheet, a corner peel: PIECES copies of the sheet, each clipped to one piece cut
- * parallel to the fold (the flat part, thin bands round the curl, the folded part) and turned
- * about the fold line by curlFrame (lib/pageCurl.ts), so the paper bends round a cylinder as the
- * bottom-right corner lifts. A band turned past 90° shows the back of
- * the paper (cream). Forward runs progress 0 → 1 (the sheet peels off past the top-left corner), backward
- * 1 → 0 (a sheet comes back and lies flat). Transforms are written to the DOM each frame, not
- * through React state.
+ * The turning sheet, a corner peel. The sheet is cut into STRIPS fixed strips parallel to the
+ * fold (lib/pageCurl.ts): each strip is a copy of the sheet clipped to its strip of the fold
+ * frame (the page rotated by -TILT_DEG), so it is no bigger than the strip. Each frame only sets
+ * the strips' transforms and opacities, which the browser composites without painting again.
+ * A strip turned past 90° shows the back of the paper (cream). Forward runs progress 0 → 1 (the
+ * sheet peels off past the top-left corner), backward 1 → 0 (a sheet comes back and lies flat).
+ *
+ * The strips stay mounted between turns, holding the sheet on show, nearly transparent (0.001,
+ * so the browser keeps them rasterised): a forward turn then starts on layers that are already
+ * drawn. (Building 26 page-sized layers when a turn started, and dropping them when it ended,
+ * blanked the sheet for a frame at both moments on a phone, 2026-11-22.)
  */
-function PageTurn({ forward, onDone, children }: { forward: boolean; onDone: () => void; children: React.ReactNode }) {
+function PageTurn({ face, turn, now, currentTraditionalHour, onDone }: {
+  /** The sheet the strips show: the one that turns next. */
+  face: Face;
+  turn: { forward: boolean; id: number } | null;
+  now: Date;
+  currentTraditionalHour: string;
+  onDone: () => void;
+}) {
+  const root = useRef<HTMLDivElement>(null);
   const box = useRef<HTMLDivElement>(null);
   const shadow = useRef<HTMLDivElement>(null);
-  const pieces = useRef<(HTMLDivElement | null)[]>([]);
+  const strips = useRef<(HTMLDivElement | null)[]>([]);
   const done = useRef(onDone);
   done.current = onDone;
   const [size, setSize] = useState<{ w: number; h: number } | null>(null);
 
+  // The sheet's size (the strips are cut to it); follows resizes.
   useLayoutEffect(() => {
-    const el = box.current;
-    if (el) setSize({ w: el.offsetWidth, h: el.offsetHeight });
+    const el = root.current;
+    if (!el) return;
+    const measure = () => setSize(s => (s && s.w === el.offsetWidth && s.h === el.offsetHeight ? s : { w: el.offsetWidth, h: el.offsetHeight }));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, []);
 
   useLayoutEffect(() => {
-    if (!size) return;
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      done.current();
-      return;
-    }
+    if (!size || !turn) return;
+    const frame = foldFrame(size.w, size.h);
+    const stripH = frame.sMax / STRIPS;
     const apply = (p: number) => {
       const f = curlFrame(p, size.w, size.h);
       if (box.current) box.current.style.opacity = String(f.opacity);
       if (shadow.current) {
-        const { from, to, alpha } = f.shadow;
-        shadow.current.style.background = `linear-gradient(${180 - TILT_DEG}deg, rgb(0 0 0 / ${alpha}) ${from}px, rgb(0 0 0 / 0) ${to}px)`;
+        shadow.current.style.opacity = String(f.shadow.alpha);
+        shadow.current.style.transform = `rotate(${-TILT_DEG}deg) translate3d(${frame.uMin}px, ${f.shadow.from}px, 0)`;
       }
-      f.pieces.forEach((b, k) => {
-        const el = pieces.current[k];
+      f.strips.forEach((st, k) => {
+        const el = strips.current[k];
         if (!el) return;
-        el.style.clipPath = b.poly.length ? `polygon(${b.poly.map(([x, y]) => `${x}px ${y}px`).join(',')})` : 'polygon(0 0)';
-        el.style.transformOrigin = `${b.origin[0]}px ${b.origin[1]}px`;
-        el.style.transform = `translate3d(${b.shift[0]}px, ${b.shift[1]}px, ${b.shift[2]}px) rotate3d(${f.axis[0]}, ${f.axis[1]}, 0, ${b.angle}deg)`;
-        const [front, backFace, shade] = el.children as unknown as HTMLElement[];
-        front.style.visibility = b.back ? 'hidden' : 'visible';
-        backFace.style.visibility = b.back ? 'visible' : 'hidden';
-        shade.style.opacity = String(b.shade);
+        el.style.transform = `translate3d(0px, ${(st.s - k * stripH).toFixed(2)}px, ${st.z.toFixed(2)}px) rotateX(${st.angle.toFixed(2)}deg)`;
+        const [front, backFace, shade] = (el.firstElementChild as HTMLElement).children as unknown as HTMLElement[];
+        front.style.opacity = st.back ? '0' : '1';
+        backFace.style.opacity = st.back ? '1' : '0';
+        shade.style.opacity = String(st.shade);
       });
     };
+    const reset = () => {
+      if (box.current) box.current.style.opacity = '1';
+      if (shadow.current) shadow.current.style.opacity = '0';
+      strips.current.forEach(el => {
+        if (!el) return;
+        el.style.transform = '';
+        const [front, backFace, shade] = (el.firstElementChild as HTMLElement).children as unknown as HTMLElement[];
+        front.style.opacity = '1';
+        backFace.style.opacity = '0';
+        shade.style.opacity = '0';
+      });
+    };
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      done.current();
+      return;
+    }
     let raf = 0;
     const start = performance.now();
-    const frame = (t: number) => {
+    const step = (t: number) => {
       // Development only: window.__tearFreeze = 0..1 holds the turn at that point (screenshots).
       const freeze = import.meta.env.DEV ? (window as unknown as { __tearFreeze?: number }).__tearFreeze : undefined;
-      // A frame's timestamp can be earlier than `start` (it is the frame's start time): clamp at
-      // 0. A negative progress made the flat piece vanish for one frame, so the new day showed
-      // through before the turn began (measured 2026-11-22).
+      // A frame's timestamp can be earlier than `start` (it is the frame's start time): clamp at 0.
       const k = typeof freeze === 'number' ? freeze : Math.min(1, Math.max(0, (t - start) / TURN_MS));
-      apply(forward ? k : 1 - k);
-      if (k < 1 || typeof freeze === 'number') raf = requestAnimationFrame(frame);
-      else done.current();
+      apply(turn.forward ? k : 1 - k);
+      if (k < 1 || typeof freeze === 'number') raf = requestAnimationFrame(step);
+      else {
+        reset();
+        done.current();
+      }
     };
-    apply(forward ? 0 : 1);
-    raf = requestAnimationFrame(frame);
-    return () => cancelAnimationFrame(raf);
-  }, [size, forward]);
+    apply(turn.forward ? 0 : 1);
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      reset();
+    };
+  }, [size, turn]);
 
+  const frame = size && foldFrame(size.w, size.h);
   return (
-    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true" inert>
-      {/* Shadow the turning page casts on the sheet underneath (gradient set each frame; the
-          gradient angle is the peel direction, so its stops are distances along it). */}
-      <div ref={shadow} className="absolute inset-0 overflow-hidden rounded-b-[1.25rem]" />
+    <div
+      ref={root}
+      className="pointer-events-none absolute inset-0 z-10"
+      // Between turns: drawn but invisible (0, the browser could drop the layers' pixels).
+      style={{ opacity: turn ? 1 : 0.001 }}
+      aria-hidden="true"
+      inert
+    >
+      {/* Shadow the turning page casts on the sheet underneath: a gradient band in the fold frame
+          that slides with the fold (moved, never repainted), clipped to the sheet. */}
+      <div className="absolute inset-0 overflow-hidden rounded-b-[1.25rem]">
+        {frame && (
+          <div
+            ref={shadow}
+            className="absolute left-0 top-0 bg-gradient-to-b from-black to-transparent"
+            style={{ width: frame.uMax - frame.uMin, height: 0.4 * frame.sMax, transformOrigin: '0 0', opacity: 0, willChange: 'transform, opacity' }}
+          />
+        )}
+      </div>
       <div ref={box} className="absolute inset-0" style={{ perspective: PERSPECTIVE, perspectiveOrigin: '50% 0' }}>
-        {size && Array.from({ length: PIECES }, (_, k) => (
-          <Fragment key={k}>
-            <div ref={el => { pieces.current[k] = el; }} className="absolute inset-0" style={{ willChange: 'transform' }}>
-              {children}
-              {/* Back of the sheet: cream paper, warmed by the palette's gold. */}
-              <div className="tear-paper-back absolute inset-0 rounded-b-[1.25rem]" style={{ visibility: 'hidden' }} />
-              {/* Shading, rounded like the paper (square, it filled the sheet's rounded corners). */}
-              <div className="absolute inset-0 rounded-b-[1.25rem] bg-black" style={{ opacity: 0 }} />
+        {size && frame && (
+          <div className="absolute left-0 top-0" style={{ transform: `rotate(${-TILT_DEG}deg)`, transformOrigin: '0 0', transformStyle: 'preserve-3d' }}>
+            <StripCopies
+              face={face} w={size.w} h={size.h} uMin={frame.uMin} uMax={frame.uMax} sMax={frame.sMax}
+              clock={`${currentTraditionalHour} ${format(now, 'HH:mm')}`} now={now} currentTraditionalHour={currentTraditionalHour}
+              strips={strips}
+            />
+            {/* The rings again, just above the flat paper (z 0.5px) and so under the curl and the
+                flap; page-aligned (the fold frame turned back). Same place as the sheet's rings. */}
+            <div className="absolute left-0 top-0" style={{ width: size.w, height: size.h, transformOrigin: '0 0', transform: `rotate(${TILT_DEG}deg) translateZ(0.5px)` }}>
+              <span className="tear-ring left-[26%]" style={{ top: 'calc(30px - 3rem)' }} />
+              <span className="tear-ring right-[26%]" style={{ top: 'calc(30px - 3rem)' }} />
             </div>
-            {/* The rings again, between the flat paper and the lifted paper: they stay over the
-                paper still on the pad and go under the curl and the flap (over everything, they
-                showed on top of the flap; under everything, the flat copy cut them short). Same
-                place as the section's rings: 30px from the sheet's top, the binding is 3rem. */}
-            {k === 0 && (
-              <>
-                <span className="tear-ring left-[26%]" style={{ top: 'calc(30px - 3rem)' }} />
-                <span className="tear-ring right-[26%]" style={{ top: 'calc(30px - 3rem)' }} />
-              </>
-            )}
-          </Fragment>
-        ))}
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+/**
+ * STRIPS copies of the sheet, each clipped to one strip of the fold frame. Memoised on what the
+ * sheet shows and its size: they are rebuilt between turns, not during one.
+ */
+const StripCopies = memo(function StripCopies({ face, w, h, uMin, uMax, sMax, now, currentTraditionalHour, strips }: {
+  face: Face; w: number; h: number; uMin: number; uMax: number; sMax: number;
+  /** Only for the memo: the clock text the sheet shows. */
+  clock: string;
+  now: Date; currentTraditionalHour: string;
+  strips: React.MutableRefObject<(HTMLDivElement | null)[]>;
+}) {
+  const stripH = sMax / STRIPS;
+  return Array.from({ length: STRIPS }, (_, k) => (
+    <div
+      key={k}
+      ref={el => { strips.current[k] = el; }}
+      className="absolute overflow-hidden"
+      // +1px so neighbouring strips overlap and no seam shows.
+      style={{ left: uMin, top: k * stripH, width: uMax - uMin, height: stripH + 1, transformOrigin: '0 0', willChange: 'transform' }}
+    >
+      {/* The sheet, page-aligned again, placed so the page's corner sits where it belongs. */}
+      <div className="absolute" style={{ left: -uMin, top: -k * stripH, width: w, height: h, transformOrigin: '0 0', transform: `rotate(${TILT_DEG}deg)` }}>
+        <SheetFace face={face} now={now} currentTraditionalHour={currentTraditionalHour} />
+        {/* Back of the sheet: cream paper, warmed by the palette's gold. */}
+        <div className="tear-paper-back absolute inset-0 rounded-b-[1.25rem]" style={{ opacity: 0 }} />
+        {/* Shading, rounded like the paper. */}
+        <div className="absolute inset-0 rounded-b-[1.25rem] bg-black" style={{ opacity: 0 }} />
+      </div>
+    </div>
+  ));
+}, (a, b) => a.face.date.getTime() === b.face.date.getTime() && a.face.holiday === b.face.holiday && a.w === b.w && a.h === b.h && a.clock === b.clock);
