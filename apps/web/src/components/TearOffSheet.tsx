@@ -110,8 +110,9 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
           <button onClick={onCycleTheme} className={cn(strip, 'relative')} aria-label={theme.label} title={theme.label}>
             <theme.Icon size={18} />
           </button>
-          <span className="relative text-[11px] font-semibold uppercase tracking-[0.32em] text-hero-accent/90 tabular-nums">
-            Tuần {getWeek(date, { weekStartsOn: 1, locale: vi })}
+          {/* The year on the binding, in larger print; the week moved to the sheet's top line. */}
+          <span className="relative pl-[0.3em] text-[15px] font-bold tracking-[0.3em] text-hero-accent tabular-nums">
+            {format(date, 'yyyy')}
           </span>
           {isToday(date) ? (
             <span className="w-10" aria-hidden="true" />
@@ -172,7 +173,7 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
         <div className="rounded-[0.7rem] border border-hero-accent/25 px-4 pt-6 pb-4">
 
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.34em] pl-[0.34em] text-hero-accent">
-            Tháng {format(date, 'M')} · {format(date, 'yyyy')}
+            Tháng {format(date, 'M')} · Tuần {getWeek(date, { weekStartsOn: 1, locale: vi })}
           </p>
 
           <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center">
