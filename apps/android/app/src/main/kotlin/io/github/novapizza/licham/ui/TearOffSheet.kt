@@ -416,7 +416,7 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
             }
 
             Text(
-                info.holiday ?: lunarDayLabel(info.lunar) ?: "", color = accent, fontFamily = PlayfairDisplay, fontStyle = FontStyle.Italic,
+                info.holiday ?: info.observance ?: lunarDayLabel(info.lunar) ?: "", color = accent, fontFamily = PlayfairDisplay, fontStyle = FontStyle.Italic,
                 fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 24.dp),
             )
 

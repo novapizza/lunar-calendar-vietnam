@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -315,9 +316,15 @@ fun Modifier.swipe(onNext: () -> Unit, onPrev: () -> Unit): Modifier = pointerIn
 
 /** Scrollable page column: px-4 pt-4 pb-10, gap 16 (the web's views on phones). */
 @Composable
-fun Page(modifier: Modifier = Modifier, padding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp), gap: Dp = 16.dp, content: @Composable ColumnScope.() -> Unit) {
+fun Page(
+    modifier: Modifier = Modifier,
+    padding: PaddingValues = PaddingValues(start = 16.dp, end = 16.dp, top = 16.dp, bottom = 40.dp),
+    gap: Dp = 16.dp,
+    scroll: ScrollState = rememberScrollState(),
+    content: @Composable ColumnScope.() -> Unit,
+) {
     Column(
-        modifier.verticalScroll(rememberScrollState()).padding(padding),
+        modifier.verticalScroll(scroll).padding(padding),
         verticalArrangement = Arrangement.spacedBy(gap),
         content = content,
     )

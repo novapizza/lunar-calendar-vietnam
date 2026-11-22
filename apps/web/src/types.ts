@@ -57,5 +57,7 @@ export interface UpcomingEvent {
   lunarDay?: number;
   lunarMonth?: number;
   source: 'lunar' | 'solar';
+  /** Absent for holidays, mồng 1 and rằm. */
+  kind?: 'observance' | 'festival';
   daysUntil: number;
 }

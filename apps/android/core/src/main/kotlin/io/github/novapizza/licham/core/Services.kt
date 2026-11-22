@@ -124,6 +124,9 @@ object Conversion {
 // Upcoming holidays and lunar days (Sự kiện tab)
 // ---------------------------------------------------------------------------
 
+/** What an upcoming event is; holidays include mồng 1 and rằm. */
+enum class EventKind { HOLIDAY, OBSERVANCE, OBSERVANCE_LUNAR, FESTIVAL }
+
 data class UpcomingEvent(
     val solarDate: SolarDate,
     val title: String,
@@ -131,28 +134,66 @@ data class UpcomingEvent(
     val lunarMonth: Int?,
     val lunar: Boolean,
     val daysUntil: Int,
+    val kind: EventKind = EventKind.HOLIDAY,
 )
 
 object Upcoming {
+    /**
+     * The events on one solar day: a solar holiday, then a named lunar holiday or, failing that,
+     * mồng 1 / rằm (not of tháng Giêng, which has its own holidays).
+     */
+    private fun on(d: SolarDate, daysUntil: Int): List<UpcomingEvent> {
+        val h = CalendarData.holidays
+        val out = ArrayList<UpcomingEvent>(2)
+        h.solarHoliday(d)?.let { out += UpcomingEvent(d, it, null, null, false, daysUntil) }
+        val l = LunarCalendar.solarToLunar(d)
+        val named = h.lunar["${l.day}-${l.month}"]
+        val observances = h.observancesOf(d, l)
+        // A named lunar day (Tết Hạ nguyên on 15/10) stands for that month's mồng 1 / rằm.
+        val lunarNamed = observances.any { it.second == EventKind.OBSERVANCE_LUNAR }
+        when {
+            named != null -> out += UpcomingEvent(d, named, l.day, l.month, true, daysUntil)
+            lunarNamed -> Unit
+            l.day == 1 && l.month != 1 -> out += UpcomingEvent(d, "Mồng 1 tháng ${l.month}", l.day, l.month, true, daysUntil)
+            l.day == 15 && l.month != 1 -> out += UpcomingEvent(d, "Ngày rằm tháng ${l.month}", l.day, l.month, true, daysUntil)
+        }
+        for ((title, kind) in observances) {
+            out += if (kind == EventKind.OBSERVANCE) UpcomingEvent(d, title, null, null, false, daysUntil, kind)
+            else UpcomingEvent(d, title, l.day, l.month, true, daysUntil, kind)
+        }
+        return out
+    }
+
     /** Up to [maxCount] solar/lunar holidays, mồng 1 and rằm within [daysToScan] days from [today]. */
     fun events(today: SolarDate, maxCount: Int = 12, daysToScan: Int = 180): List<UpcomingEvent> {
         val out = ArrayList<UpcomingEvent>()
-        val h = CalendarData.holidays
         var d = today
         for (i in 0 until daysToScan) {
             if (out.size >= maxCount || !d.isInRange()) break
-            h.solar["${d.day}-${d.month}"]?.let { out += UpcomingEvent(d, it, null, null, false, i) }
-            if (out.size >= maxCount) break
-            val l = LunarCalendar.solarToLunar(d)
-            val named = h.lunar["${l.day}-${l.month}"]
-            when {
-                named != null -> out += UpcomingEvent(d, named, l.day, l.month, true, i)
-                l.day == 1 && l.month != 1 -> out += UpcomingEvent(d, "Mồng 1 tháng ${l.month}", l.day, l.month, true, i)
-                l.day == 15 && l.month != 1 -> out += UpcomingEvent(d, "Ngày rằm tháng ${l.month}", l.day, l.month, true, i)
-            }
+            out += on(d, i)
             d = d.plusDays(1)
         }
         return out.take(maxCount)
+    }
+
+    /** First day of the solar month [offset] months after [today]'s. */
+    fun monthStart(today: SolarDate, offset: Int): SolarDate = SolarDate(today.year, today.month, 1).plusMonths(offset.toLong())
+
+    /**
+     * The events of the whole solar month [offset] months after [today]'s (0 = this month, its
+     * past days included), daysUntil counted from [today] (negative for past days). Empty past
+     * the lunar tables (LunarCalendar.LAST_DAY).
+     */
+    fun month(today: SolarDate, offset: Int): List<UpcomingEvent> {
+        val first = monthStart(today, offset)
+        val todayJd = LunarCalendar.jdFromDate(today.day, today.month, today.year)
+        val out = ArrayList<UpcomingEvent>()
+        var d = first
+        while (d.month == first.month && d.isInRange()) {
+            out += on(d, LunarCalendar.jdFromDate(d.day, d.month, d.year) - todayJd)
+            d = d.plusDays(1)
+        }
+        return out
     }
 }
 

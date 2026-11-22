@@ -30,6 +30,8 @@ interface Face {
   date: Date;
   lunarInfo: LunarInfo;
   holiday: string | undefined;
+  /** Commemorative day or festival: printed on the sheet like a holiday, but not red. */
+  observance: string | undefined;
 }
 
 interface Props {
@@ -38,6 +40,7 @@ interface Props {
   currentTraditionalHour: string;
   lunarInfo: LunarInfo;
   holiday: string | undefined;
+  observance: string | undefined;
   onDayChange: (date: Date) => void;
   themePref: ThemePref;
   onCycleTheme: () => void;
@@ -55,7 +58,7 @@ interface Props {
  * the bottom and flips it over the binding, uncovering the next one; an earlier day brings a
  * sheet back down the same way.
  */
-export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, holiday, onDayChange, themePref, onCycleTheme }: Props) {
+export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, holiday, observance, onDayChange, themePref, onCycleTheme }: Props) {
   const swipe = useSwipe(
     () => onDayChange(addDays(date, 1)),
     () => onDayChange(subDays(date, 1)),
@@ -63,7 +66,7 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
 
   // The sheet on show, and the turn in progress (state adjusted during render, React's pattern
   // for "previous prop"; safe under StrictMode).
-  const face: Face = { date, lunarInfo, holiday };
+  const face: Face = { date, lunarInfo, holiday, observance };
   const [shown, setShown] = useState<Face>(face);
   const [turn, setTurn] = useState<{ from: Face; forward: boolean; id: number } | null>(null);
   if (shown.date.getTime() !== date.getTime()) {
@@ -77,9 +80,9 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
     if (turn || prepared.date.getTime() === date.getTime()) return;
     const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
     const cancel = window.cancelIdleCallback ?? window.clearTimeout;
-    const id = ric(() => setPrepared({ date, lunarInfo, holiday }), { timeout: 1500 });
+    const id = ric(() => setPrepared({ date, lunarInfo, holiday, observance }), { timeout: 1500 });
     return () => cancel(id);
-  }, [turn, date, lunarInfo, holiday, prepared]);
+  }, [turn, date, lunarInfo, holiday, observance, prepared]);
 
   const numberMax = useFitToPane();
 
@@ -200,7 +203,7 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
   /** Previous / next day; undefined for the copies drawn by PageTurn (nothing to press there). */
   nav?: { prev: () => void; next: () => void };
 }) {
-  const { date, lunarInfo, holiday } = face;
+  const { date, lunarInfo, holiday, observance } = face;
   const red = date.getDay() === 0 || !!holiday;
   const lunarDayLabel = getLunarDayLabel(lunarInfo.lunarDay, lunarInfo.lunarMonth);
   const lunarMonth = Math.abs(lunarInfo.lunarMonth);
@@ -257,7 +260,7 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
           </div>
 
           <p className="mt-2 min-h-6 text-center font-serif text-base italic text-hero-accent">
-            {holiday ?? lunarDayLabel}
+            {holiday ?? observance ?? lunarDayLabel}
           </p>
 
           {/* Ornament: hairlines and a small gold diamond. */}
@@ -484,4 +487,4 @@ const StripCopies = memo(function StripCopies({ face, w, h, uMin, uMax, sMax, no
       </div>
     </div>
   ));
-}, (a, b) => a.face.date.getTime() === b.face.date.getTime() && a.face.holiday === b.face.holiday && a.w === b.w && a.h === b.h && a.clock === b.clock);
+}, (a, b) => a.face.date.getTime() === b.face.date.getTime() && a.face.holiday === b.face.holiday && a.face.observance === b.face.observance && a.w === b.w && a.h === b.h && a.clock === b.clock);

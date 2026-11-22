@@ -2,6 +2,7 @@ import { LunarCalendar, CHI, getSolarDate } from '@dqcai/vn-lunar';
 import calendar from '@lunar/shared/data/calendar.json';
 import holidays from '@lunar/shared/data/holidays.json';
 import { LunarInfo, AuspiciousDate, UpcomingEvent } from '../types';
+import { YEAR_RANGE } from '../constants/calendar';
 
 export { LunarCalendar, CHI };
 
@@ -88,6 +89,44 @@ export const VIETNAMESE_HOLIDAYS: Readonly<Record<string, string>> = holidays.lu
 /** Public solar holidays keyed as "day-month". */
 export const SOLAR_HOLIDAYS: Readonly<Record<string, string>> = holidays.solar;
 
+/** First year a solar holiday counts (newer days off: 24/11 from 2026, 27/7 from 2027). */
+const SOLAR_SINCE: Readonly<Record<string, number>> = holidays.solarSince;
+
+/** Commemorative and lesser traditional days (not red), and temple festivals (main day). */
+const OBSERVANCES_SOLAR: Readonly<Record<string, string>> = holidays.observances.solar;
+const OBSERVANCES_LUNAR: Readonly<Record<string, string>> = holidays.observances.lunar;
+const FESTIVALS_LUNAR: Readonly<Record<string, string>> = holidays.festivals.lunar;
+
+/** The solar holiday on day-month of `year`, honouring SOLAR_SINCE. */
+function solarHoliday(day: number, month: number, year: number): string | undefined {
+  const key = `${day}-${month}`;
+  return year >= (SOLAR_SINCE[key] ?? 0) ? SOLAR_HOLIDAYS[key] : undefined;
+}
+
+/**
+ * The commemorative days and festivals of a day, in that order (observances first). A leap
+ * month (lunarMonth < 0) has none of the lunar ones; a solar observance gives way to the same
+ * day's holiday (27/7 from 2027).
+ */
+export function getObservances(lunarDay: number, lunarMonth: number, date: Date): { title: string; kind: 'observance' | 'festival'; source: 'lunar' | 'solar' }[] {
+  const out: { title: string; kind: 'observance' | 'festival'; source: 'lunar' | 'solar' }[] = [];
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  const solarKey = `${d}-${m}`;
+  if (OBSERVANCES_SOLAR[solarKey] && !solarHoliday(d, m, date.getFullYear())) out.push({ title: OBSERVANCES_SOLAR[solarKey], kind: 'observance', source: 'solar' });
+  if (lunarMonth > 0) {
+    const lunarKey = `${lunarDay}-${lunarMonth}`;
+    if (OBSERVANCES_LUNAR[lunarKey]) out.push({ title: OBSERVANCES_LUNAR[lunarKey], kind: 'observance', source: 'lunar' });
+    if (FESTIVALS_LUNAR[lunarKey]) out.push({ title: FESTIVALS_LUNAR[lunarKey], kind: 'festival', source: 'lunar' });
+  }
+  return out;
+}
+
+/** The first commemorative day or festival of a day (shown on the sheet when it has no holiday). */
+export function getObservance(lunarDay: number, lunarMonth: number, date: Date): string | undefined {
+  return getObservances(lunarDay, lunarMonth, date)[0]?.title;
+}
+
 // ---------------------------------------------------------------------------
 // Activity rules (used by the auspicious-date picker)
 // ---------------------------------------------------------------------------
@@ -171,16 +210,16 @@ export function getLunarInfo(date: Date): LunarInfo {
   };
 }
 
-/** Returns the holiday name for a given lunar/solar date pair, or undefined. */
+/** Returns the holiday name for a given lunar/solar date pair (solar `year` for SOLAR_SINCE), or undefined. */
 export function getHoliday(
   lunarDay: number,
   lunarMonth: number,
   solarDay: number,
   solarMonth: number,
+  year: number,
 ): string | undefined {
   const lunarKey = `${lunarDay}-${Math.abs(lunarMonth)}`;
-  const solarKey = `${solarDay}-${solarMonth}`;
-  return VIETNAMESE_HOLIDAYS[lunarKey] ?? SOLAR_HOLIDAYS[solarKey];
+  return VIETNAMESE_HOLIDAYS[lunarKey] ?? solarHoliday(solarDay, solarMonth, year);
 }
 
 /** Activity key → LunarInfo activities field mapping. */
@@ -228,6 +267,35 @@ export function findBestDates(activityKey: string, monthsToScan = 3): Auspicious
 }
 
 /**
+ * The events on one solar day: a solar holiday, then a named lunar holiday or, failing that,
+ * mồng 1 / rằm (not of tháng Giêng, which has its own holidays).
+ */
+function eventsOn(date: Date, daysUntil: number): UpcomingEvent[] {
+  const out: UpcomingEvent[] = [];
+  const d = date.getDate();
+  const m = date.getMonth() + 1;
+  const solar = solarHoliday(d, m, date.getFullYear());
+  if (solar) out.push({ solarDate: new Date(date), title: solar, source: 'solar', daysUntil });
+
+  const lunar = LunarCalendar.fromSolar(d, m, date.getFullYear());
+  const ld = lunar.lunarDate.day;
+  const lm = Math.abs(lunar.lunarDate.month);
+  const named = VIETNAMESE_HOLIDAYS[`${ld}-${lm}`];
+  const observances = getObservances(ld, lunar.lunarDate.month, date);
+  // A named lunar day (Tết Hạ nguyên on 15/10) stands for that month's mồng 1 / rằm.
+  const lunarNamed = observances.some(o => o.source === 'lunar' && o.kind === 'observance');
+  const title = named ?? (lm === 1 || lunarNamed ? undefined : ld === 1 ? `Mồng 1 tháng ${lm}` : ld === 15 ? `Ngày rằm tháng ${lm}` : undefined);
+  if (title) out.push({ solarDate: new Date(date), title, lunarDay: ld, lunarMonth: lm, source: 'lunar', daysUntil });
+  for (const o of observances) {
+    out.push({ solarDate: new Date(date), title: o.title, kind: o.kind, source: o.source, daysUntil, ...(o.source === 'lunar' ? { lunarDay: ld, lunarMonth: lm } : {}) });
+  }
+  return out;
+}
+
+/** The last day the lunar tables cover (YEAR_RANGE: 1900-2099). */
+export const LAST_EVENT_DAY = new Date(YEAR_RANGE.start + YEAR_RANGE.count - 1, 11, 31);
+
+/**
  * Scans forward from today and returns up to `maxCount` upcoming lunar/solar
  * holiday events within `daysToScan` days (inclusive of today).
  */
@@ -236,60 +304,26 @@ export function getUpcomingEvents(maxCount = 10, daysToScan = 180): UpcomingEven
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const cursor = new Date(today);
-
-  for (let i = 0; i < daysToScan && results.length < maxCount; i++) {
-    const d = cursor.getDate();
-    const m = cursor.getMonth() + 1;
-    const daysUntil = i;
-
-    const solarKey = `${d}-${m}`;
-    if (SOLAR_HOLIDAYS[solarKey]) {
-      results.push({
-        solarDate: new Date(cursor),
-        title: SOLAR_HOLIDAYS[solarKey],
-        source: 'solar',
-        daysUntil,
-      });
-      if (results.length >= maxCount) break;
-    }
-
-    const lunar = LunarCalendar.fromSolar(d, m, cursor.getFullYear());
-    const ld = lunar.lunarDate.day;
-    const lm = Math.abs(lunar.lunarDate.month);
-    const lunarKey = `${ld}-${lm}`;
-    if (VIETNAMESE_HOLIDAYS[lunarKey]) {
-      results.push({
-        solarDate: new Date(cursor),
-        title: VIETNAMESE_HOLIDAYS[lunarKey],
-        lunarDay: ld,
-        lunarMonth: lm,
-        source: 'lunar',
-        daysUntil,
-      });
-    } else if (ld === 1 && lm !== 1 && results.length < maxCount) {
-      // Mồng 1 (new moon) — skip if already a named holiday or lunar 1/1
-      results.push({
-        solarDate: new Date(cursor),
-        title: `Mồng 1 tháng ${lm}`,
-        lunarDay: ld,
-        lunarMonth: lm,
-        source: 'lunar',
-        daysUntil,
-      });
-    } else if (ld === 15 && lm !== 1 && results.length < maxCount) {
-      // Ngày rằm (full moon) — skip if already a named holiday or lunar 15/1
-      results.push({
-        solarDate: new Date(cursor),
-        title: `Ngày rằm tháng ${lm}`,
-        lunarDay: ld,
-        lunarMonth: lm,
-        source: 'lunar',
-        daysUntil,
-      });
-    }
-
+  for (let i = 0; i < daysToScan && results.length < maxCount && cursor <= LAST_EVENT_DAY; i++) {
+    results.push(...eventsOn(cursor, i));
     cursor.setDate(cursor.getDate() + 1);
   }
-
   return results.slice(0, maxCount);
+}
+
+/**
+ * The events of the whole solar month `offset` months after today's (0 = this month, its past
+ * days included), with daysUntil counted from `today` (local midnight; negative for past days).
+ * Empty past LAST_EVENT_DAY.
+ */
+export function getEventsOfMonth(today: Date, offset: number): UpcomingEvent[] {
+  const first = new Date(today.getFullYear(), today.getMonth() + offset, 1);
+  const results: UpcomingEvent[] = [];
+  const cursor = new Date(first);
+  while (cursor.getMonth() === first.getMonth() && cursor <= LAST_EVENT_DAY) {
+    const daysUntil = Math.round((cursor.getTime() - today.getTime()) / 86_400_000);
+    results.push(...eventsOn(cursor, daysUntil));
+    cursor.setDate(cursor.getDate() + 1);
+  }
+  return results;
 }

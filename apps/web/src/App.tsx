@@ -12,7 +12,7 @@ import { useLunarPresets } from './hooks/useLunarPresets';
 import { useTheme } from './hooks/useTheme';
 import { useAccent } from './hooks/useAccent';
 import { menhOfBirthDate } from './lib/menh';
-import { getLunarInfo, getHoliday, findBestDates } from './services/lunarService';
+import { getLunarInfo, getHoliday, getObservance, findBestDates } from './services/lunarService';
 import { NavSidebar, NavTab } from './components/NavSidebar';
 import { TodayView } from './components/views/TodayView';
 import { CalendarView } from './components/views/CalendarView';
@@ -89,7 +89,12 @@ export default function App() {
       selectedLunarInfo.lunarMonth,
       selectedDate.getDate(),
       selectedDate.getMonth() + 1,
+      selectedDate.getFullYear(),
     ),
+    [selectedLunarInfo, selectedDate],
+  );
+  const observance = useMemo(
+    () => getObservance(selectedLunarInfo.lunarDay, selectedLunarInfo.lunarMonth, selectedDate),
     [selectedLunarInfo, selectedDate],
   );
 
@@ -191,6 +196,7 @@ export default function App() {
             userMenh={userMenh}
             zodiacClash={zodiacClash}
             holiday={holiday}
+            observance={observance}
             todayNotes={selectedDateNotes}
             newNoteContent={newNoteContent}
             onNewNoteChange={setNewNoteContent}
@@ -233,7 +239,7 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'events' && <EventsView onOpenAbout={() => setIsAboutOpen(true)} />}
+        {activeTab === 'events' && <EventsView />}
 
         {activeTab === 'tools' && (
           <ToolsView

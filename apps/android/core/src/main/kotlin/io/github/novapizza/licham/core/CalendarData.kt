@@ -40,7 +40,41 @@ data class TrucJson(
 data class ActivityJson(val label: String, val truc: List<String>)
 
 @Serializable
-data class HolidaysJson(val lunar: Map<String, String>, val solar: Map<String, String>)
+data class DayNamesJson(val solar: Map<String, String> = emptyMap(), val lunar: Map<String, String> = emptyMap())
+
+@Serializable
+data class HolidaysJson(
+    val lunar: Map<String, String>,
+    val solar: Map<String, String>,
+    /** First year a solar holiday counts (24/11 from 2026, 27/7 from 2027). */
+    val solarSince: Map<String, Int> = emptyMap(),
+    /** Commemorative and lesser traditional days: printed, not red. */
+    val observances: DayNamesJson = DayNamesJson(),
+    /** Temple festivals (main day): printed, not red. */
+    val festivals: DayNamesJson = DayNamesJson(),
+) {
+    /** The solar holiday on [date], honouring [solarSince]. */
+    fun solarHoliday(date: SolarDate): String? {
+        val key = "${date.day}-${date.month}"
+        return if (date.year >= (solarSince[key] ?: 0)) solar[key] else null
+    }
+
+    /**
+     * The commemorative days and festivals of a day, observances first. A leap month has none of
+     * the lunar ones; a solar observance gives way to the same day's holiday (27/7 from 2027).
+     */
+    fun observancesOf(date: SolarDate, lunar: LunarDate): List<Pair<String, EventKind>> {
+        val out = ArrayList<Pair<String, EventKind>>(2)
+        val solarKey = "${date.day}-${date.month}"
+        observances.solar[solarKey]?.takeIf { solarHoliday(date) == null }?.let { out += it to EventKind.OBSERVANCE }
+        if (!lunar.leap) {
+            val lunarKey = "${lunar.day}-${lunar.month}"
+            observances.lunar[lunarKey]?.let { out += it to EventKind.OBSERVANCE_LUNAR }
+            festivals.lunar[lunarKey]?.let { out += it to EventKind.FESTIVAL }
+        }
+        return out
+    }
+}
 
 @Serializable
 data class ElementJson(val name: String, val color: String, val generatedBy: String)
