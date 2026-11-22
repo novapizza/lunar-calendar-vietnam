@@ -342,10 +342,13 @@ function PageTurn({ face, turn, now, currentTraditionalHour, onDone }: {
       apply(turn.forward ? k : 1 - k);
       if (k < 1 || typeof freeze === 'number') raf = requestAnimationFrame(step);
       else {
-        // Hide the strips before flattening them, in this same frame: React hides them only on
-        // its next render, a frame later, and in between the flat old sheet covered the new day
-        // (a blink after each turn on the phone, 2026-11-22).
-        if (root.current) root.current.style.opacity = '0.001';
+        // Going forward the strips hold the old sheet: hide them in this same frame, before
+        // flattening them (React hides them only on its next render, a frame later, and in
+        // between the old sheet covered the new day: a blink on the phone, 2026-11-22).
+        // Going back it is the other way round: the strips, now flat, are the new day and the
+        // sheet underneath is still the old one until React's next render; keep them shown so
+        // React hides them in the same render that puts the new day underneath.
+        if (turn.forward && root.current) root.current.style.opacity = '0.001';
         reset();
         done.current();
       }
