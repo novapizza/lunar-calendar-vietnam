@@ -1,9 +1,7 @@
-import { format, getWeek, addDays, subDays, isToday } from 'date-fns';
-import { vi } from 'date-fns/locale';
+import { isToday } from 'date-fns';
 import {
-  Clock, Heart, Hammer, Store, Flag, FaceSlightlyFrowning, StickyNote, Plus, Trash,
-  ChevronLeft, ChevronRight, Sparkles, ThumbsUp, ThumbsDown, Minus, Undo2,
-  Sun, Moon, SunMoon,
+  Heart, Hammer, Store, FaceSlightlyFrowning, StickyNote, Plus, Trash,
+  Sparkles, ThumbsUp, ThumbsDown, Minus,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
@@ -11,28 +9,10 @@ import { ELEMENTS, type Menh } from '../../lib/menh';
 import { CHI_EMOJI } from '../../constants/calendar';
 import { GioHoangDao } from '../GioHoangDao';
 import { LunarInfo, UserNote } from '../../types';
-import { useSwipe } from '../../hooks/useSwipe';
+import { TearOffSheet } from '../TearOffSheet';
 import { AboutLink } from '../AboutLink';
 import { InstallBanner } from '../InstallBanner';
 import type { ThemePref } from '../../hooks/useTheme';
-
-const THEME_BUTTON = {
-  system: { Icon: SunMoon, label: 'Giao diện: theo hệ thống' },
-  light:  { Icon: Sun,     label: 'Giao diện: sáng' },
-  dark:   { Icon: Moon,    label: 'Giao diện: tối' },
-} as const;
-
-function getChiEmoji(canChi: string): string {
-  return CHI_EMOJI[canChi.split(' ')[1] ?? ''] ?? '🗓️';
-}
-
-/** "Mồng 1" / "Ngày rằm" for lunar day 1/15, excluding 1/1 and 15/1 (named holidays). */
-function getLunarDayLabel(lunarDay: number, lunarMonth: number): string | null {
-  const m = Math.abs(lunarMonth);
-  if (lunarDay === 1 && m !== 1) return 'Mồng 1';
-  if (lunarDay === 15 && m !== 1) return 'Ngày rằm';
-  return null;
-}
 
 const RATING = {
   good:    { label: 'Ngày tốt',        Icon: ThumbsUp,   tone: 'bg-good-soft text-good' },
@@ -82,14 +62,8 @@ export function TodayView({
   themePref,
   onCycleTheme,
 }: Props) {
-  const swipe = useSwipe(
-    () => onDayChange(addDays(today, 1)),
-    () => onDayChange(subDays(today, 1)),
-  );
   const viewingToday = isToday(today);
-  const lunarDayLabel = getLunarDayLabel(lunarInfo.lunarDay, lunarInfo.lunarMonth);
   const rating = RATING[lunarInfo.rating];
-  const theme = THEME_BUTTON[themePref];
 
   const activities = [
     { key: 'wedding', label: 'Cưới hỏi',   Icon: Heart,  ok: lunarInfo.activities.wedding },
@@ -117,131 +91,19 @@ export function TodayView({
         <div className="grid grid-cols-1 gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-3 items-start book:grid-cols-2">
         <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
 
-        {/* Page header */}
-        <header className="col-span-full flex items-end justify-between gap-3">
-          <div className="min-w-0">
-            <p className="section-label">{viewingToday ? 'Hôm nay' : 'Đang xem'}</p>
-            {/* One line even for the longest date ("Chủ Nhật, 27 Tháng 12") next to the two
-                header buttons: 16.6px at 320px wide up to 24px from 462px; in a foldable
-                pane (about half the window) 16-19px; 30px with the rail. */}
-            <h1 className="text-[clamp(1rem,5.2vw,1.5rem)] book:text-[clamp(1rem,2.6vw,1.25rem)] rail:text-3xl font-extrabold text-fg capitalize truncate">
-              {format(today, "EEEE, d 'tháng' M", { locale: vi })}
-            </h1>
-          </div>
-          <div className="flex items-center gap-1 shrink-0">
-            {/* Back to today: icon only on phones / foldable panes so the title keeps its
-                room, a labelled chip with the rail. Wrappers carry the visibility because
-                icon-btn / chip set their own display. */}
-            {!viewingToday && (
-              <>
-                <div className="rail:hidden">
-                  <button
-                    onClick={() => onDayChange(new Date())}
-                    className="icon-btn bg-brand-soft text-brand"
-                    aria-label="Về hôm nay"
-                    title="Về hôm nay"
-                  >
-                    <Undo2 size={18} />
-                  </button>
-                </div>
-                <div className="hidden rail:block">
-                  <button onClick={() => onDayChange(new Date())} className="chip text-brand">
-                    <Undo2 size={15} /> Hôm nay
-                  </button>
-                </div>
-              </>
-            )}
-            <button onClick={onCycleTheme} className="icon-btn" aria-label={theme.label} title={theme.label}>
-              <theme.Icon size={20} />
-            </button>
-          </div>
-        </header>
-
         <InstallBanner />
 
-          {/* ───────────── A: the date ───────────── */}
-          <div className="flex flex-col gap-4">
-
-            {/* Hero: solar + lunar date */}
-            <section
-              {...swipe}
-              className="relative overflow-hidden rounded-[1.75rem] hero"
-            >
-              {/* decorative moon */}
-              <div className="pointer-events-none absolute -right-14 -top-16 w-56 h-56 rounded-full bg-hero-accent/8" aria-hidden="true" />
-              <div className="pointer-events-none absolute -right-2 -top-6 w-28 h-28 rounded-full bg-hero-accent/8" aria-hidden="true" />
-
-              <div className="relative flex items-center justify-between px-3 pt-3">
-                <button
-                  onClick={() => onDayChange(subDays(today, 1))}
-                  aria-label="Ngày trước"
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 transition"
-                >
-                  <ChevronLeft size={20} />
-                </button>
-                <span className="text-xs font-medium text-white/75">
-                  Tuần {getWeek(today, { weekStartsOn: 1, locale: vi })} · {format(today, 'yyyy')}
-                </span>
-                <button
-                  onClick={() => onDayChange(addDays(today, 1))}
-                  aria-label="Ngày sau"
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/10 hover:bg-white/20 active:scale-95 transition"
-                >
-                  <ChevronRight size={20} />
-                </button>
-              </div>
-
-              <div className="relative grid grid-cols-2 px-5 pt-2 pb-5">
-                <div className="pr-4 border-r border-white/15">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/60">Dương lịch</p>
-                  <p className="text-[64px] rail:text-[80px] leading-none font-extrabold tracking-tight mt-1 tabular-nums">
-                    {format(today, 'd')}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">Tháng {format(today, 'M, yyyy')}</p>
-                </div>
-                <div className="pl-5">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-hero-accent/80">Âm lịch</p>
-                  <p className="text-[64px] rail:text-[80px] leading-none font-extrabold tracking-tight mt-1 text-hero-accent tabular-nums">
-                    {lunarInfo.lunarDay}
-                  </p>
-                  <p className="mt-1 text-sm font-semibold">
-                    Tháng {Math.abs(lunarInfo.lunarMonth)}{lunarInfo.isLeap && ' (nhuận)'}
-                  </p>
-                </div>
-              </div>
-
-              <div className="relative flex flex-wrap items-center gap-2 px-5 pb-5">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white/12 px-3 py-1.5 text-xs font-semibold tabular-nums">
-                  <Clock size={13} /> {format(now, 'HH:mm')} · Giờ {currentTraditionalHour}
-                </span>
-                {lunarDayLabel && (
-                  <span className="rounded-full bg-hero-accent text-hero-accent-ink px-3 py-1.5 text-xs font-bold">
-                    {lunarDayLabel}
-                  </span>
-                )}
-                {holiday && (
-                  <span className="inline-flex items-center gap-1 rounded-full bg-white text-lunar px-3 py-1.5 text-xs font-bold">
-                    <Flag size={12} className="fill-current" /> {holiday}
-                  </span>
-                )}
-              </div>
-            </section>
-
-            {/* Can Chi */}
-            <section className="card grid grid-cols-3 divide-x divide-line py-4">
-              {[
-                { label: 'Năm', value: lunarInfo.canChiYear },
-                { label: 'Tháng', value: lunarInfo.canChiMonth },
-                { label: 'Ngày', value: lunarInfo.canChiDay },
-              ].map(({ label, value }) => (
-                <div key={label} className="flex flex-col items-center text-center gap-1 px-2">
-                  <span className="text-2xl leading-none" aria-hidden="true">{getChiEmoji(value)}</span>
-                  <span className="section-label mt-1">{label}</span>
-                  <span className="text-sm font-bold text-fg">{value}</span>
-                </div>
-              ))}
-            </section>
-          </div>
+          {/* ───────────── A: the date, as a tear-off calendar sheet ───────────── */}
+          <TearOffSheet
+            date={today}
+            now={now}
+            currentTraditionalHour={currentTraditionalHour}
+            lunarInfo={lunarInfo}
+            holiday={holiday}
+            onDayChange={onDayChange}
+            themePref={themePref}
+            onCycleTheme={onCycleTheme}
+          />
         </div>
 
         <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
