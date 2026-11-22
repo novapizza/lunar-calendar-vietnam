@@ -2,4 +2,10 @@
 <resources>
     <!-- Logo background: the "logo" colour of the default (Hỏa) palette in shared/design/tokens.json. -->
     <color name="ic_launcher_background">#8A2F1C</color>
+    <!-- Widgets: hero-accent / hero-accent-ink of shared/design/tokens.json (light; dark in values-night). -->
+    <color name="widget_gold">#F7D58C</color>
+    <color name="widget_gold_ink">#4A2C00</color>
+    <color name="widget_gold_frame">#73F7D58C</color>
+    <color name="widget_gold_frame_inner">#40F7D58C</color>
+    <color name="widget_gold_ring">#8CF7D58C</color>
 </resources>

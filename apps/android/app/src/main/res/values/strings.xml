@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Lịch Âm</string>
+    <string name="widget_today_name">Tờ lịch hôm nay</string>
+    <string name="widget_today_desc">Ngày dương, ngày âm, can chi và ngày lễ của hôm nay</string>
+    <string name="widget_month_name">Lịch tháng</string>
+    <string name="widget_month_desc">Lịch tháng này, có ngày âm</string>
+    <string name="widget_month_small_name">Lịch tháng nhỏ</string>
+    <string name="widget_month_small_desc">Lịch tháng này, cỡ nhỏ</string>
 </resources>
