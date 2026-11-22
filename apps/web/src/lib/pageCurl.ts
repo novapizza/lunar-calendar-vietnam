@@ -18,7 +18,7 @@
  */
 
 export const STRIPS = 48;
-export const TURN_MS = 800;
+export const TURN_MS = 600;
 /** CSS `perspective`, px; vanishing point at the page's top centre. */
 export const PERSPECTIVE = 2400;
 /** The peel runs 25° off vertical, towards the bottom-right corner. */
