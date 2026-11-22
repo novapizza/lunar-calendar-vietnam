@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.runtime.Composable
@@ -58,6 +59,12 @@ val LocalHinge = compositionLocalOf<Hinge?> { null }
  * pane scrolls.
  */
 val LocalPaneHeight = compositionLocalOf<Dp?> { null }
+
+/**
+ * Inside FlowPanes: the width of its left column, so an item across both columns can keep text
+ * in the left pane (clear of the hinge). Null elsewhere.
+ */
+val LocalLeftColumn = compositionLocalOf<Dp?> { null }
 
 /** Content columns of the two panes, px from the start of a box [width] px wide. */
 @Immutable
@@ -131,68 +138,61 @@ fun TwoPanes(
 }, leftWeight, rightWeight)
 
 /**
- * Items in reading order filled into the two panes' columns as one page that scrolls as a
- * whole: top to bottom, then across, split where the two columns come out closest in height
- * (an item is never cut in two). The first [spanning] items run across both columns above
- * them; the first [keepLeft] items stay in the left column. Like the web's CSS columns.
+ * Items in reading order in a two-column grid over the panes' columns, filled row by row (left,
+ * then right), one page that scrolls as a whole: as a year calendar's month cards, and a list
+ * that grows only at the bottom, so loading more never moves what is on screen. The first
+ * [spanning] items run across both columns above the grid. Each row is as tall as its taller
+ * item. Like the web's Events grid.
  */
 @Composable
 fun FlowPanes(
     top: Dp,
     bottom: Dp,
     gap: Dp,
-    firstGap: Dp = gap,
     spanning: Int = 0,
-    keepLeft: Int = 0,
+    scroll: ScrollState = rememberScrollState(),
     content: @Composable () -> Unit,
 ) = PaneBox({ cols ->
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = top, bottom = bottom)) {
+    Column(Modifier.fillMaxSize().verticalScroll(scroll).padding(top = top, bottom = bottom)) {
+        val leftColumn = with(LocalDensity.current) { (cols.leftEnd - cols.leftStart).toDp() }
+        CompositionLocalProvider(LocalLeftColumn provides leftColumn) {
         Layout(content, Modifier.fillMaxWidth()) { measurables, constraints ->
             val gapPx = gap.roundToPx()
-            val firstGapPx = firstGap.roundToPx()
-            fun gapBefore(i: Int) = if (i == 1) firstGapPx else gapPx
             val span = min(spanning, measurables.size)
             val spanWidth = cols.rightEnd - cols.leftStart
-            // Both columns at the narrower width, so an item's height does not depend on its column.
-            val colWidth = min(cols.leftEnd - cols.leftStart, cols.rightEnd - cols.rightStart)
-            val placeables = measurables.mapIndexed { i, m -> m.measure(Constraints.fixedWidth(if (i < span) spanWidth else colWidth)) }
-            val heights = placeables.map { it.height }
-
-            fun stack(from: Int, to: Int): Int = if (from >= to) 0 else
-                (from until to).sumOf { heights[it] } + (from + 1 until to).sumOf { gapBefore(it) }
-
-            val spanHeight = stack(0, span)
-            val first = span
-            val n = placeables.size
-            // k = first item of the right column.
-            var best = n
-            var bestHeight = Int.MAX_VALUE
-            for (k in max(first, keepLeft).coerceAtMost(n)..n) {
-                val h = max(stack(first, k), stack(k, n))
-                if (h < bestHeight) { best = k; bestHeight = h }
+            val leftWidth = cols.leftEnd - cols.leftStart
+            val rightWidth = cols.rightEnd - cols.rightStart
+            val placeables = measurables.mapIndexed { i, m ->
+                val w = when {
+                    i < span -> spanWidth
+                    (i - span) % 2 == 0 -> leftWidth
+                    else -> rightWidth
+                }
+                m.measure(Constraints.fixedWidth(w))
             }
-            val flowTop = if (span > 0 && first < n) spanHeight + gapPx else spanHeight
-            val total = flowTop + (if (first < n) bestHeight else 0)
-            layout(constraints.maxWidth, total) {
-                var y = 0
-                for (i in 0 until span) {
-                    if (i > 0) y += gapBefore(i)
-                    placeables[i].place(cols.leftStart, y)
-                    y += heights[i]
-                }
-                y = flowTop
-                for (i in first until best) {
-                    if (i > first) y += gapBefore(i)
-                    placeables[i].place(cols.leftStart, y)
-                    y += heights[i]
-                }
-                y = flowTop
-                for (i in best until n) {
-                    if (i > best) y += gapBefore(i)
-                    placeables[i].place(cols.rightStart, y)
-                    y += heights[i]
-                }
+            val positions = ArrayList<Pair<Int, Int>>(placeables.size)
+            var y = 0
+            for (i in 0 until span) {
+                if (i > 0) y += gapPx
+                positions += cols.leftStart to y
+                y += placeables[i].height
             }
+            var i = span
+            while (i < placeables.size) {
+                if (i > 0) y += gapPx
+                positions += cols.leftStart to y
+                var rowHeight = placeables[i].height
+                if (i + 1 < placeables.size) {
+                    positions += cols.rightStart to y
+                    rowHeight = max(rowHeight, placeables[i + 1].height)
+                }
+                y += rowHeight
+                i += 2
+            }
+            layout(constraints.maxWidth, y) {
+                placeables.forEachIndexed { k, p -> p.place(positions[k].first, positions[k].second) }
+            }
+        }
         }
     }
 }, 1f, 1f)

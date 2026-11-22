@@ -29,6 +29,8 @@ interface Props {
   userMenh: Menh | null;
   zodiacClash: boolean | null;
   holiday: string | undefined;
+  /** A commemorative day or festival, shown on the sheet when there is no holiday. */
+  observance: string | undefined;
   todayNotes: UserNote[];
   newNoteContent: string;
   onNewNoteChange: (v: string) => void;
@@ -51,6 +53,7 @@ export function TodayView({
   userMenh,
   zodiacClash,
   holiday,
+  observance,
   todayNotes,
   newNoteContent,
   onNewNoteChange,
@@ -104,6 +107,7 @@ export function TodayView({
             currentTraditionalHour={currentTraditionalHour}
             lunarInfo={lunarInfo}
             holiday={holiday}
+            observance={observance}
             onDayChange={onDayChange}
             themePref={themePref}
             onCycleTheme={onCycleTheme}

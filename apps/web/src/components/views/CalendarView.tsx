@@ -98,7 +98,7 @@ export function CalendarView({
       return {
         day,
         lunar,
-        holiday: getHoliday(lunar.lunarDay, lunar.lunarMonth, day.getDate(), day.getMonth() + 1),
+        holiday: getHoliday(lunar.lunarDay, lunar.lunarMonth, day.getDate(), day.getMonth() + 1, day.getFullYear()),
         hasNote: noteDates.has(format(day, 'yyyy-MM-dd')),
         clash: clashes(userZodiac, lunar),
       };

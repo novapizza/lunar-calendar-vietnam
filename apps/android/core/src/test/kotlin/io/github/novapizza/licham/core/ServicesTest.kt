@@ -23,8 +23,31 @@ class ServicesTest {
     fun upcomingStartsWithNamedOrLunarDays() {
         val ev = Upcoming.events(SolarDate(2026, 11, 21))
         assertEquals(12, ev.size)
-        // Next lunar 1st after 13/10 is 1/11 (Mồng 1 tháng 11).
-        assertTrue(ev.first().title, ev.first().title.startsWith("Ngày rằm") || ev.first().title.startsWith("Mồng 1"))
+        // 21/11/2026 is 13/10 âm; the next lunar day of note is rằm tháng 10 (23/11), which has
+        // its own name, Tết Hạ nguyên, in place of "Ngày rằm tháng 10".
+        assertEquals("Tết Hạ nguyên", ev.first().title)
+        assertEquals(SolarDate(2026, 11, 23), ev.first().solarDate)
+    }
+
+    @Test
+    fun holidaysObservancesAndFestivals() {
+        // 27/7 is a day off only from 2027; before that it is a commemorative day.
+        val jul2026 = DayInfo.of(SolarDate(2026, 7, 27))
+        assertEquals(null, jul2026.holiday)
+        assertEquals("Ngày Thương binh – Liệt sĩ", jul2026.observance)
+        val jul2027 = DayInfo.of(SolarDate(2027, 7, 27))
+        assertEquals("Ngày Thương binh – Liệt sĩ", jul2027.holiday)
+        assertEquals(null, jul2027.observance)
+        // 24/11 is a day off from 2026 (Nghị quyết 28/2026/QH16).
+        assertEquals("Ngày Văn hóa Việt Nam", DayInfo.of(SolarDate(2026, 11, 24)).holiday)
+        assertEquals(null, DayInfo.of(SolarDate(2025, 11, 24)).holiday)
+        assertEquals("Ngày sinh Chủ tịch Hồ Chí Minh", DayInfo.of(SolarDate(2026, 5, 19)).observance)
+        // 18/11/2026 is 10/10 âm: the Ông Hoàng Mười festival, listed as a festival.
+        val nov18 = DayInfo.of(SolarDate(2026, 11, 18))
+        assertEquals(10, nov18.lunar.day); assertEquals(10, nov18.lunar.month)
+        assertEquals("Lễ hội đền Ông Hoàng Mười", nov18.observance)
+        val ev = Upcoming.month(SolarDate(2026, 11, 1), 0).filter { it.solarDate == SolarDate(2026, 11, 18) }
+        assertTrue(ev.toString(), ev.any { it.kind == EventKind.FESTIVAL && it.title == "Lễ hội đền Ông Hoàng Mười" })
     }
 
     @Test
