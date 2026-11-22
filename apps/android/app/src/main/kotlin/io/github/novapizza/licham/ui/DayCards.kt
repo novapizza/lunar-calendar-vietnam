@@ -40,24 +40,6 @@ import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.UserNote
 
-/** `card grid grid-cols-3 divide-x py-4`: chi animal (text-2xl), label, value (text-sm bold). */
-@Composable
-fun CanChiCard(info: DayInfo) {
-    val c = LocalLichAmColors.current
-    Card(padding = 0.dp) {
-        Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 16.dp)) {
-            listOf("Năm" to info.canChiYear, "Tháng" to info.canChiMonth, "Ngày" to info.canChiDay).forEachIndexed { i, (label, value) ->
-                if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.line))
-                Column(Modifier.weight(1f).padding(horizontal = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(AppState.chiEmoji[value.substringAfter(' ')] ?: "🗓️", fontSize = 24.sp, lineHeight = 24.sp, modifier = Modifier.leadingNone(24.sp))
-                    SectionLabel(label, Modifier.padding(top = 4.dp))
-                    Text(value, color = c.fg, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-        }
-    }
-}
-
 /**
  * GioHoangDao (components/GioHoangDao.tsx): brand-soft card, one row of six tiles
  * (rounded-xl, shadow-card, emoji clamp(18px, 6vw, 28px)), chi text-sm, hours 11px.

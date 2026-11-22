@@ -5,64 +5,43 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
-import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.Handyman
-import androidx.compose.material.icons.outlined.LightMode
-import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.SentimentDissatisfied
 import androidx.compose.material.icons.outlined.Storefront
 import androidx.compose.material.icons.outlined.ThumbDown
 import androidx.compose.material.icons.outlined.ThumbUp
-import androidx.compose.material.icons.outlined.Brightness6
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.SheetKind
 import io.github.novapizza.licham.Tab
-import io.github.novapizza.licham.ThemePref
-import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayFacts
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.Rating
 import io.github.novapizza.licham.core.Zodiac
-import io.github.novapizza.licham.core.lunarDayLabel
-import io.github.novapizza.licham.core.plusDays
-import io.github.novapizza.licham.core.weekOfYear
 import java.time.LocalDateTime
 
 /**
- * Hôm nay (views/TodayView.tsx): the selected day with day arrows and swipe.
+ * Hôm nay (views/TodayView.tsx): the selected day as a tear-off calendar sheet (TearOffSheet).
  * Phones: one column. Wide windows (≥ 600 dp): date on the left, the day's details on the right.
  */
 @Composable
@@ -71,11 +50,9 @@ fun TodayScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
     val viewingToday = state.selectedDate == AppState.today()
     val hourChi = if (viewingToday) DayFacts.chiOfHour(now.hour) else null
 
-    val header: @Composable () -> Unit = { TodayHeader(state, viewingToday, wide) }
-    val dateGroup: @Composable () -> Unit = {
-        Hero(state, info, now, wide)
-        CanChiCard(info)
-    }
+    // The date as a tear-off calendar sheet; it carries the theme and "back to today" buttons,
+    // so the page has no title row (as on the web).
+    val dateGroup: @Composable () -> Unit = { TearOffSheet(state, info, now) }
     val dayGroup: @Composable () -> Unit = {
         Assessment(state, info)
         Activities(info)
@@ -85,102 +62,11 @@ fun TodayScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
     }
 
     if (!wide) {
-        Page { header(); dateGroup(); dayGroup() }
+        Page { dateGroup(); dayGroup() }
     } else {
         Row(Modifier.fillMaxHeight()) {
-            Page(Modifier.weight(1.15f), padding = androidx.compose.foundation.layout.PaddingValues(start = 32.dp, end = 12.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { header(); dateGroup() }
+            Page(Modifier.weight(1.15f), padding = androidx.compose.foundation.layout.PaddingValues(start = 32.dp, end = 12.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { dateGroup() }
             Page(Modifier.weight(1f), padding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 32.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { dayGroup() }
-        }
-    }
-}
-
-@Composable
-private fun TodayHeader(state: AppState, viewingToday: Boolean, wide: Boolean) {
-    val c = LocalLichAmColors.current
-    val d = state.selectedDate
-    // text-[clamp(1rem,5.2vw,1.5rem)] on phones, text-3xl with the rail.
-    val vw = LocalConfiguration.current.screenWidthDp
-    val titleSize = if (wide) 30f else (vw * 0.052f).coerceIn(16f, 24f)
-    Row(verticalAlignment = Alignment.Bottom) {
-        Column(Modifier.weight(1f)) {
-            SectionLabel(if (viewingToday) "Hôm nay" else "Đang xem")
-            Text(
-                "${d.weekdayName()}, ${d.day} Tháng ${d.month}", color = c.fg, fontSize = titleSize.sp, lineHeight = (titleSize * 1.5f).sp,
-                fontWeight = FontWeight.ExtraBold, letterSpacing = HeadingTracking, maxLines = 1, overflow = TextOverflow.Ellipsis,
-            )
-        }
-        if (!viewingToday) {
-            if (wide) Chip("Hôm nay", Icons.AutoMirrored.Filled.Undo, { state.selectDate(AppState.today()) }, textColor = c.brand)
-            else IconBtn(Icons.AutoMirrored.Filled.Undo, "Về hôm nay", { state.selectDate(AppState.today()) }, tint = c.brand, bg = c.brandSoft, iconSize = 18.dp)
-            HSpace(4.dp)
-        }
-        val (icon, label) = when (state.themePref) {
-            ThemePref.SYSTEM -> Icons.Outlined.Brightness6 to "Giao diện: theo hệ thống"
-            ThemePref.LIGHT -> Icons.Outlined.LightMode to "Giao diện: sáng"
-            ThemePref.DARK -> Icons.Outlined.DarkMode to "Giao diện: tối"
-        }
-        IconBtn(icon, label, state::cycleTheme)
-    }
-}
-
-/** Hero pill: rounded-full px-3 py-1.5 text-xs. */
-@Composable
-private fun HeroPill(text: String, fg: Color, bg: Color, icon: ImageVector? = null, bold: Boolean = false) {
-    Row(Modifier.clip(Pill).background(bg).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-        if (icon != null) {
-            Icon(icon, null, Modifier.size(13.dp), tint = fg)
-            HSpace(6.dp)
-        }
-        Text(text, color = fg, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = if (bold) FontWeight.Bold else FontWeight.SemiBold)
-    }
-}
-
-@Composable
-private fun Hero(state: AppState, info: DayInfo, now: LocalDateTime, wide: Boolean) {
-    val c = LocalLichAmColors.current
-    val d = state.selectedDate
-    val big = if (wide) 80f else 64f
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .webShadow(HeroShape, float = true)
-            .clip(HeroShape)
-            .background(Brush.linearGradient(listOf(c.heroFrom, c.heroVia, c.heroTo)))
-            // Decorative moon: -right-14 -top-16 w-56 and -right-2 -top-6 w-28, hero-accent/8.
-            .heroMoons(c.heroAccent.copy(alpha = 0.08f), Triple(-56f, -64f, 224f), Triple(-8f, -24f, 112f))
-            .swipe(onNext = { state.selectDate(d.plusDays(1)) }, onPrev = { state.selectDate(d.plusDays(-1)) }),
-    ) {
-        Column {
-            Row(Modifier.fillMaxWidth().padding(start = 12.dp, end = 12.dp, top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                IconBtn(Icons.Filled.ChevronLeft, "Ngày trước", { state.selectDate(d.plusDays(-1)) }, tint = Color.White, bg = Color.White.copy(alpha = 0.1f))
-                Text(
-                    "Tuần ${d.weekOfYear} · ${d.year}", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, lineHeight = 16.sp,
-                    fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f), textAlign = TextAlign.Center,
-                )
-                IconBtn(Icons.Filled.ChevronRight, "Ngày sau", { state.selectDate(d.plusDays(1)) }, tint = Color.White, bg = Color.White.copy(alpha = 0.1f))
-            }
-            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(start = 20.dp, end = 20.dp, top = 8.dp, bottom = 20.dp)) {
-                Column(Modifier.weight(1f).padding(end = 16.dp)) {
-                    Text("DƯƠNG LỊCH", color = Color.White.copy(alpha = 0.6f), fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.12.em)
-                    Text("${d.day}", color = Color.White, fontSize = big.sp, lineHeight = big.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.025).em, modifier = Modifier.padding(top = 4.dp).leadingNone(big.sp))
-                    Text("Tháng ${d.month}, ${d.year}", color = Color.White, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
-                }
-                Box(Modifier.width(1.dp).fillMaxHeight().background(Color.White.copy(alpha = 0.15f)))
-                Column(Modifier.weight(1f).padding(start = 20.dp)) {
-                    Text("ÂM LỊCH", color = c.heroAccent.copy(alpha = 0.8f), fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.12.em)
-                    Text("${info.lunar.day}", color = c.heroAccent, fontSize = big.sp, lineHeight = big.sp, fontWeight = FontWeight.ExtraBold, letterSpacing = (-0.025).em, modifier = Modifier.padding(top = 4.dp).leadingNone(big.sp))
-                    Text(
-                        "Tháng ${info.lunar.month}${if (info.lunar.leap) " (nhuận)" else ""}", color = Color.White, fontSize = 14.sp, lineHeight = 20.sp,
-                        fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp),
-                    )
-                }
-            }
-            Row(Modifier.padding(start = 20.dp, end = 20.dp, bottom = 20.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                val hourName = CalendarData.calendar.chi[DayFacts.chiOfHour(now.hour)]
-                HeroPill("%02d:%02d · Giờ %s".format(now.hour, now.minute, hourName), Color.White, Color.White.copy(alpha = 0.12f), Icons.Outlined.Schedule)
-                lunarDayLabel(info.lunar)?.let { HeroPill(it, c.heroAccentInk, c.heroAccent, bold = true) }
-                info.holiday?.let { HeroPill(it, c.lunar, Color.White, Icons.Filled.Flag, bold = true) }
-            }
         }
     }
 }
