@@ -209,7 +209,6 @@ export default function App() {
               setSelectedDate(date);
               setCurrentDate(date);
             }}
-            onOpenAbout={() => setIsAboutOpen(true)}
             themePref={themePref}
             onCycleTheme={cycleTheme}
           />

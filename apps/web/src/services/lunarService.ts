@@ -16,6 +16,23 @@ export type LunarToSolarResult =
   | { ok: true; solar: SolarYMD; adjustedDay: boolean }
   | { ok: false; reason: 'leap_month_not_found' | 'conversion_error' };
 
+export interface LunarMonth { month: number; leap: boolean; days: 29 | 30; first: SolarYMD }
+
+/**
+ * The 12 or 13 months of lunar year `year` in order (a leap month right after its regular
+ * month), each with its length and solar first day. Months outside the tables are left out.
+ */
+export function getLunarMonths(year: number): LunarMonth[] {
+  const out: LunarMonth[] = [];
+  for (let m = 1; m <= 12; m++) {
+    for (const leap of [false, true]) {
+      const first = convertExact(1, m, year, leap);
+      if (first) out.push({ month: m, leap, days: convertExact(30, m, year, leap) ? 30 : 29, first });
+    }
+  }
+  return out;
+}
+
 /** Converts once and verifies the result by converting back to lunar. */
 function convertExact(day: number, month: number, lunarYear: number, isLeap: boolean): SolarYMD | null {
   try {

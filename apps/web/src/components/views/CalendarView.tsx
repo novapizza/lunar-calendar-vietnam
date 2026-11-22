@@ -9,7 +9,7 @@ import {
 import { vi } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
-  Heart, Hammer, Store, StickyNote, Flag, FaceSlightlyFrowning,
+  StickyNote, Flag, FaceSlightlyFrowning,
   Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus, Undo2,
   Sparkles, Landmark, Moon,
 } from 'lucide-react';
@@ -19,6 +19,7 @@ import { getLunarInfo, getHoliday, getObservances, getLunarDayLabel, LUNAR_MONTH
 import { LunarInfo, UserNote } from '../../types';
 import { useSwipe } from '../../hooks/useSwipe';
 import { GioHoangDao } from '../GioHoangDao';
+import { ActivitiesCard } from '../ActivitiesCard';
 
 interface Props {
   currentDate: Date;
@@ -45,9 +46,9 @@ interface Props {
 }
 
 const RATING = {
-  good:    { label: 'Ngày tốt',        Icon: ThumbsUp,   tone: 'bg-good-soft text-good' },
-  bad:     { label: 'Ngày xấu',        Icon: ThumbsDown, tone: 'bg-bad-soft text-bad' },
-  neutral: { label: 'Bình thường',     Icon: Minus,      tone: 'bg-surface-2 text-fg-2' },
+  good:    { label: 'Ngày tốt',         Icon: ThumbsUp,   tone: 'bg-good-soft text-good' },
+  bad:     { label: 'Ngày xấu',         Icon: ThumbsDown, tone: 'bg-bad-soft text-bad' },
+  neutral: { label: 'Ngày bình thường', Icon: Minus,      tone: 'bg-surface-2 text-fg-2' },
 } as const;
 
 /**
@@ -300,24 +301,19 @@ export function CalendarView({
         </section>
 
         {/* Selected-day panel. Phones: cards stacked. book: the whole right pane. stack: two columns (day card on the
-            left, hours + notes on the right). wide: a column beside the calendar, 18rem
+            left, activities + hours + notes on the right). wide: a column beside the calendar, 18rem
             wide and growing to 32rem once the calendar has reached its cap. */}
         <aside className="mt-4 flex flex-col gap-3 book:mt-0 book:col-start-2 book:row-start-1 book:row-span-2 book:overflow-y-auto book:px-2 book:pb-4 book:pt-[calc(env(safe-area-inset-top)+0.75rem)] stack:grid stack:grid-cols-2 stack:items-start stack:gap-4 wide:mt-0 wide:flex-[1_0_18rem] wide:max-w-[32rem] wide:min-w-0 wide:overflow-y-auto no-scrollbar">
-          <section className="card p-4 stack:row-span-2">
+          <section className="card p-4 stack:row-span-3">
             <p className="section-label">Ngày đã chọn · Tuần {getWeek(selectedDate, { weekStartsOn: 1, locale: vi })}</p>
-            <div className="flex items-end justify-between gap-3 mt-1">
-              <div>
-                <p className="text-xl font-extrabold text-fg capitalize">
-                  {format(selectedDate, "EEEE, d/M", { locale: vi })}
-                </p>
-                <p className="text-sm text-fg-2">
-                  Âm lịch <span className="font-bold text-lunar">{selectedLunarInfo.lunarDay}/{Math.abs(selectedLunarInfo.lunarMonth)}</span>
-                  {' · tháng '}{lunarMonthName}{selectedLunarInfo.isLeap && ' nhuận'}
-                </p>
-              </div>
-              <span className={cn('shrink-0 inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold', rating.tone)}>
-                <rating.Icon size={13} /> {rating.label}
-              </span>
+            <div className="mt-1">
+              <p className="text-xl font-extrabold text-fg capitalize">
+                {format(selectedDate, "EEEE, d/M", { locale: vi })}
+              </p>
+              <p className="text-sm text-fg-2">
+                Âm lịch <span className="font-bold text-lunar">{selectedLunarInfo.lunarDay}/{Math.abs(selectedLunarInfo.lunarMonth)}</span>
+                {' · tháng '}{lunarMonthName}{selectedLunarInfo.isLeap && ' nhuận'}
+              </p>
             </div>
             <dl className="mt-3 grid grid-cols-3 gap-2 text-center">
               {[
@@ -331,10 +327,12 @@ export function CalendarView({
                 </div>
               ))}
             </dl>
-            <p className="mt-2 text-xs text-fg-2">Trực <span className="font-semibold text-fg">{selectedLunarInfo.truc}</span></p>
-
-            {(holiday || observances.length > 0 || lunarDayLabel || selectedClash) && (
-              <div className="mt-3 flex flex-col gap-2">
+            {/* The day's rating with its Trực (as Today's "Ngày tốt / Trực …"), then its names. */}
+            <div className="mt-3 flex flex-col gap-2">
+                <p className={cn('flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold', rating.tone)}>
+                  <rating.Icon size={14} className="shrink-0" />
+                  <span className="min-w-0">{rating.label}<span className="font-medium opacity-75"> · Trực {selectedLunarInfo.truc}</span></span>
+                </p>
                 {holiday && (
                   <p className="flex items-center gap-2 rounded-xl bg-lunar-soft px-3 py-2 text-sm font-semibold text-lunar">
                     <Flag size={14} className="shrink-0 fill-current" /> {holiday}
@@ -363,33 +361,10 @@ export function CalendarView({
                     <span className="min-w-0">Xung tuổi {userZodiac}<span className="font-medium opacity-75"> · nên cân nhắc việc quan trọng</span></span>
                   </p>
                 )}
-              </div>
-            )}
-
-            {/* The three activities, good or not (Today's "Việc nên làm"), one tile each. */}
-            <ul className="mt-3 grid grid-cols-3 gap-2" aria-label="Việc nên làm">
-              {([
-                { key: 'wedding', label: 'Cưới hỏi', Icon: Heart },
-                { key: 'moving', label: 'Chuyển nhà', Icon: Hammer },
-                { key: 'opening', label: 'Khai trương', Icon: Store },
-              ] as const).map(({ key, label, Icon }) => {
-                const ok = selectedLunarInfo.activities[key];
-                return (
-                  <li key={key} className={cn('flex flex-col items-center gap-1 rounded-xl px-1 py-2 text-center', ok ? 'bg-good-soft text-good' : 'bg-surface-2 text-fg-3')}>
-                    <Icon size={16} />
-                    <span className={cn('text-xs font-semibold', ok ? 'text-fg' : 'text-fg-2')}>{label}</span>
-                    <span className="text-[10px] font-bold">{ok ? 'Tốt' : 'Không hợp'}</span>
-                  </li>
-                );
-              })}
-            </ul>
-            {selectedLunarInfo.truc === 'Trừ' && (
-              <p className="mt-2 flex gap-2 rounded-xl bg-surface-2 p-3 text-xs text-fg-2 leading-relaxed">
-                <Sparkles size={14} className="shrink-0 mt-0.5 text-gold" />
-                Ngày Trừ: tốt để dọn dẹp, chữa bệnh, giải toả mâu thuẫn.
-              </p>
-            )}
+            </div>
           </section>
+
+          <ActivitiesCard info={selectedLunarInfo} />
 
           <GioHoangDao
             hours={selectedLunarInfo.gioHoangDao}

@@ -188,7 +188,7 @@ private fun GridCell(text: String, active: Boolean, current: Boolean, enabled: B
             .alpha(if (enabled) 1f else 0.3f),
         contentAlignment = Alignment.Center,
     ) {
-        Text(text, color = if (active) c.onBrand else if (current) c.brand else c.fg, fontSize = 15.sp, lineHeight = 22.sp, fontWeight = FontWeight.SemiBold)
+        Text(text, color = if (active) c.onBrand else if (current) c.brand else c.fg, fontSize = 15.sp, lineHeight = if ('\n' in text) 18.sp else 22.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
     }
 }
 
@@ -263,88 +263,168 @@ private fun MonthYearPickerSheet(state: AppState, onClose: () -> Unit) {
 @Composable
 private fun QuickDateSheet(state: AppState, onClose: () -> Unit) {
     val c = LocalLichAmColors.current
-    var selected by remember { mutableStateOf(state.selectedDate) }
-    var view by remember { mutableStateOf(SolarDate(selected.year, selected.month, 1)) }
-    val lunar = LunarCalendar.solarToLunar(selected)
     val today = AppState.today()
-    fun pick(d: SolarDate) { if (d.isInRange()) { selected = d; view = SolarDate(d.year, d.month, 1) } }
-    // Like JS Date.setDate/setMonth: an overflowing day rolls into the next month.
-    fun solarChange(day: Int = selected.day, month: Int = selected.month, year: Int = selected.year) = pick(SolarDate(year, month, 1).plusDays((day - 1).toLong()))
-    fun lunarChange(day: Int = lunar.day, month: Int = lunar.month, year: Int = lunar.year) {
-        var r = Conversion.lunarToSolar(day, month, year, lunar.leap)
-        if (r !is LunarToSolar.Ok && lunar.leap) r = Conversion.lunarToSolar(day, month, year, false)
-        if (r is LunarToSolar.Ok) pick(r.solar)
+    val todayLunar = LunarCalendar.solarToLunar(today)
+    var selected by remember { mutableStateOf(state.selectedDate) }
+    val lunar = LunarCalendar.solarToLunar(selected)
+    // The two dates side by side; the one being picked has the brand ring, the app's
+    // year → month → day grids below (as in "Chọn tháng" and "Chọn ngày sinh").
+    var lunarCal by remember { mutableStateOf(false) }
+    var mode by remember { mutableIntStateOf(2) } // 0 year, 1 month, 2 day
+    var viewYear by remember { mutableIntStateOf(selected.year) }
+    // Solar: month 0–11 of viewYear; lunar: index in lunarMonthsOf(viewYear).
+    var viewMonth by remember { mutableIntStateOf(selected.month - 1) }
+    var pageStart by remember { mutableIntStateOf(pageStartOf(selected.year)) }
+    val lunarMonths = remember(lunarCal, viewYear) { if (lunarCal) lunarMonthsOf(viewYear) else emptyList() }
+    fun lastIndex(y: Int) = if (lunarCal) lunarMonthsOf(y).size - 1 else 11
+    fun showIn(lunarMode: Boolean) {
+        lunarCal = lunarMode
+        mode = 2
+        viewYear = if (lunarMode) lunar.year else selected.year
+        viewMonth = if (lunarMode) lunarMonthsOf(lunar.year).indexOfFirst { it.month == lunar.month && it.leap == lunar.leap }.coerceAtLeast(0) else selected.month - 1
     }
-    val years = (MIN_YEAR..MAX_YEAR).toList()
+    val shown = if (lunarCal) lunarMonths.getOrNull(minOf(viewMonth, lunarMonths.size - 1)) else null
+    val pageEnd = minOf(pageStart + 11, MAX_YEAR)
+    val title = when (mode) {
+        0 -> "$pageStart – $pageEnd"
+        1 -> "$viewYear"
+        else -> if (!lunarCal) "Tháng ${viewMonth + 1}, $viewYear" else shown?.let { "Tháng ${it.month}${if (it.leap) " nhuận" else ""}, $viewYear" } ?: "$viewYear"
+    }
+    val canPrev = when (mode) { 0 -> pageStart > MIN_YEAR; 1 -> viewYear > MIN_YEAR; else -> viewYear > MIN_YEAR || viewMonth > 0 }
+    val canNext = when (mode) { 0 -> pageStart + 12 <= MAX_YEAR; 1 -> viewYear < MAX_YEAR; else -> viewYear < MAX_YEAR || viewMonth < lastIndex(viewYear) }
+    fun step(dir: Int) {
+        when (mode) {
+            0 -> pageStart += dir * 12
+            1 -> viewYear += dir
+            else -> when {
+                dir < 0 && viewMonth == 0 -> { viewYear -= 1; viewMonth = lastIndex(viewYear) }
+                dir > 0 && viewMonth == lastIndex(viewYear) -> { viewYear += 1; viewMonth = 0 }
+                else -> viewMonth += dir
+            }
+        }
+    }
+    val unit = when (mode) { 0 -> "12 năm"; 1 -> "Năm"; else -> "Tháng" }
+    val calName = if (lunarCal) "âm" else "dương"
     SheetFrame(
-        "Đổi ngày âm – dương", onClose, icon = Icons.Outlined.CalendarMonth, subtitle = "Chọn một ngày để xem lịch",
+        "Đổi ngày âm – dương", onClose, icon = Icons.Outlined.CalendarMonth,
         footer = {
             PrimaryButton("Xem ngày ${selected.day}/${selected.month}/${selected.year}", {
                 state.selectDate(selected); state.tab = Tab.CALENDAR; onClose()
             }, Modifier.fillMaxWidth(), tall = true)
         },
     ) {
-        Row(Modifier.padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Tháng ${view.month}, ${view.year}", color = c.fg, fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold, letterSpacing = HeadingTracking, modifier = Modifier.weight(1f))
-            IconBtn(Icons.Filled.ChevronLeft, "Tháng trước", { view = view.plusMonths(-1) }, iconSize = 18.dp)
-            IconBtn(Icons.Filled.ChevronRight, "Tháng sau", { view = view.plusMonths(1) }, iconSize = 18.dp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            DateCard(!lunarCal, Icons.Outlined.WbSunny, "Dương lịch", "${selected.day}/${selected.month}/${selected.year}", selected.weekdayName(), Modifier.weight(1f)) { showIn(false) }
+            DateCard(
+                lunarCal, Icons.Filled.NightsStay, "Âm lịch", "${lunar.day}/${lunar.month}/${lunar.year}",
+                (if (lunar.leap) "Tháng nhuận · " else "") + DayInfo.of(selected).canChiYear, Modifier.weight(1f),
+            ) { showIn(true) }
         }
-        Row(Modifier.fillMaxWidth()) {
-            CalendarData.calendar.weekDays.forEach { w ->
-                Text(w, Modifier.weight(1f).padding(bottom = 4.dp), color = if (w == "CN") c.lunar else c.fg3, fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+        VSpace(16.dp)
+        NavHeading(
+            title, canPrev, canNext, { step(-1) }, { step(1) },
+            when (mode) { 2 -> ({ mode = 1 }); 1 -> ({ pageStart = pageStartOf(viewYear); mode = 0 }); else -> null },
+            "$unit trước", "$unit sau",
+        )
+        Text(
+            when (mode) { 0 -> "Chọn năm $calName lịch"; 1 -> "Chọn tháng $calName lịch"; else -> if (lunarCal) "Chọn ngày âm · số nhỏ là ngày dương" else "Chọn ngày dương · số nhỏ là ngày âm" },
+            color = c.fg2, fontSize = 12.sp, lineHeight = 16.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 12.dp),
+        )
+        when (mode) {
+            0 -> {
+                val selYear = if (lunarCal) lunar.year else selected.year
+                val curYear = if (lunarCal) todayLunar.year else today.year
+                Grid((pageStart..pageStart + 11).toList(), 3, 10.dp) { y, mod ->
+                    GridCell("$y", y == selYear, y == curYear, enabled = y <= MAX_YEAR, modifier = mod.alpha(if (y > MAX_YEAR) 0f else 1f)) { viewYear = y; mode = 1 }
+                }
             }
-        }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            monthGrid(view.year, view.month).chunked(7).forEach { week ->
-                Row(Modifier.fillMaxWidth()) {
-                    week.forEach { d ->
+            1 -> if (!lunarCal) {
+                Grid((0..11).toList(), 3, 10.dp) { m, mod ->
+                    GridCell("Tháng ${m + 1}", viewYear == selected.year && m + 1 == selected.month, viewYear == today.year && m + 1 == today.month, modifier = mod) { viewMonth = m; mode = 2 }
+                }
+            } else {
+                Grid(lunarMonths.indices.toList(), 3, 10.dp) { i, mod ->
+                    val m = lunarMonths[i]
+                    GridCell(
+                        "Tháng ${m.month}" + if (m.leap) "\nnhuận" else "",
+                        viewYear == lunar.year && m.month == lunar.month && m.leap == lunar.leap,
+                        viewYear == todayLunar.year && m.month == todayLunar.month && m.leap == todayLunar.leap,
+                        modifier = mod,
+                    ) { viewMonth = i; mode = 2 }
+                }
+            }
+            else -> {
+                Row(Modifier.fillMaxWidth().padding(bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    CalendarData.calendar.weekDays.forEach { w ->
+                        Text(w, Modifier.weight(1f), color = if (w == "CN") c.lunar else c.fg3, fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                    }
+                }
+                // One cell per day of the month on show: the big number in the calendar being
+                // picked, the small one in the other ("1/m" on the first of a month).
+                val days: List<SolarDate> = if (!lunarCal) (1..daysInMonth(viewYear, viewMonth + 1)).map { SolarDate(viewYear, viewMonth + 1, it) }
+                else shown?.let { m -> (0 until m.days).map { m.first.plusDays(it.toLong()) } } ?: emptyList()
+                val lead = days.firstOrNull()?.weekdayIndex ?: 0
+                Grid(List<SolarDate?>(lead) { null } + days, 7, 4.dp) { d, mod ->
+                    if (d == null) Spacer(mod.height(48.dp)) else {
                         val info = DayInfo.orNull(d)
-                        val sel = d == selected
-                        Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                            Column(
-                                Modifier.width(40.dp).height(44.dp).clip(R12)
-                                    .background(if (sel) c.brand else Color.Transparent)
-                                    .then(if (!sel && d == today) Modifier.border(2.dp, c.brand, R12) else Modifier)
-                                    .clickable(enabled = info != null) { pick(d) }
-                                    .alpha(if (d.month != view.month) 0.3f else 1f),
-                                // Same spacing as the month grid's day cells: no line leading, 2dp between the numbers.
-                                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp, Alignment.CenterVertically),
-                            ) {
-                                // Fixed 40×44 cell: capped like the month grid.
-                                val solarFs = cappedSp(14f)
-                                val lunarFs = cappedSp(9f)
-                                Text("${d.day}", color = if (sel) c.onBrand else if (d.isSunday) c.lunar else c.fg, fontSize = solarFs, lineHeight = solarFs, fontWeight = FontWeight.SemiBold, modifier = Modifier.leadingNone(solarFs))
-                                if (info != null) {
-                                    val l = info.lunar
-                                    Text(
-                                        if (l.day == 1) "1/${l.month}" else "${l.day}",
-                                        color = if (sel) c.onBrand.copy(alpha = 0.8f) else if (l.day == 1 || l.day == 15) c.lunar else c.fg3,
-                                        fontSize = lunarFs, lineHeight = lunarFs, fontWeight = if (!sel && (l.day == 1 || l.day == 15)) FontWeight.Bold else FontWeight.Normal,
-                                        modifier = Modifier.leadingNone(lunarFs),
-                                    )
-                                }
+                        val active = d == selected
+                        Column(
+                            mod.height(48.dp).clip(R12).background(if (active) c.brand else Color.Transparent)
+                                .then(if (!active && d == today) Modifier.border(2.dp, c.brand, R12) else Modifier)
+                                .clickable(enabled = info != null) { selected = d }.alpha(if (info != null) 1f else 0.3f),
+                            horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+                        ) {
+                            val l = info?.lunar
+                            val big = if (lunarCal && l != null) l.day else d.day
+                            val small = when {
+                                l == null -> ""
+                                !lunarCal -> if (l.day == 1) "1/${l.month}" else "${l.day}"
+                                else -> if (d.day == 1) "1/${d.month}" else "${d.day}"
                             }
+                            val mark = l != null && if (lunarCal) d.day == 1 else l.day == 1 || l.day == 15
+                            val dayFs = cappedSp(15f)
+                            val smallFs = cappedSp(10f)
+                            Text("$big", color = if (active) c.onBrand else if (d.isSunday) c.lunar else c.fg, fontSize = dayFs, lineHeight = dayFs, fontWeight = FontWeight.SemiBold, modifier = Modifier.leadingNone(dayFs))
+                            Text(
+                                small, color = if (active) c.onBrand.copy(alpha = 0.8f) else if (mark) c.lunar else c.fg3,
+                                fontSize = smallFs, lineHeight = smallFs, fontWeight = if (!active && mark) FontWeight.SemiBold else FontWeight.Normal,
+                                modifier = Modifier.padding(top = 4.dp).leadingNone(smallFs),
+                            )
                         }
                     }
                 }
             }
         }
-        VSpace(16.dp)
-        SectionLabel("Dương lịch", icon = Icons.Outlined.WbSunny)
-        VSpace(6.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SelectField(selected.day, (1..31).toList(), { "$it" }, { solarChange(day = it) }, Modifier.weight(1f))
-            SelectField(selected.month, (1..12).toList(), { "Th $it" }, { solarChange(month = it, day = minOf(selected.day, daysInMonth(selected.year, it))) }, Modifier.weight(1.2f))
-            SelectField(selected.year, years, { "$it" }, { solarChange(year = it, day = minOf(selected.day, daysInMonth(it, selected.month))) }, Modifier.weight(1.4f))
-        }
-        VSpace(12.dp)
-        SectionLabel("Âm lịch" + if (lunar.leap) " (tháng nhuận)" else "", icon = Icons.Filled.NightsStay)
-        VSpace(6.dp)
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            SelectField(lunar.day, (1..30).toList(), { "$it" }, { lunarChange(day = it) }, Modifier.weight(1f))
-            SelectField(lunar.month, (1..12).toList(), { "Th $it" }, { lunarChange(month = it) }, Modifier.weight(1.2f))
-            SelectField(lunar.year, years, { "$it" }, { lunarChange(year = it) }, Modifier.weight(1.4f))
-        }
+    }
+}
+
+/** One of Đổi ngày's two dates: label, the date in that calendar, a detail line. */
+@Composable
+private fun DateCard(active: Boolean, icon: ImageVector, label: String, value: String, detail: String, modifier: Modifier, onClick: () -> Unit) {
+    val c = LocalLichAmColors.current
+    Column(
+        modifier.clip(R16).background(if (active) c.brandSoft else c.surface2)
+            .then(if (active) Modifier.border(2.dp, c.brand, R16) else Modifier)
+            .clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 10.dp),
+    ) {
+        SectionLabel(label, icon = icon)
+        Text(value, color = c.fg, fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.ExtraBold, maxLines = 1, modifier = Modifier.padding(top = 4.dp))
+        Text(detail, color = c.fg2, fontSize = 12.sp, lineHeight = 16.sp, maxLines = 1)
+    }
+}
+
+/** A lunar month of a lunar year: number, leap flag, solar first day, length. */
+private data class LunarMonthInfo(val month: Int, val leap: Boolean, val first: SolarDate, val days: Int)
+
+/** The 12 or 13 months of lunar year [year] in order, leaving out those outside the tables. */
+private fun lunarMonthsOf(year: Int): List<LunarMonthInfo> {
+    val months = runCatching { LunarCalendar.monthsOf(year) }.getOrNull() ?: return emptyList()
+    val nextJd = runCatching { LunarCalendar.monthsOf(year + 1).first().jd }.getOrNull()
+    return months.mapIndexedNotNull { i, m ->
+        val end = months.getOrNull(i + 1)?.jd ?: nextJd ?: return@mapIndexedNotNull null
+        val first = LunarCalendar.jdToDate(m.jd)
+        if (first.isInRange()) LunarMonthInfo(m.month, m.leap, first, end - m.jd) else null
     }
 }
 

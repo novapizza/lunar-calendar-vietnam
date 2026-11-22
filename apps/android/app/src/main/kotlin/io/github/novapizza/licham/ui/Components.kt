@@ -330,19 +330,6 @@ fun Page(
     )
 }
 
-/** AboutLink: "Thông tin ứng dụng", text-xs fg-3, centred. */
-@Composable
-fun AboutLink(onClick: () -> Unit) {
-    val c = LocalLichAmColors.current
-    // mt-8 on the web; the page gap adds 16 of it.
-    Box(Modifier.fillMaxWidth().padding(top = 16.dp), contentAlignment = Alignment.Center) {
-        Text(
-            "Thông tin ứng dụng", color = c.fg3, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.Medium,
-            modifier = Modifier.clip(Pill).clickable(onClick = onClick).padding(horizontal = 12.dp, vertical = 8.dp),
-        )
-    }
-}
-
 /**
  * The hero cards' decorative "moon": circles positioned like the web's absolute boxes
  * (right/top offsets in dp, may be negative), drawn behind the content so they never
