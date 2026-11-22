@@ -4,6 +4,7 @@
  */
 
 import { useState, useMemo, useEffect } from 'react';
+import { isSameDay } from 'date-fns';
 import { CHI_NAMES } from './constants/calendar';
 import { useClock } from './hooks/useClock';
 import { useNotes } from './hooks/useNotes';
@@ -131,9 +132,10 @@ export default function App() {
     setActiveTab(tab);
     // Switching to "Hôm nay" always resets to today
     if (tab === 'today') {
+      // Keep the same Date when it is already today, so nothing re-renders or turns.
       const today = new Date();
-      setSelectedDate(today);
-      setCurrentDate(today);
+      setSelectedDate(d => (isSameDay(d, today) ? d : today));
+      setCurrentDate(d => (isSameDay(d, today) ? d : today));
     }
   };
 

@@ -6,6 +6,7 @@ import { cn } from '../lib/utils';
 import { useSwipe } from '../hooks/useSwipe';
 import { curlFrame, foldFrame, PERSPECTIVE, STRIPS, TILT_DEG, TURN_MS } from '../lib/pageCurl';
 import type { LunarInfo } from '../types';
+import { LUNAR_MONTH_NAMES, getLunarDayLabel } from '../services/lunarService';
 import type { ThemePref } from '../hooks/useTheme';
 
 const THEME_BUTTON = {
@@ -13,17 +14,6 @@ const THEME_BUTTON = {
   light:  { Icon: Sun,     label: 'Giao diện: sáng' },
   dark:   { Icon: Moon,    label: 'Giao diện: tối' },
 } as const;
-
-/** Lunar month names as printed on tear-off calendars ("Tháng Giêng" … "Tháng Chạp"); month 11 is "Mười Một", not the old "Một" (read as month 1, 2026-11-22). */
-const LUNAR_MONTH_NAMES = ['Giêng', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'Tám', 'Chín', 'Mười', 'Mười Một', 'Chạp'];
-
-/** "Mồng 1" / "Ngày rằm" for lunar day 1/15, excluding 1/1 and 15/1 (named holidays). */
-function getLunarDayLabel(lunarDay: number, lunarMonth: number): string | null {
-  const m = Math.abs(lunarMonth);
-  if (lunarDay === 1 && m !== 1) return 'Mồng 1';
-  if (lunarDay === 15 && m !== 1) return 'Ngày rằm';
-  return null;
-}
 
 /** What one sheet shows. */
 interface Face {
@@ -58,6 +48,9 @@ interface Props {
  * the bottom and flips it over the binding, uncovering the next one; an earlier day brings a
  * sheet back down the same way.
  */
+/** yyyymmdd of a local date, to compare days whatever their time of day. */
+const dayKey = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
+
 export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, holiday, observance, onDayChange, themePref, onCycleTheme }: Props) {
   const swipe = useSwipe(
     () => onDayChange(addDays(date, 1)),
@@ -69,15 +62,17 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
   const face: Face = { date, lunarInfo, holiday, observance };
   const [shown, setShown] = useState<Face>(face);
   const [turn, setTurn] = useState<{ from: Face; forward: boolean; id: number } | null>(null);
-  if (shown.date.getTime() !== date.getTime()) {
-    setTurn({ from: shown, forward: date.getTime() > shown.date.getTime(), id: (turn?.id ?? 0) + 1 });
+  // Compared by calendar day: the same day as a new Date (another time of day, e.g. tapping
+  // "Hôm nay" again) is not a turn.
+  if (dayKey(shown.date) !== dayKey(date)) {
+    setTurn({ from: shown, forward: dayKey(date) > dayKey(shown.date), id: (turn?.id ?? 0) + 1 });
     setShown(face);
   }
   // The sheet PageTurn's strips hold between turns. Rebuilding their 48 copies when a turn ends
   // cost a ~40ms frame (desktop, measured 2026-11-22), so it waits until the browser is idle.
   const [prepared, setPrepared] = useState<Face>(face);
   useEffect(() => {
-    if (turn || prepared.date.getTime() === date.getTime()) return;
+    if (turn || dayKey(prepared.date) === dayKey(date)) return;
     const ric = window.requestIdleCallback ?? ((cb: () => void) => window.setTimeout(cb, 200));
     const cancel = window.cancelIdleCallback ?? window.clearTimeout;
     const id = ric(() => setPrepared({ date, lunarInfo, holiday, observance }), { timeout: 1500 });

@@ -122,6 +122,17 @@ export function getObservances(lunarDay: number, lunarMonth: number, date: Date)
   return out;
 }
 
+/** Lunar month names as printed on tear-off calendars ("Tháng Giêng" … "Tháng Chạp"); month 11 is "Mười Một", not the old "Một" (read as month 1, 2026-11-22). */
+export const LUNAR_MONTH_NAMES = ['Giêng', 'Hai', 'Ba', 'Tư', 'Năm', 'Sáu', 'Bảy', 'Tám', 'Chín', 'Mười', 'Mười Một', 'Chạp'];
+
+/** "Mồng 1" / "Ngày rằm" for lunar day 1/15, excluding 1/1 and 15/1 (named holidays). */
+export function getLunarDayLabel(lunarDay: number, lunarMonth: number): string | null {
+  const m = Math.abs(lunarMonth);
+  if (lunarDay === 1 && m !== 1) return 'Mồng 1';
+  if (lunarDay === 15 && m !== 1) return 'Ngày rằm';
+  return null;
+}
+
 /** The first commemorative day or festival of a day (shown on the sheet when it has no holiday). */
 export function getObservance(lunarDay: number, lunarMonth: number, date: Date): string | undefined {
   return getObservances(lunarDay, lunarMonth, date)[0]?.title;

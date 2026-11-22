@@ -23,6 +23,8 @@ data class DayInfo(
     val holiday: String?,
     /** The first commemorative day or festival: printed on the sheet when there is no holiday, not red. */
     val observance: String? = null,
+    /** All of the day's commemorative days and festivals, observances first (the Calendar's day panel). */
+    val observances: List<Pair<String, EventKind>> = emptyList(),
 ) {
     val dayChiIndex: Int get() = CalendarData.calendar.chi.indexOf(canChiDay.substringAfter(' '))
 
@@ -71,6 +73,7 @@ object DayFacts {
         }
         val h = CalendarData.holidays
         val holiday = h.lunar["${lunar.day}-${lunar.month}"] ?: h.solarHoliday(date)
+        val observances = h.observancesOf(date, lunar)
         return DayInfo(
             solar = date,
             lunar = lunar,
@@ -82,7 +85,8 @@ object DayFacts {
             gioHoangDao = hours,
             activities = activities,
             holiday = holiday,
-            observance = h.observancesOf(date, lunar).firstOrNull()?.first,
+            observance = observances.firstOrNull()?.first,
+            observances = observances,
         )
     }
 }

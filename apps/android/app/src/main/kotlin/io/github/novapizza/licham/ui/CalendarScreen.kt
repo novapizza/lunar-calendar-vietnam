@@ -25,6 +25,9 @@ import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Remove
+import androidx.compose.material.icons.outlined.AccountBalance
+import androidx.compose.material.icons.outlined.AutoAwesome
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.FileDownload
@@ -48,6 +51,9 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,14 +66,17 @@ import io.github.novapizza.licham.SheetKind
 import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayFacts
 import io.github.novapizza.licham.core.DayInfo
+import io.github.novapizza.licham.core.EventKind
 import io.github.novapizza.licham.core.Rating
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.Zodiac
 import io.github.novapizza.licham.core.isSunday
+import io.github.novapizza.licham.core.lunarDayLabel
 import io.github.novapizza.licham.core.lunarMonthSubtitle
 import io.github.novapizza.licham.core.monthGrid
 import io.github.novapizza.licham.core.orNull
 import io.github.novapizza.licham.core.plusMonths
+import io.github.novapizza.licham.core.weekOfYear
 import java.time.LocalDateTime
 
 private data class Cell(val date: SolarDate, val info: DayInfo?, val hasNote: Boolean, val clash: Boolean)
@@ -276,16 +285,6 @@ private data class RatingStyle(val icon: ImageVector, val label: String, val bg:
 
 /** Tag: rounded-full good-soft px-2.5 py-1 text-xs semibold, icon 12. */
 @Composable
-private fun Tag(icon: ImageVector, label: String) {
-    val c = LocalLichAmColors.current
-    Row(Modifier.clip(Pill).background(c.goodSoft).padding(horizontal = 10.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Icon(icon, null, Modifier.size(12.dp), tint = c.good)
-        HSpace(4.dp)
-        Text(label, color = c.good, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold)
-    }
-}
-
-@Composable
 private fun SelectedDayPanel(state: AppState, now: LocalDateTime) {
     val c = LocalLichAmColors.current
     val d = state.selectedDate
@@ -296,15 +295,18 @@ private fun SelectedDayPanel(state: AppState, now: LocalDateTime) {
         Rating.NEUTRAL -> RatingStyle(Icons.Filled.Remove, "Bình thường", c.surface2, c.fg2)
     }
     val clash = Zodiac.clashes(state.userChi, info)
+    // Everything the Today page shows for a day, so the panel is the same day in short: its
+    // commemorative days and festivals, and "Mồng 1" / "Ngày rằm" when the day has no name.
+    val dayLabel = if (info.holiday != null || info.observances.isNotEmpty()) null else lunarDayLabel(info.lunar)
     Card {
-        SectionLabel("Ngày đã chọn")
+        SectionLabel("Ngày đã chọn · Tuần ${d.weekOfYear}")
         Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text("${d.weekdayName()}, ${d.day}/${d.month}", color = c.fg, fontSize = 20.sp, lineHeight = 28.sp, fontWeight = FontWeight.ExtraBold)
                 Row {
                     Text("Âm lịch ", color = c.fg2, fontSize = 14.sp, lineHeight = 20.sp)
                     Text("${info.lunar.day}/${info.lunar.month}", color = c.lunar, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
-                    if (info.lunar.leap) Text(" (nhuận)", color = c.fg2, fontSize = 14.sp, lineHeight = 20.sp)
+                    Text(" · tháng ${LUNAR_MONTH_NAMES[info.lunar.month - 1]}${if (info.lunar.leap) " nhuận" else ""}", color = c.fg2, fontSize = 14.sp, lineHeight = 20.sp)
                 }
             }
             HSpace(12.dp)
@@ -322,30 +324,59 @@ private fun SelectedDayPanel(state: AppState, now: LocalDateTime) {
             Text("Trực ", color = c.fg2, fontSize = 12.sp, lineHeight = 16.sp)
             Text(info.truc, color = c.fg, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold)
         }
-        if (info.holiday != null || clash) {
+        if (info.holiday != null || info.observances.isNotEmpty() || dayLabel != null || clash) {
             Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                info.holiday?.let {
-                    Row(Modifier.fillMaxWidth().clip(R12).background(c.lunarSoft).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Filled.Flag, null, Modifier.size(14.dp), tint = c.lunar); HSpace(8.dp)
-                        Text(it, color = c.lunar, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
-                    }
+                info.holiday?.let { DayNote(Icons.Filled.Flag, it, null, c.lunar, c.lunarSoft) }
+                info.observances.forEach { (title, kind) ->
+                    val festival = kind == EventKind.FESTIVAL
+                    DayNote(if (festival) Icons.Outlined.AccountBalance else Icons.Outlined.AutoAwesome, title, if (festival) "Lễ hội" else "Kỷ niệm", c.gold, c.goldSoft)
                 }
-                if (clash) {
-                    Row(Modifier.fillMaxWidth().clip(R12).background(c.clashSoft).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Outlined.SentimentDissatisfied, null, Modifier.size(14.dp), tint = c.clash); HSpace(8.dp)
-                        Text("Xung tuổi ${state.userChi}", color = c.clash, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
-                    }
+                dayLabel?.let { DayNote(Icons.Outlined.DarkMode, it, null, c.lunar, c.surface2) }
+                if (clash) DayNote(Icons.Outlined.SentimentDissatisfied, "Xung tuổi ${state.userChi}", "nên cân nhắc việc quan trọng", c.clash, c.clashSoft)
+            }
+        }
+        // The three activities, good or not (Today's "Việc nên làm"), one tile each.
+        Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(
+                Triple("wedding", "Cưới hỏi", Icons.Outlined.FavoriteBorder),
+                Triple("moving", "Chuyển nhà", Icons.Outlined.Handyman),
+                Triple("opening", "Khai trương", Icons.Outlined.Storefront),
+            ).forEach { (key, name, icon) ->
+                val ok = key in info.activities
+                Column(
+                    Modifier.weight(1f).clip(R12).background(if (ok) c.goodSoft else c.surface2).padding(horizontal = 4.dp, vertical = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Icon(icon, null, Modifier.size(16.dp), tint = if (ok) c.good else c.fg3)
+                    Text(name, color = if (ok) c.fg else c.fg2, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(if (ok) "Tốt" else "Không hợp", color = if (ok) c.good else c.fg3, fontSize = 10.sp, lineHeight = 14.sp, fontWeight = FontWeight.Bold)
                 }
             }
         }
-        if (info.activities.isNotEmpty()) {
-            Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if ("wedding" in info.activities) Tag(Icons.Outlined.FavoriteBorder, "Cưới hỏi")
-                if ("moving" in info.activities) Tag(Icons.Outlined.Handyman, "Chuyển nhà")
-                if ("opening" in info.activities) Tag(Icons.Outlined.Storefront, "Khai trương")
+        if (info.truc == "Trừ") {
+            Row(Modifier.padding(top = 8.dp).fillMaxWidth().clip(R12).background(c.surface2).padding(12.dp)) {
+                Icon(Icons.Outlined.AutoAwesome, null, Modifier.size(14.dp).padding(top = 2.dp), tint = c.gold)
+                HSpace(8.dp)
+                Text("Ngày Trừ: tốt để dọn dẹp, chữa bệnh, giải toả mâu thuẫn.", color = c.fg2, fontSize = 12.sp, lineHeight = 19.5.sp)
             }
         }
     }
     GioHoangDaoCard(info, if (d == AppState.today()) DayFacts.chiOfHour(now.hour) else null)
     NotesCard(state.notesOn(d), { state.addNote(d, it) }, state::deleteNote, compact = true)
+}
+
+/** One line of the day panel: a holiday, commemorative day, festival, "Mồng 1" or a zodiac clash. */
+@Composable
+private fun DayNote(icon: ImageVector, title: String, detail: String?, fg: Color, bg: Color) {
+    Row(Modifier.fillMaxWidth().clip(R12).background(bg).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Icon(icon, null, Modifier.size(14.dp), tint = fg)
+        HSpace(8.dp)
+        Text(
+            buildAnnotatedString {
+                append(title)
+                if (detail != null) withStyle(SpanStyle(fontWeight = FontWeight.Medium, color = fg.copy(alpha = 0.75f))) { append(" · $detail") }
+            },
+            color = fg, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold,
+        )
+    }
 }
