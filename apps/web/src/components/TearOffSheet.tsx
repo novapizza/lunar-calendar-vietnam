@@ -110,8 +110,9 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
           <button onClick={onCycleTheme} className={cn(strip, 'relative')} aria-label={theme.label} title={theme.label}>
             <theme.Icon size={18} />
           </button>
-          <span className="relative text-[11px] font-semibold uppercase tracking-[0.32em] text-hero-accent/90 tabular-nums">
-            Tuần {getWeek(date, { weekStartsOn: 1, locale: vi })}
+          {/* The year on the binding, in larger print; the week moved to the sheet's top line. */}
+          <span className="relative pl-[0.3em] text-[15px] font-bold tracking-[0.3em] text-hero-accent tabular-nums">
+            {format(date, 'yyyy')}
           </span>
           {isToday(date) ? (
             <span className="w-10" aria-hidden="true" />
@@ -172,7 +173,7 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
         <div className="rounded-[0.7rem] border border-hero-accent/25 px-4 pt-6 pb-4">
 
           <p className="text-center text-[11px] font-semibold uppercase tracking-[0.34em] pl-[0.34em] text-hero-accent">
-            Tháng {format(date, 'M')} · {format(date, 'yyyy')}
+            Tháng {format(date, 'M')} · Tuần {getWeek(date, { weekStartsOn: 1, locale: vi })}
           </p>
 
           <div className="grid grid-cols-[2.5rem_1fr_2.5rem] items-center">
@@ -197,7 +198,10 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
             <span className="h-px w-8 bg-current opacity-40" aria-hidden="true" />
             <span className={cn(
               'text-[13px] font-semibold uppercase tracking-[0.4em] pl-[0.4em]',
-              red ? 'rounded-full bg-hero-accent px-3 py-1 text-hero-accent-ink' : 'text-white',
+              // Same padding every day, the seal only adds the fill: padded on Sundays alone, the
+              // line was 8px taller and the whole sheet with it (2026-11-22).
+              'rounded-full px-3 py-1',
+              red ? 'bg-hero-accent text-hero-accent-ink' : 'text-white',
             )}>
               {format(date, 'EEEE', { locale: vi })}
             </span>
@@ -341,10 +345,13 @@ function PageTurn({ face, turn, now, currentTraditionalHour, onDone }: {
       apply(turn.forward ? k : 1 - k);
       if (k < 1 || typeof freeze === 'number') raf = requestAnimationFrame(step);
       else {
-        // Hide the strips before flattening them, in this same frame: React hides them only on
-        // its next render, a frame later, and in between the flat old sheet covered the new day
-        // (a blink after each turn on the phone, 2026-11-22).
-        if (root.current) root.current.style.opacity = '0.001';
+        // Going forward the strips hold the old sheet: hide them in this same frame, before
+        // flattening them (React hides them only on its next render, a frame later, and in
+        // between the old sheet covered the new day: a blink on the phone, 2026-11-22).
+        // Going back it is the other way round: the strips, now flat, are the new day and the
+        // sheet underneath is still the old one until React's next render; keep them shown so
+        // React hides them in the same render that puts the new day underneath.
+        if (turn.forward && root.current) root.current.style.opacity = '0.001';
         reset();
         done.current();
       }

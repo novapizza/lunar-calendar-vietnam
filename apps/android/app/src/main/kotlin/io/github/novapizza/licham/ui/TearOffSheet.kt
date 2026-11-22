@@ -287,9 +287,10 @@ private fun Binding(state: AppState, d: SolarDate) {
                 ThemePref.DARK -> Icons.Outlined.DarkMode to "Giao diện: tối"
             }
             IconBtn(icon, label, state::cycleTheme, tint = white, iconSize = 18.dp)
+            // The year on the binding, in larger print; the week moved to the sheet's top line.
             Text(
-                "TUẦN ${d.weekOfYear}", color = c.heroAccent.copy(alpha = 0.9f), fontSize = 11.sp, lineHeight = 16.5.sp,
-                fontWeight = FontWeight.SemiBold, letterSpacing = 0.32.em, textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
+                "${d.year}", color = c.heroAccent, fontSize = 15.sp, lineHeight = 20.sp,
+                fontWeight = FontWeight.Bold, letterSpacing = 0.3.em, textAlign = TextAlign.Center, modifier = Modifier.weight(1f),
             )
             if (d == AppState.today()) Spacer(Modifier.size(40.dp))
             else IconBtn(Icons.AutoMirrored.Filled.Undo, "Về hôm nay", { state.selectDate(AppState.today()) }, tint = white, iconSize = 18.dp)
@@ -358,7 +359,7 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
         val inner = RoundedCornerShape(11.dp)
         Column(Modifier.fillMaxWidth().border(1.dp, accent.copy(alpha = 0.45f), outer).padding(3.dp).border(1.dp, accent.copy(alpha = 0.25f), inner).padding(start = 16.dp, end = 16.dp, top = 24.dp, bottom = 16.dp)) {
             Text(
-                "THÁNG ${d.month} · ${d.year}", color = accent, fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold,
+                "THÁNG ${d.month} · TUẦN ${d.weekOfYear}", color = accent, fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold,
                 letterSpacing = 0.34.em, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
             )
 
@@ -384,7 +385,8 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
                 Text(
                     d.weekdayName().uppercase(), color = if (red) c.heroAccentInk else Color.White, fontSize = 13.sp, lineHeight = 19.5.sp,
                     fontWeight = FontWeight.SemiBold, letterSpacing = 0.4.em,
-                    modifier = if (red) Modifier.clip(Pill).background(accent).padding(horizontal = 12.dp, vertical = 4.dp) else Modifier,
+                    // Same padding every day, the seal only adds the fill (padded on Sundays alone, the sheet grew 8dp).
+                    modifier = (if (red) Modifier.clip(Pill).background(accent) else Modifier).padding(horizontal = 12.dp, vertical = 4.dp),
                 )
                 Box(Modifier.width(32.dp).height(1.dp).background(accent.copy(alpha = 0.4f)))
             }
