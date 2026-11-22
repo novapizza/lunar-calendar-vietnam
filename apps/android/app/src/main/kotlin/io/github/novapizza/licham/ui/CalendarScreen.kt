@@ -94,20 +94,21 @@ fun CalendarScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
             Cell(d, info, d.toString() in noteDates, info != null && Zodiac.clashes(userChi, info))
         }
     }
-    if (!wide) {
+    if (!wide && LocalHinge.current == null) {
         Page(padding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp), gap = 12.dp) {
             CalendarHeader(state, wide)
             MonthGrid(state, cells, userChi != null, wide)
             Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { SelectedDayPanel(state, now) }
         }
     } else {
-        Row(Modifier.fillMaxHeight()) {
-            Page(Modifier.weight(1.25f), padding = PaddingValues(start = 32.dp, end = 12.dp, top = 24.dp, bottom = 24.dp), gap = 12.dp) {
+        TwoPanes(
+            1.25f, 1f, top = if (wide) 24.dp else 12.dp, bottom = if (wide) 24.dp else 40.dp, gap = 12.dp,
+            left = {
                 CalendarHeader(state, wide)
                 MonthGrid(state, cells, userChi != null, wide)
-            }
-            Page(Modifier.weight(1f), padding = PaddingValues(start = 12.dp, end = 32.dp, top = 24.dp, bottom = 24.dp), gap = 12.dp) { SelectedDayPanel(state, now) }
-        }
+            },
+            right = { SelectedDayPanel(state, now) },
+        )
     }
 }
 

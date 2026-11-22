@@ -61,13 +61,14 @@ fun TodayScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
         AboutLink { state.sheet = SheetKind.ABOUT }
     }
 
-    if (!wide) {
+    if (!wide && LocalHinge.current == null) {
         Page { dateGroup(); dayGroup() }
     } else {
-        Row(Modifier.fillMaxHeight()) {
-            Page(Modifier.weight(1.15f), padding = androidx.compose.foundation.layout.PaddingValues(start = 32.dp, end = 12.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { dateGroup() }
-            Page(Modifier.weight(1f), padding = androidx.compose.foundation.layout.PaddingValues(start = 12.dp, end = 32.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { dayGroup() }
-        }
+        // The date stays put (the sheet fits the pane, 16 dp to spare below); only the day's cards scroll.
+        TwoPanes(
+            1.15f, 1f, top = if (wide) 32.dp else 16.dp, bottom = 40.dp, leftBottom = 16.dp, gap = if (wide) 24.dp else 16.dp,
+            left = { dateGroup() }, right = { dayGroup() },
+        )
     }
 }
 

@@ -11,12 +11,18 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.window.layout.FoldingFeature
+import androidx.window.layout.WindowInfoTracker
 import io.github.novapizza.licham.ui.AppScaffold
+import io.github.novapizza.licham.ui.Hinge
+import io.github.novapizza.licham.ui.LocalHinge
 import io.github.novapizza.licham.ui.LichAmTheme
 import io.github.novapizza.licham.ui.MAX_FONT_SCALE
 import kotlinx.coroutines.delay
@@ -58,9 +64,19 @@ class MainActivity : ComponentActivity() {
                     now = LocalDateTime.now()
                 }
             }
+            // The fold, from Jetpack WindowManager: reported only while it crosses this window
+            // (unfolded or half open). A fold running top to bottom puts the app in book mode.
+            val windowLayout by remember { WindowInfoTracker.getOrCreate(this@MainActivity).windowLayoutInfo(this@MainActivity) }
+                .collectAsState(initial = null)
+            val hinge = windowLayout?.displayFeatures
+                ?.filterIsInstance<FoldingFeature>()
+                ?.firstOrNull { it.orientation == FoldingFeature.Orientation.VERTICAL }
+                ?.bounds?.let { Hinge(it.left.toFloat(), it.right.toFloat()) }
             BackHandler(enabled = state.tab != Tab.TODAY) { state.selectTab(Tab.TODAY) }
             LichAmTheme(palette = state.palette, dark = dark) {
-                AppScaffold(state, now)
+                CompositionLocalProvider(LocalHinge provides hinge) {
+                    AppScaffold(state, now)
+                }
             }
         }
     }

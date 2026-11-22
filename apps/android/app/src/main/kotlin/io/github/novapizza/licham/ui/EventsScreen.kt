@@ -42,7 +42,12 @@ private fun countdown(days: Int) = when (days) {
     else -> "$days ngày nữa"
 }
 
-/** Sự kiện: the next holiday highlighted, then the following ones grouped by solar month. */
+/**
+ * Sự kiện: the next holiday highlighted, then the following ones grouped by solar month.
+ * Two-pane windows fill both panes as one flow (FlowPanes), as the web's CSS columns: wide puts
+ * the title and the next event across both columns (the web's lg), book lets them lead the left
+ * column. Two fixed panes (title + next event | the whole list) left most of the left pane empty.
+ */
 @Composable
 fun EventsScreen(state: AppState, wide: Boolean) {
     val today = AppState.today()
@@ -59,20 +64,25 @@ fun EventsScreen(state: AppState, wide: Boolean) {
     val highlight: @Composable () -> Unit = {
         if (next == null) EmptyEvents() else NextEvent(next)
     }
-    val list: @Composable () -> Unit = {
-        // mt-6 / mb-6: 24 between the hero and each month group.
-        Column(verticalArrangement = Arrangement.spacedBy(24.dp)) { groups.forEach { (month, items) -> MonthGroup(month, items) } }
-        AboutLink { state.sheet = SheetKind.ABOUT }
-    }
-    if (!wide) {
+    val about: @Composable () -> Unit = { AboutLink { state.sheet = SheetKind.ABOUT } }
+    if (!wide && LocalHinge.current == null) {
         Page {
             title(); highlight()
-            Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(0.dp)) { list() }
+            // mt-6 / mb-6: 24 between the hero and each month group.
+            Column(Modifier.padding(top = 8.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(24.dp)) { groups.forEach { (month, items) -> MonthGroup(month, items) } }
+                about()
+            }
         }
     } else {
-        Row(Modifier.fillMaxHeight()) {
-            Page(Modifier.weight(1f), padding = PaddingValues(start = 32.dp, end = 12.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { title(); highlight() }
-            Page(Modifier.weight(1f), padding = PaddingValues(start = 12.dp, end = 32.dp, top = 32.dp, bottom = 40.dp), gap = 0.dp) { list() }
+        // Items: title, next event, each month, the about link (it has its own 16 dp on top).
+        FlowPanes(
+            top = if (wide) 32.dp else 16.dp, bottom = 40.dp, gap = 24.dp, firstGap = if (wide) 24.dp else 16.dp,
+            spanning = if (wide) 2 else 0, keepLeft = 2,
+        ) {
+            title(); highlight()
+            groups.forEach { (month, items) -> MonthGroup(month, items) }
+            about()
         }
     }
 }
