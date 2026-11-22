@@ -21,7 +21,7 @@ object PageCurl {
     const val CURL_BANDS = 24
     /** Pieces drawn: the flat piece, the curl bands, the folded piece. */
     const val PIECES = CURL_BANDS + 2
-    const val TURN_MS = 800
+    const val TURN_MS = 600
     /** Perspective distance in dp (the web's CSS `perspective: 2400px`); vanishing point at the page's top centre. */
     const val PERSPECTIVE_DP = 2400f
     /** The peel runs 25° off vertical, towards the bottom-right corner. */

@@ -71,8 +71,10 @@ export function TodayView({
     { key: 'opening', label: 'Khai trương', Icon: Store,  ok: lunarInfo.activities.opening },
   ];
 
+  // overflow-x-clip: the page-turn strips (TearOffSheet) are cut at 25° and reach past the right
+  // edge (scroll width 612px on a 427px screen, 2026-11-22); they must not scroll the page.
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain pt-[env(safe-area-inset-top)]">
+    <div className="flex-1 min-h-0 overflow-y-auto overflow-x-clip overscroll-contain pt-[env(safe-area-inset-top)]">
       <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
 
         {/* Three groups: A date (hero, can chi), B the day (assessment, activities),
