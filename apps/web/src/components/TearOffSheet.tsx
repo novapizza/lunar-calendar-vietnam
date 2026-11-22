@@ -1,4 +1,4 @@
-import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
 import { format, getWeek, addDays, subDays, isToday } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Undo2, Sun, Moon, SunMoon } from 'lucide-react';
@@ -81,6 +81,8 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
     return () => cancel(id);
   }, [turn, date, lunarInfo, holiday, prepared]);
 
+  const numberMax = useFitToPane();
+
   const lunarMonth = Math.abs(lunarInfo.lunarMonth);
   const theme = THEME_BUTTON[themePref];
   const strip = 'w-10 h-10 rounded-full flex items-center justify-center text-white/85 hover:bg-white/10 active:scale-95 transition';
@@ -92,7 +94,11 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
   );
 
   return (
-    <div className="relative pb-3">
+    <div
+      ref={numberMax.ref}
+      className="relative pb-3"
+      style={numberMax.px ? ({ '--tear-number-max': `${numberMax.px}px` } as CSSProperties) : undefined}
+    >
       {/* The pad: two sheets under the current one. */}
       <div className="absolute inset-x-4 bottom-0 top-8 rounded-b-[1.25rem] border border-hero-accent/15 bg-hero-to opacity-70" aria-hidden="true" />
       <div className="absolute inset-x-2 bottom-1.5 top-8 rounded-b-[1.25rem] border border-hero-accent/20 bg-hero-via shadow-[var(--shadow-card)]" aria-hidden="true" />
@@ -145,6 +151,47 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
   );
 }
 
+/** The two-pane layouts of TodayView (book, and lg = 840px up), where the sheet has a column of its own. */
+const TWO_PANES = '(min-width: 52.5rem), (min-width: 37.5rem) and (max-width: 52.4375rem) and (min-aspect-ratio: 3/4) and (max-aspect-ratio: 4/3)';
+
+/**
+ * In the two-pane layouts the whole sheet should be on screen without scrolling. A wide, short
+ * pane (Galaxy Z Fold 8 unfolded: 4:3 landscape, each half like a phone on its side) made the
+ * width-sized number push the sheet's bottom under the tab bar (816x616: 18px, measured
+ * 2026-11-22). Only the number's line changes the sheet's height, so: rest = sheet height -
+ * 1.05 x number size, and the number may be at most (room - rest) / 1.05, room being the
+ * scroller's height below the sheet's top less 16px. The sheet's column is sticky there
+ * (TodayView), so its top on screen is the same scrolled or not. Returns the cap in px (null:
+ * no cap; at least 48) and the ref for the pad wrapper.
+ */
+function useFitToPane() {
+  const ref = useRef<HTMLDivElement>(null);
+  const [px, setPx] = useState<number | null>(null);
+  useLayoutEffect(() => {
+    const el = ref.current;
+    const scroller = el?.closest<HTMLElement>('.overflow-y-auto');
+    if (!el || !scroller) return;
+    const twoPanes = window.matchMedia(TWO_PANES);
+    const fit = () => {
+      const number = el.querySelector<HTMLElement>('[data-tear-number]');
+      if (!twoPanes.matches || !number) return setPx(null);
+      const size = parseFloat(getComputedStyle(number).fontSize);
+      const rest = el.offsetHeight - 1.05 * size;
+      const top = el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+      const room = scroller.clientHeight - top - 16;
+      const max = Math.max(48, Math.floor((room - rest) / 1.05));
+      setPx(prev => (prev !== null && Math.abs(prev - max) < 1 ? prev : max));
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    ro.observe(scroller);
+    twoPanes.addEventListener('change', fit);
+    return () => { ro.disconnect(); twoPanes.removeEventListener('change', fit); };
+  }, []);
+  return { ref, px };
+}
+
 /** One sheet of paper: lacquer with its light and moons, the frame and the dates. */
 function SheetFace({ face, now, currentTraditionalHour, nav }: {
   face: Face;
@@ -181,11 +228,12 @@ function SheetFace({ face, now, currentTraditionalHour, nav }: {
               <ChevronLeft size={22} strokeWidth={1.5} />
             </button>
             <p className={cn(
-              // Sized by the sheet's own width (cqw), so it fits a narrow desktop column too.
+              // Sized by the sheet's own width (cqw), so it fits a narrow desktop column too, and
+              // capped by --tear-number-max where the sheet must fit the pane's height (useFitToPane).
               // Line height after the font size: tailwind-merge drops a leading-* that comes before text-*.
               'foil text-center font-serif font-bold tracking-[-0.02em] lining-nums',
-              'text-[clamp(5rem,44cqw,11.5rem)] leading-[1.05]',
-            )}>
+              'text-[min(clamp(5rem,44cqw,11.5rem),var(--tear-number-max,11.5rem))] leading-[1.05]',
+            )} data-tear-number="">
               {format(date, 'd')}
             </p>
             <button onClick={nav?.next} aria-label="Ngày sau" className={arrow} tabIndex={nav ? 0 : -1}>

@@ -75,7 +75,7 @@ export function TodayView({
   // edge (scroll width 612px on a 427px screen, 2026-11-22); they must not scroll the page.
   return (
     <div className="flex-1 min-h-0 overflow-y-auto overflow-x-clip overscroll-contain pt-[env(safe-area-inset-top)]">
-      <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10">
+      <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10 lg:pb-0 book:pb-0">
 
         {/* Two parts: A the date (the tear-off sheet) and the day's cards (assessment,
             activities, giờ hoàng đạo, notes) in one flow.
@@ -84,12 +84,16 @@ export function TodayView({
             two where there is room, balanced by the browser, so no card waits in a row of its
             own under the sheet (giờ hoàng đạo and notes did at lg, leaving a gap beside them).
             book (unfolded foldable): two equal panes split at the fold; left = A, right = the
-            cards. The pane wrapper is display:contents everywhere else.
+            cards.
+            In both two-pane layouts (book, lg) the date stays put and only the cards scroll: the
+            pane wrapper is sticky at the page's top padding (the tear-off sheet shrinks its
+            number to fit the window's height, TearOffSheet useFitToPane). In one column the
+            wrapper is display:contents.
             grid-cols-1 (minmax(0, 1fr)) matters: an implicit column grows to the widest
             item's min-content, and a one-line title once made the whole page wider than the
             screen. */}
         <div className="grid grid-cols-1 gap-4 rail:gap-6 lg:grid-cols-[1.15fr_1fr] xl:grid-cols-[1fr_2fr] items-start book:grid-cols-2">
-        <div className="contents book:flex book:flex-col book:gap-4 book:min-w-0">
+        <div className="contents lg:sticky lg:top-[calc(env(safe-area-inset-top)+2rem)] lg:flex lg:flex-col lg:gap-6 lg:min-w-0 book:sticky book:top-[calc(env(safe-area-inset-top)+1rem)] book:flex book:flex-col book:gap-4 book:min-w-0">
 
         <InstallBanner />
 
@@ -107,7 +111,11 @@ export function TodayView({
         </div>
 
         {/* ───────────── The day's cards, one flow in balanced columns ───────────── */}
-        <div className="min-w-0 columns-[20rem] gap-4 rail:gap-6 [&>*]:mb-4 rail:[&>*]:mb-6 [&>*]:break-inside-avoid">
+        {/* The about link sits in this column, not under the grid: below the grid it made the page
+            scroll past the sticky date column's end and carried the sheet up with it. So does the
+            page's bottom padding in two-pane layouts (a sticky box stays inside its grid). */}
+        <div className="min-w-0 lg:pb-10 book:pb-10">
+        <div className="columns-[20rem] gap-4 rail:gap-6 [&>*]:mb-4 rail:[&>*]:mb-6 [&>*]:break-inside-avoid">
 
             {/* Day assessment */}
             <section className="card divide-y divide-line">
@@ -210,9 +218,9 @@ export function TodayView({
               </button>
             </section>
         </div>
+        <AboutLink onClick={onOpenAbout} inPane />
         </div>
-
-        <AboutLink onClick={onOpenAbout} />
+        </div>
       </div>
     </div>
   );
