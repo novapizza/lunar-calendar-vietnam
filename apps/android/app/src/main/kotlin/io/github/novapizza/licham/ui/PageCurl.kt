@@ -1,7 +1,6 @@
 package io.github.novapizza.licham.ui
 
 import kotlin.math.PI
-import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.min
 import kotlin.math.pow
@@ -12,13 +11,15 @@ import kotlin.math.sin
  * (paper wrapping round a cylinder, the back of the sheet showing), the fold runs diagonally
  * across the sheet towards the top-left, and the folded sheet leaves past that corner.
  *
- * Same curve and constants as apps/web/src/lib/pageCurl.ts: keep the two in step. The web cuts
- * the sheet into fixed strips (cheap to composite in a browser); here, drawing on a canvas, the
- * pieces follow the fold (a flat piece, CURL_BANDS bands round the curl, the folded piece).
+ * The web app once shared this curve (CSS strips); it now draws its turn in WebGL and lets a
+ * finger drag it (apps/web/src/lib/curlGL.ts, components/SheetPeel.tsx). Here, drawing on a
+ * canvas, the pieces follow the fold (a flat piece, CURL_BANDS bands round the curl, the folded
+ * piece), each shaded with a gradient across it.
  * Coordinates: x right, y down, z towards the viewer, px, origin at the page's top-left.
  */
 object PageCurl {
-    const val CURL_BANDS = 24
+    /** Bands round the bend (it now runs over most of the flap). */
+    const val CURL_BANDS = 48
     /** Pieces drawn: the flat piece, the curl bands, the folded piece. */
     const val PIECES = CURL_BANDS + 2
     const val TURN_MS = 600
@@ -27,10 +28,21 @@ object PageCurl {
     /** The peel runs 25° off vertical, towards the bottom-right corner. */
     const val TILT_DEG = 25f
     private const val TILT = TILT_DEG * PI.toFloat() / 180f
-    /** How far the flap folds over, degrees (180 = flat on the sheet): real paper springs back. */
-    private const val MAX_BEND = 155f
-    /** Length of the curl (the part wrapped round the cylinder), as a fraction of the page diagonal. */
-    private const val CURL = 0.22f
+    /** How far the flap's edge folds over, degrees (180 = flat on the sheet): real paper springs back. */
+    private const val MAX_BEND = 160f
+    /**
+     * Length over which the paper bends, as a fraction of the page diagonal. The bend is tightest
+     * at the fold and eases out towards the flap's edge (springy paper rolling over), so the whole
+     * flap stays curved: with a short curl and a flat flap beyond it, the turn read as a sharp
+     * crease (phone screenshot, 2026-11-22).
+     */
+    private const val CURL = 0.6f
+    /**
+     * Darkening of paper turned by [angle] degrees, lit from the front: 0 flat, darkest on edge
+     * (90°), lighter again as the back comes over. Continuous through 90° (a light from the side
+     * made front and back differ there, and the jump drew a line on the roll). Same as the web's.
+     */
+    fun shadeAt(angle: Float): Float = 0.55f * (1 - kotlin.math.abs(cos(angle * PI.toFloat() / 180f)))
 
     /** Across the fold, towards the peeled corner. */
     val d = floatArrayOf(sin(TILT), cos(TILT))
@@ -44,8 +56,13 @@ object PageCurl {
         val shiftX: Float, val shiftY: Float, val shiftZ: Float,
         /** Turn about the fold direction, degrees: 0 flat, 90 on edge, 180 folded flat over. */
         val angle: Float,
-        /** Darkening of the visible side, 0..1. */
-        val shade: Float,
+        /**
+         * Darkening of the visible side at the piece's two edges across the fold ([sStart] and
+         * [sEnd], px along [d] from the page's top-left), drawn as a gradient: one flat shade per
+         * piece stepped from piece to piece and read as creases (2026-11-22).
+         */
+        val sStart: Float, val sEnd: Float,
+        val shadeStart: Float, val shadeEnd: Float,
     ) {
         val back: Boolean get() = cos(angle * PI.toFloat() / 180f) < 0f
 
@@ -90,7 +107,7 @@ object PageCurl {
     /**
      * The page at progress p (0 = flat, 1 = gone) for a page of [width] × [height] px. Slow at
      * first, then faster: the fold travels from inside the bottom-right corner to past the
-     * top-left one on an ease-in curve, the curl closes to MAX_BEND by 45 %, and the sheet fades
+     * top-left one on an ease-in curve, the bend reaches MAX_BEND by 45 %, and the sheet fades
      * over the last 12 %. [overlap] px is added on each side of a piece so no seam shows.
      */
     fun frame(progress: Float, width: Float, height: Float, overlap: Float): Frame {
@@ -103,7 +120,11 @@ object PageCurl {
         val bend = MAX_BEND * (1 - (1 - b) * (1 - b))
         val opacity = if (p > 0.88f) 1 - (p - 0.88f) / 0.12f else 1f
 
-        fun angleAt(s: Float) = bend * ((s / sMax - fold) / CURL).coerceIn(0f, 1f)
+        // Ease-out along the flap: tightest at the fold, flattening towards the edge.
+        fun angleAt(s: Float): Float {
+            val t = ((s / sMax - fold) / CURL).coerceIn(0f, 1f)
+            return bend * (1 - (1 - t) * (1 - t))
+        }
         val sFold = fold * sMax
         val sCurlEnd = (fold + CURL) * sMax
 
@@ -139,7 +160,8 @@ object PageCurl {
             val cs = cos(rad)
             pieces += Piece(
                 poly, d[0] * s0, d[1] * s0, d[0] * (S - s0), d[1] * (S - s0), Z, angle,
-                if (k == 0) 0f else min(0.6f, (1 - abs(cs)) * 0.55f),
+                s0, s1,
+                if (k == 0) 0f else shadeAt(angleAt(s0)), if (k == 0) 0f else shadeAt(angleAt(s1)),
             )
             S += len * cs; Z += len * sin(rad)
         }

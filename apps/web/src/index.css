@@ -232,7 +232,7 @@
 .animate-fade-in  { animation: fade-in 0.18s ease-out; }
 
 /* Today's tear-off calendar sheet (TearOffSheet): the brass rings on the binding, the inner
-   ring of the lunar "moon" and the gold-foil print. The page turn itself is drawn by PageTurn. */
+   ring of the lunar "moon" and the gold-foil print. The page turn itself is drawn by SheetPeel (WebGL). */
 .tear-ring {
   position: absolute;
   top: 30px;
@@ -245,12 +245,6 @@
 .tear-moon {
   background: rgb(0 0 0 / 0.12);
   box-shadow: inset 0 0 0 4px rgb(0 0 0 / 0.08), inset 0 0 0 5px color-mix(in srgb, var(--hero-accent) 28%, transparent);
-}
-/* Back of a turning sheet (PageTurn): cream paper, warmed by the palette's gold. */
-.tear-paper-back {
-  background: linear-gradient(160deg,
-    color-mix(in srgb, var(--hero-accent) 18%, #fbf7ef) 0%,
-    color-mix(in srgb, var(--hero-accent) 32%, #efe6d6) 100%);
 }
 /* Gold-foil print on the lacquer: a light-to-deep gradient of the palette's hero accent. */
 .foil {

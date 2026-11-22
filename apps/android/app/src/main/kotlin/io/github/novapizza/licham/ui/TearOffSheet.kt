@@ -270,7 +270,13 @@ private fun PageTurn(layer: GraphicsLayer, forward: Boolean, sheetWidth: Dp, mod
                         nc.concat(matrix)
                         nc.clipPath(outline)
                         if (piece.back) drawRect(backBrush) else drawLayer(layer)
-                        if (piece.shade > 0f) drawRect(Color.Black.copy(alpha = piece.shade))
+                        // The shade runs smoothly across the piece, matching its neighbours at the edges.
+                        if (piece.shadeStart > 0f || piece.shadeEnd > 0f) drawRect(
+                            Brush.linearGradient(
+                                0f to Color.Black.copy(alpha = piece.shadeStart), 1f to Color.Black.copy(alpha = piece.shadeEnd),
+                                start = Offset(dd[0] * piece.sStart, dd[1] * piece.sStart), end = Offset(dd[0] * piece.sEnd, dd[1] * piece.sEnd),
+                            ),
+                        )
                         nc.restore()
                     }
                     // The rings stay over the paper still on the pad, under the curl and the flap.
@@ -427,29 +433,16 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
                 Box(Modifier.weight(1f).height(1.dp).background(Brush.horizontalGradient(listOf(accent.copy(alpha = 0.55f), Color.Transparent))))
             }
 
-            // Lunar date in a gold moon, can chi beside it; on a narrow sheet (under 352dp, the
-            // web's 22rem container query) the can chi go below the moon, in three columns.
+            // Lunar date in a gold moon, a gold rule, the can chi beside it: always two columns (as
+            // the web and the widget). CanChiRows puts each label above its value, smaller, when
+            // the column is too narrow for label and value on one line.
             val canChi = listOf("NĂM" to info.canChiYear, "THÁNG" to info.canChiMonth, "NGÀY" to info.canChiDay)
-            if (sheetWidth >= 352.dp) {
-                Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Moon(info, gold)
-                    Spacer(Modifier.width(20.dp))
-                    Box(Modifier.width(1.dp).height(80.dp).background(accent.copy(alpha = 0.35f)))
-                    Spacer(Modifier.width(20.dp))
-                    CanChiRows(canChi)
-                }
-            } else {
-                Column(Modifier.fillMaxWidth().padding(top = 16.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    Moon(info, gold)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        canChi.forEach { (label, value) ->
-                            Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                                CanChiLabel(label)
-                                CanChiValue(value)
-                            }
-                        }
-                    }
-                }
+            Row(Modifier.fillMaxWidth().padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Moon(info, gold)
+                Spacer(Modifier.width(if (sheetWidth >= 352.dp) 20.dp else 16.dp))
+                Box(Modifier.width(1.dp).height(80.dp).background(accent.copy(alpha = 0.35f)))
+                Spacer(Modifier.width(if (sheetWidth >= 352.dp) 20.dp else 16.dp))
+                BoxWithConstraints(Modifier.weight(1f)) { CanChiRows(canChi, maxWidth) }
             }
 
             val hourName = CalendarData.calendar.chi[DayFacts.chiOfHour(now.hour)]
@@ -505,13 +498,34 @@ private fun CanChiValue(text: String, modifier: Modifier = Modifier) {
     Text(text, color = Color.White, fontFamily = PlayfairDisplay, fontWeight = FontWeight.SemiBold, fontSize = 16.8.sp, lineHeight = 25.2.sp, maxLines = 1, softWrap = false, modifier = modifier)
 }
 
-/** Three rows: label (as wide as the widest label, at least 44dp, the web's w-11) and value on one baseline. */
+/**
+ * Three rows: label (as wide as the widest label, at least 44dp, the web's w-11) and value on one
+ * baseline; when that does not fit [room], each label (7.5sp) above its value.
+ */
 @Composable
-private fun CanChiRows(rows: List<Pair<String, String>>) {
+private fun CanChiRows(rows: List<Pair<String, String>>, room: Dp) {
     val measurer = rememberTextMeasurer()
+    val density = LocalDensity.current
     val labelStyle = TextStyle(fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.24.em, fontFamily = BeVietnamPro)
+    val valueStyle = TextStyle(fontSize = 16.8.sp, fontWeight = FontWeight.SemiBold, fontFamily = PlayfairDisplay)
     val widest = rows.maxOf { measurer.measure(it.first, labelStyle).size.width }
-    val labelWidth = maxOf(with(LocalDensity.current) { widest.toDp() } + 2.dp, 44.dp)
+    val labelWidth = maxOf(with(density) { widest.toDp() } + 2.dp, 44.dp)
+    // The longest of the 60 can chi ("Nhâm Thân"), not today's: the layout does not change from day to day (as the web).
+    val valueWidth = remember(measurer, density) {
+        val cal = CalendarData.calendar
+        with(density) { (0 until 60).maxOf { measurer.measure("${cal.can[it % 10]} ${cal.chi[it % 12]}", valueStyle).size.width }.toDp() }
+    }
+    if (labelWidth + 12.dp + valueWidth > room) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            rows.forEach { (label, value) ->
+                Column {
+                    Text(label, color = Color.White.copy(alpha = 0.55f), fontSize = 7.5.sp, lineHeight = 11.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.24.em, maxLines = 1, softWrap = false)
+                    CanChiValue(value)
+                }
+            }
+        }
+        return
+    }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         rows.forEach { (label, value) ->
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
