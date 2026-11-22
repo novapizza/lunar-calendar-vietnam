@@ -81,13 +81,13 @@ fun ToolsScreen(state: AppState, wide: Boolean) {
             ToolRow(Icons.Outlined.Info, "Thông tin ứng dụng", "Cách tính âm lịch, ngày tốt xấu, xung tuổi") { state.sheet = SheetKind.ABOUT }
         }
     }
-    if (!wide) {
+    if (!wide && LocalHinge.current == null) {
         Page { tools(); settings() }
     } else {
-        Row(Modifier.fillMaxHeight()) {
-            Page(Modifier.weight(1f), padding = PaddingValues(start = 32.dp, end = 12.dp, top = 32.dp, bottom = 40.dp), gap = 24.dp) { tools() }
-            Page(Modifier.weight(1f), padding = PaddingValues(start = 12.dp, end = 32.dp, top = 40.dp, bottom = 40.dp), gap = 24.dp) { settings() }
-        }
+        TwoPanes(
+            1f, 1f, top = if (wide) 32.dp else 16.dp, rightTop = if (wide) 40.dp else 16.dp, bottom = 40.dp, gap = if (wide) 24.dp else 16.dp,
+            left = { tools() }, right = { settings() },
+        )
     }
 }
 

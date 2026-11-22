@@ -3,9 +3,12 @@ package io.github.novapizza.licham.ui
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Size
@@ -102,6 +105,19 @@ private class TurnTracker(var shown: SolarDate) {
 }
 
 /**
+ * Fitting the sheet to the pane's height (LocalPaneHeight, two-pane layouts only). Only the
+ * number's line changes the sheet's height, so after each layout rest = sheet height - the
+ * number's box, and the number may be at most (pane height - rest) / 1.05. A wide, short pane
+ * (Galaxy Z Fold 8 unfolded, at 420 dpi) put the sheet's bottom under the tab bar otherwise.
+ */
+private class SheetFit {
+    /** The number's box (1.05 x its size) in the last composition. */
+    var box = 0.dp
+    /** Everything but the number's box, from the last layout. */
+    var rest by mutableStateOf<Dp?>(null)
+}
+
+/**
  * The Today page's date as one sheet of a Vietnamese tear-off wall calendar (lịch bóc),
  * components/TearOffSheet.tsx: a lacquer sheet hung on two brass rings, framed by a double gold
  * hairline, the solar day in large gold-foil serif (Sundays and holidays, red on a paper
@@ -126,8 +142,11 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
     val prev = { state.selectDate(d.plusDays(-1)) }
     val next = { state.selectDate(d.plusDays(1)) }
     fun infoOf(day: SolarDate) = if (day == d) info else DayInfo.of(day)
+    val paneHeight = LocalPaneHeight.current
+    val fit = remember { SheetFit() }
+    val density = LocalDensity.current
 
-    Box(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+    Box(Modifier.fillMaxWidth().padding(bottom = 12.dp).onSizeChanged { fit.rest = with(density) { it.height.toDp() } + 12.dp - fit.box }) {
         // The pad: two sheets under the current one (inset-x-4 / inset-x-2, from 32dp down).
         Box(
             Modifier.matchParentSize().padding(start = 16.dp, end = 16.dp, top = 32.dp).offset(y = 12.dp)
@@ -141,6 +160,12 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
         // No clip here: the turning sheet leaves the sheet's box. Binding and paper round their own corners.
         BoxWithConstraints(Modifier.fillMaxWidth().webShadow(SheetShape, float = true).swipe(onNext = next, onPrev = prev)) {
             val sheetWidth = maxWidth
+            // Solar day: 44% of the sheet's width (the web's 44cqw), 80–184, and in a pane no
+            // taller than the whole sheet can stand (SheetFit).
+            val byWidth = (sheetWidth * 0.44f).coerceIn(80.dp, 184.dp)
+            val rest = fit.rest
+            val numberDp = if (paneHeight != null && rest != null) minOf(byWidth, ((paneHeight - rest) / 1.05f).coerceAtLeast(80.dp)) else byWidth
+            fit.box = numberDp * 1.05f
             Column {
                 Binding(state, d)
                 Box {
@@ -151,14 +176,14 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
                         val turning = if (turn.forward) turn.from else d
                         key(turn.id) {
                             SheetPage(
-                                turning, infoOf(turning), now, sheetWidth, {}, {},
+                                turning, infoOf(turning), now, sheetWidth, numberDp, {}, {},
                                 Modifier.drawWithContent { layer.record { this@drawWithContent.drawContent() } },
                             )
                         }
                     }
                     // The sheet underneath: the new day going forward, the old one going back.
                     val under = if (turn != null && !turn.forward) turn.from else d
-                    SheetPage(under, infoOf(under), now, sheetWidth, prev, next)
+                    SheetPage(under, infoOf(under), now, sheetWidth, numberDp, prev, next)
                     // Two brass rings, over the sheet (30dp below the binding's top = 18dp above the paper).
                     Ring(Modifier.offset(x = sheetWidth * 0.26f, y = (-18).dp))
                     Ring(Modifier.offset(x = sheetWidth * 0.74f - 9.dp, y = (-18).dp))
@@ -332,7 +357,7 @@ private fun Dp.fixedSp(): TextUnit = with(LocalDensity.current) { this@fixedSp.t
 
 /** One sheet of paper: lacquer with its light and moons, the frame and the dates. */
 @Composable
-private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidth: Dp, onPrev: () -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier) {
+private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidth: Dp, numberDp: Dp, onPrev: () -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalLichAmColors.current
     val accent = c.heroAccent
     val red = d.weekdayIndex == 6 || info.holiday != null
@@ -363,8 +388,7 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
                 letterSpacing = 0.34.em, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth(),
             )
 
-            // Solar day: 44% of the sheet's width (the web's 44cqw), 80–184.
-            val numberDp = (sheetWidth * 0.44f).coerceIn(80.dp, 184.dp)
+            // Solar day, sized by TearOffSheet.
             val numberSize = numberDp.fixedSp()
             val numberBox = numberDp * 1.05f
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {

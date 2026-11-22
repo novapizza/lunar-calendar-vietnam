@@ -59,14 +59,17 @@ private val NAV = listOf(
 )
 
 /**
- * Bottom tab bar on phones (< 600 dp wide), a slim left rail on tablets — as the web app.
+ * Bottom tab bar on phones (< 600 dp wide) and on an unfolded foldable (book: two phone-like
+ * panes split at the hinge, see Panes.kt), a slim left rail on other windows from 600 dp —
+ * as the web app.
  * Three labelled tabs plus the logo, which opens Tiện ích.
  */
 @Composable
 fun AppScaffold(state: AppState, now: LocalDateTime) {
     val c = LocalLichAmColors.current
     BoxWithConstraints(Modifier.fillMaxSize().background(c.bg)) {
-        val wide = maxWidth >= 600.dp
+        // wide = rail and the tablet type scale; a book window keeps the phone styles in each pane.
+        val wide = LocalHinge.current == null && maxWidth >= 600.dp
         val content: @Composable (Modifier) -> Unit = { mod ->
             Box(mod) {
                 when (state.tab) {
