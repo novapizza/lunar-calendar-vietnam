@@ -9,7 +9,7 @@ Kotlin + Jetpack Compose. Application id `io.github.novapizza.licham` (`.debug` 
 | `core` | Pure Kotlin (JVM): lunar calendar from Hồ Ngọc Đức's year tables, can chi, trực, day rating, giờ hoàng đạo, activities, holidays, mệnh, colour tokens. Reads `shared/data/*.json` and `shared/design/tokens.json` as Java resources straight from `shared/` (no copies). |
 | `app` | Compose UI, same features as the web app: Hôm nay (day arrows/swipe, can chi, rating, zodiac clash, activities, giờ hoàng đạo, notes), Lịch (month grid with lunar days and dots, month/year picker, selected-day panel), Sự kiện (upcoming holidays), Tiện ích (date converter, auspicious-date finder, lunar events + .ics export, birth date → mệnh colour, theme). Bottom tab bar on phones, left rail and two columns from 600 dp. Data in SharedPreferences, same shapes as the web's localStorage. |
 
-Look and feel follow the web app: Be Vietnam Pro (`app/src/main/res/font`, licence in `licenses/`), Tailwind line heights and spacing, the web's card/chip/button/field styles and shadows (`ui/Components.kt`). Checked against the web at 427 dp wide: Hôm nay, Lịch and Sự kiện text positions within 1 dp.
+Look and feel follow the web app: Be Vietnam Pro, plus Playfair Display for the Today tear-off sheet (`app/src/main/res/font`, licences in `licenses/`), Tailwind line heights and spacing, the web's card/chip/button/field styles and shadows (`ui/Components.kt`). Checked against the web at 427 dp wide: Hôm nay, Lịch and Sự kiện text positions within 1 dp.
 
 Widgets (Glance) will use `core` too.
 

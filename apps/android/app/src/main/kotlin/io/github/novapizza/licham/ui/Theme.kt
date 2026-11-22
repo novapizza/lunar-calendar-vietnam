@@ -14,6 +14,9 @@ import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.ExperimentalTextApi
+import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.unit.em
@@ -68,6 +71,19 @@ val BeVietnamPro = FontFamily(
     Font(R.font.be_vietnam_pro_semibold, FontWeight.SemiBold),
     Font(R.font.be_vietnam_pro_bold, FontWeight.Bold),
     Font(R.font.be_vietnam_pro_extrabold, FontWeight.ExtraBold),
+)
+
+/**
+ * The tear-off calendar sheet's serif (TearOffSheet; the web loads Playfair Display 600, 700 and
+ * 400 italic). Both files are variable fonts (wght 400–900): each Font picks its weight from them.
+ */
+@OptIn(ExperimentalTextApi::class)
+val PlayfairDisplay = FontFamily(
+    // The wght axis is set explicitly: measured 2026-11-22, without it Android drew the default
+    // instance (400) for every weight.
+    Font(R.font.playfair_display, FontWeight.SemiBold, variationSettings = FontVariation.Settings(FontVariation.weight(600))),
+    Font(R.font.playfair_display, FontWeight.Bold, variationSettings = FontVariation.Settings(FontVariation.weight(700))),
+    Font(R.font.playfair_display_italic, FontWeight.Normal, FontStyle.Italic, variationSettings = FontVariation.Settings(FontVariation.weight(400))),
 )
 
 /**
