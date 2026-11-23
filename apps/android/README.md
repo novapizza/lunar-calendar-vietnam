@@ -54,7 +54,7 @@ In CI the same key comes from environment variables (`ANDROID_UPLOAD_STORE_FILE`
 4. The AAB and the R8 mapping kept as an artifact.
 5. The upload to Play (Workload Identity, or a service account key): release "X.Y.Z (code)", track `internal`, status `draft` by default; Run workflow on a tag picks another track or status.
 
-**Release notes** ("What's new" on Play) come from `apps/android/whatsnew/whatsnew-vi-VN` (500 characters at most; a longer or empty file stops the run). Update it in the commit you tag: the run warns when it has not changed since the previous `android-v*` tag.
+**Release notes** ("What's new" on Play) come from `apps/android/whatsnew/whatsnew-vi` (500 characters at most; a longer or empty file stops the run). The suffix must be the Play listing's language, `vi`: notes in another code (such as `vi-VN`) do not show in Play Console. Update it in the commit you tag: the run warns when it has not changed since the previous `android-v*` tag.
 
 The secrets and variables it needs are listed at the top of the workflow. Play's API only accepts an app that already has one release uploaded by hand in Play Console. 0.1.5 (105) was the first release uploaded this way (23 Nov 2026).
 
