@@ -47,12 +47,11 @@ In CI the same key comes from environment variables (`ANDROID_UPLOAD_STORE_FILE`
 
 ### Publishing from GitHub Actions
 
-`.github/workflows/android-release.yml` runs on a tag `android-vX.Y.Z`:
-1. Unit tests.
-2. Then, in the environment `play-release` (limited to `android-v*` tags), the release notes check and `bundleRelease` signed with the upload key: versionName X.Y.Z, versionCode X·10000 + Y·100 + Z.
-3. A check that the bundle is not debug-signed (and matches `ANDROID_UPLOAD_CERT_SHA256` when set).
-4. The AAB and the R8 mapping kept as an artifact.
-5. The upload to Play (Workload Identity, or a service account key): release "X.Y.Z (code)", track `internal`, status `draft` by default; Run workflow on a tag picks another track or status.
+`.github/workflows/android-release.yml` runs on a tag `android-vX.Y.Z`, in one job (no unit tests: run `./gradlew :core:test` before tagging):
+1. In the environment `play-release` (limited to `android-v*` tags), the release notes check and `bundleRelease` signed with the upload key: versionName X.Y.Z, versionCode X·10000 + Y·100 + Z.
+2. A check that the bundle is not debug-signed (and matches `ANDROID_UPLOAD_CERT_SHA256` when set).
+3. The AAB and the R8 mapping kept as an artifact.
+4. The upload to Play (Workload Identity, or a service account key): release "X.Y.Z (code)", track `internal`, status `draft` by default; Run workflow on a tag picks another track or status.
 
 **Release notes** ("What's new" on Play) come from `apps/android/whatsnew/whatsnew-vi` (500 characters at most; a longer or empty file stops the run). The suffix must be the Play listing's language, `vi`: notes in another code (such as `vi-VN`) do not show in Play Console. Update it in the commit you tag: the run warns when it has not changed since the previous `android-v*` tag.
 
@@ -63,7 +62,7 @@ git tag -a android-v0.1.6 -m "Android 0.1.6"
 git push origin android-v0.1.6
 ```
 
-Pushing the tag starts a run with status `draft`. For another status, cancel that run before its release job starts and use Run workflow on the tag.
+Pushing the tag starts a run at once with status `draft`. To make it the track's completed release, complete the draft in Play Console (or, from the release folder, `play-complete-internal.ps1`).
 
 Without `keystore.properties` the release build is signed with the debug key: it installs for testing (`:app:assembleRelease`), Play refuses it. Release builds run R8; `proguard-rules.pro` keeps what reflection needs (WorkManager's Room database, crashed at start without it).
 
