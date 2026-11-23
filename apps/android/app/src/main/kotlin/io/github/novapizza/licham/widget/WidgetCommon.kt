@@ -123,7 +123,6 @@ object WidgetClock {
     suspend fun updateAll(context: Context) {
         TodaySheetWidget().updateAll(context)
         MonthWidget().updateAll(context)
-        MonthSmallWidget().updateAll(context)
     }
 
     /** [updateAll] from a broadcast receiver or an activity, off the main thread. */

@@ -2,9 +2,7 @@
 <resources>
     <string name="app_name">Lịch Âm</string>
     <string name="widget_today_name">Tờ lịch hôm nay</string>
-    <string name="widget_today_desc">Ngày dương, ngày âm, can chi và ngày lễ của hôm nay</string>
+    <string name="widget_today_desc">Ngày dương, ngày âm, can chi và ngày lễ của hôm nay. Có thể đổi kích thước.</string>
     <string name="widget_month_name">Lịch tháng</string>
-    <string name="widget_month_desc">Lịch tháng này, có ngày âm</string>
-    <string name="widget_month_small_name">Lịch tháng nhỏ</string>
-    <string name="widget_month_small_desc">Lịch tháng này, cỡ nhỏ</string>
+    <string name="widget_month_desc">Lịch tháng này, có ngày âm. Có thể đổi kích thước.</string>
 </resources>

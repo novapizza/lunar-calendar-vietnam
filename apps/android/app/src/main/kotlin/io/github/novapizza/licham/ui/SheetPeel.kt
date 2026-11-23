@@ -308,14 +308,20 @@ internal class PeelController(
      * 30 % curls the bottom edge (higher up, TearOffSheet's sideways swipe steps a day); moves are consumed once past
      * half the touch slop, so the page does not scroll and the button under the finger does not
      * click. A touch in the middle is left alone.
+     *
+     * A touch in the bottom zone stays the sheet's even when it cannot curl yet (the last sheet still
+     * flying off, a turn running, the next sheet not painted): the page used to scroll under a quick
+     * second flick (user, 2026-11-23). It starts curling from wherever the finger is once it can.
      */
     suspend fun gestures(scope: PointerInputScope) = with(scope) {
         awaitEachGesture {
             val down = awaitFirstDown(requireUnconsumed = false)
             val width = size.width.toFloat(); val height = size.height.toFloat()
-            val p0 = down.position
-            if (p0.y < 0.7f * height || !begin(p0.x, width, height)) return@awaitEachGesture
-            (mode as? Mode.Drag)?.samples?.addLast(Sample(down.uptimeMillis, 0f, 0f))
+            var p0 = down.position
+            if (p0.y < 0.7f * height) return@awaitEachGesture
+            var started = begin(p0.x, width, height)
+            var t0 = down.uptimeMillis
+            if (started) (mode as? Mode.Drag)?.samples?.addLast(Sample(t0, 0f, 0f))
             val slop = viewConfiguration.touchSlop / 2
             var dragging = false
             try {
@@ -323,11 +329,16 @@ internal class PeelController(
                     val ev = awaitPointerEvent()
                     val ch = ev.changes.firstOrNull { it.id == down.id }
                     if (ch == null) { settle(); break }
-                    val d: Offset = ch.position - p0
-                    if (!ch.pressed) { release(d.x, d.y, ch.uptimeMillis, ch.uptimeMillis - down.uptimeMillis); break }
                     if (!dragging && ch.isConsumed) { settle(); break }
-                    if (!dragging && d.getDistance() > slop) dragging = true
+                    if (!dragging && (ch.position - down.position).getDistance() > slop) dragging = true
                     if (dragging) ch.consume()
+                    if (!started && ch.pressed && begin(ch.position.x, width, height)) {
+                        started = true; p0 = ch.position; t0 = ch.uptimeMillis
+                        (mode as? Mode.Drag)?.samples?.addLast(Sample(t0, 0f, 0f))
+                    }
+                    if (!started) { if (!ch.pressed) break else continue }
+                    val d: Offset = ch.position - p0
+                    if (!ch.pressed) { release(d.x, d.y, ch.uptimeMillis, ch.uptimeMillis - t0); break }
                     move(d.x, d.y, ch.uptimeMillis)
                 }
             } finally {
