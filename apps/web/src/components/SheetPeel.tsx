@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, type PointerEvent as ReactPointerEvent, type RefObject } from 'react';
-import { paintElement, cssColor } from '../lib/domPaint';
+import { paintElement, cssColor, paintFontsLoaded, paintFontsReady } from '../lib/domPaint';
 import { CurlRenderer } from '../lib/curlGL';
-import { easeOut, foldFor, grabAt, radiusFor, span, type Grab } from '../lib/peel';
+import { easeOut, foldFor, grabBottom, radiusFor, span, type Grab } from '../lib/peel';
 
 interface Props {
   /** The live paper (TearOffSheet's sheet wrapper, `relative`), with the rings in it. */
@@ -33,11 +33,12 @@ type Mode =
   | { kind: 'turn'; forward: boolean; t0: number };
 
 /**
- * The tear-off sheet's page curl, in WebGL (lib/curlGL), over the live sheet. A finger near an
- * edge curls that edge at once (a corner when near one); the paper follows the finger; let go
- * after a flick or past half the sheet and it tears off and flies on in the flick's direction,
- * else it settles back. The middle of the sheet is left to the page (scrolling), and a tap on an
- * edge still reaches the arrow buttons under it. The arrows (and day changes elsewhere) play a
+ * The tear-off sheet's page curl, in WebGL (lib/curlGL), over the live sheet. A finger near the
+ * bottom curls the bottom edge at once (a bottom corner when near a side); the paper follows the
+ * finger; let go after a flick or past half the sheet and it tears off and flies on in the
+ * flick's direction, else it settles back. The sheet turns from its bottom only (user,
+ * 2026-11-23): the rest is left to the page (scrolling) and its buttons, and a tap on the bottom
+ * zone still reaches a button under it. The arrows (and day changes elsewhere) play a
  * turn from the bottom-right corner. Without WebGL, or with reduced motion, days just change.
  */
 export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPeekStart, onPeekEnd }: Props) {
@@ -79,7 +80,7 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
     gl.resize(w + 2 * mx, h + 2 * my, dpr);
     gl.sheet = { x: mx, y: my, w, h };
     if (paint === 'keep' && painted.current) return true;
-    if (paint === 'auto' && painted.current === `${faceKey}|${w}x${h}`) return true;
+    if (paint === 'auto' && painted.current === `${faceKey}|${w}x${h}|${paintFontsLoaded()}`) return true;
 
     const sr = source.getBoundingClientRect();
     const sheet = document.createElement('canvas');
@@ -113,7 +114,7 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
     const mix = (base: [number, number, number], k: number) => base.map((b, i) => b * (1 - k) + rgb[i] * k) as [number, number, number];
     gl.backTop = mix([0xfb / 255, 0xf7 / 255, 0xef / 255], 0.18);
     gl.backBottom = mix([0xef / 255, 0xe6 / 255, 0xd6 / 255], 0.32);
-    painted.current = `${faceKey}|${w}x${h}`;
+    painted.current = `${faceKey}|${w}x${h}|${paintFontsLoaded()}`;
     return true;
   }, [faceKey, getRenderer, paperRef, sourceRef]);
 
@@ -125,8 +126,12 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
     if (reduced) return;
     const ric = window.requestIdleCallback ?? ((f: () => void) => window.setTimeout(f, 120));
     const cancel = window.cancelIdleCallback ?? window.clearTimeout;
-    const id = ric(() => { if (mode.current.kind === 'idle') prepare(); }, { timeout: 1200 });
-    return () => cancel(id);
+    let id: number | undefined, live = true;
+    // The painter's own fonts first (lining digits), then paint.
+    void paintFontsReady().then(() => {
+      if (live) id = ric(() => { if (mode.current.kind === 'idle') prepare(); }, { timeout: 1200 });
+    });
+    return () => { live = false; if (id !== undefined) cancel(id); };
   }, [faceKey, prepare, reduced]);
 
   const show = (on: boolean) => { if (canvasRef.current) canvasRef.current.style.display = on ? 'block' : 'none'; };
@@ -220,13 +225,12 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
 
   const pending = useRef<{ id: number; x: number; y: number; t: number; type: string; zone: boolean } | null>(null);
 
-  const begin = (e: ReactPointerEvent, x: number, y: number, anywhere: boolean): boolean => {
+  const begin = (e: ReactPointerEvent, x: number): boolean => {
     if (mode.current.kind === 'turn' || mode.current.kind === 'tear') return false;
     if (!prepare()) return false;
     const { w, h } = geo.current;
     const zone = Math.max(44, Math.min(w, h) * 0.2);
-    const grab = grabAt(x, y, w, h, zone, anywhere);
-    if (!grab) return false;
+    const grab = grabBottom(x, w, h, zone);
     cb.current.onPeekStart();
     start({ kind: 'drag', grab, x0: e.clientX, y0: e.clientY, dx: 0, dy: 0, lift: 0, t0: performance.now(), samples: [{ t: performance.now(), x: e.clientX, y: e.clientY }] });
     return true;
@@ -234,10 +238,10 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
 
   const onDown = (e: ReactPointerEvent<HTMLDivElement>, zone: boolean) => {
     if (reduced || !getRenderer() || e.button > 0) return;
-    const { x, y } = local(e);
+    const { x } = local(e);
     pending.current = { id: e.pointerId, x: e.clientX, y: e.clientY, t: performance.now(), type: e.pointerType, zone };
     // On an edge, a touch curls the paper at once; the mouse waits for a drag (clicks stay clicks).
-    if (zone && e.pointerType !== 'mouse') begin(e, x, y, false);
+    if (zone && e.pointerType !== 'mouse') begin(e, x);
     try { (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId); } catch { /* pointer already gone */ }
   };
 
@@ -247,8 +251,8 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
     const m = mode.current;
     if (m.kind !== 'drag') {
       if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < 6) return;
-      const { x, y } = local({ clientX: p.x, clientY: p.y });
-      if (!begin(e, x, y, p.type === 'mouse')) return;
+      const { x } = local({ clientX: p.x, clientY: p.y });
+      if (!begin(e, x)) return;
       const d = mode.current as Extract<Mode, { kind: 'drag' }>;
       d.x0 = p.x; d.y0 = p.y;
     }
@@ -324,11 +328,9 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
       <canvas ref={canvasRef} className="pointer-events-none absolute z-10" style={{ display: 'none' }} aria-hidden="true" />
       {!reduced && (
         <>
-          {/* Edge zones: touch here curls that edge; the middle stays the page's (scrolling). */}
-          <div {...zoneProps('inset-y-0 left-0 w-[16%]')} aria-hidden="true" />
-          <div {...zoneProps('inset-y-0 right-0 w-[16%]')} aria-hidden="true" />
-          <div {...zoneProps('inset-x-0 bottom-0 h-[20%]')} aria-hidden="true" />
-          <div {...zoneProps('inset-x-0 top-0 h-[10%]')} aria-hidden="true" />
+          {/* The bottom zone (30 %): touch here curls the bottom edge; the rest stays the page's
+              (scrolling, and TearOffSheet's sideways swipe). */}
+          <div {...zoneProps('inset-x-0 bottom-0 h-[30%]')} aria-hidden="true" />
         </>
       )}
     </>

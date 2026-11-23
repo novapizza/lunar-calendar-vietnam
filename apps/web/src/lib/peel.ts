@@ -2,8 +2,8 @@
  * Where the tear-off sheet folds, from a finger. Sheet-local CSS px, origin at the paper's
  * top-left, y down.
  *
- * A touch near an edge grabs the paper at that edge (at a corner when near two): the grab point
- * G on the edge and the edge's outward normal e. The finger's travel Δ moves G with it. The fold
+ * A touch near the bottom grabs the paper at the bottom edge (at a corner when near a side): the
+ * grab point G on the edge and the edge's outward normal e. The finger's travel Δ moves G with it. The fold
  * is where paper turned over a cylinder of radius r puts G under the finger: with v = -Δ and the
  * fold normal n (towards the peeling side), G sits d0 = (|v·n| + πr)/2 past the fold. n starts as
  * e (a fresh touch lifts the edge at once) and turns to v as the finger travels.
@@ -17,25 +17,13 @@ export interface Grab {
 export interface Fold { fx: number; fy: number; nx: number; ny: number }
 
 /**
- * The grab for a touch at (x, y) on a w × h sheet: the nearest edge within `zone` px (a corner
- * when two edges are), or null. `anywhere` takes the nearest edge whatever the distance (mouse).
+ * The grab for a touch at (x, y) on a w × h sheet, which turns from its bottom only (user,
+ * 2026-11-23): a bottom corner when the touch is within `zone` px of a side, else the bottom
+ * edge under the finger.
  */
-export function grabAt(x: number, y: number, w: number, h: number, zone: number, anywhere = false): Grab | null {
-  const d = { left: x, right: w - x, top: y, bottom: h - y };
-  const near = (Object.keys(d) as (keyof typeof d)[]).filter(k => d[k] <= zone);
-  const corner = near.length >= 2 && (near.includes('left') || near.includes('right')) && (near.includes('top') || near.includes('bottom'));
-  if (corner) {
-    const sx = near.includes('left') ? -1 : 1, sy = near.includes('top') ? -1 : 1;
-    return { gx: sx < 0 ? 0 : w, gy: sy < 0 ? 0 : h, ex: sx * Math.SQRT1_2, ey: sy * Math.SQRT1_2 };
-  }
-  let edge = near[0];
-  if (!edge) {
-    if (!anywhere) return null;
-    edge = (Object.keys(d) as (keyof typeof d)[]).reduce((a, b) => (d[a] <= d[b] ? a : b));
-  }
-  if (edge === 'left') return { gx: 0, gy: y, ex: -1, ey: 0 };
-  if (edge === 'right') return { gx: w, gy: y, ex: 1, ey: 0 };
-  if (edge === 'top') return { gx: x, gy: 0, ex: 0, ey: -1 };
+export function grabBottom(x: number, w: number, h: number, zone: number): Grab {
+  if (x <= zone) return { gx: 0, gy: h, ex: -Math.SQRT1_2, ey: Math.SQRT1_2 };
+  if (w - x <= zone) return { gx: w, gy: h, ex: Math.SQRT1_2, ey: Math.SQRT1_2 };
   return { gx: x, gy: h, ex: 0, ey: 1 };
 }
 
