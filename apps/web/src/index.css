@@ -332,11 +332,3 @@
 @media (prefers-reduced-motion: reduce) {
   .animate-sheet-in, .animate-fade-in { animation: none; }
 }
-
-/* Botpress chat bubble: never on phones, and hidden while a modal is open. */
-@media (max-width: 767px) {
-  .bpChatContainer { display: none !important; }
-}
-body.modal-open .bpChatContainer {
-  display: none;
-}
