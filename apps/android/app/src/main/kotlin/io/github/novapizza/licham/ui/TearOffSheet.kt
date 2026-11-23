@@ -1,8 +1,14 @@
 package io.github.novapizza.licham.ui
 
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.animation.core.Animatable
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
@@ -124,8 +130,9 @@ private class SheetFit {
  * calendar, get a gold seal on the weekday), and the lunar date in a gold "moon" next to the
  * can chi. Two sheets peek out below.
  *
- * Swipe or the arrows turn the page like paper (PageTurn): a later day peels the sheet off from
- * the bottom-right corner, uncovering the next one; an earlier day brings a sheet back.
+ * A finger on the bottom edge curls the paper and tears it off (the next day), and the arrows turn the
+ * page from the bottom-right corner (SheetPeel, Android 10+ with animations on); an earlier day
+ * brings a sheet back. Older systems swipe and turn with PageTurn.
  */
 @Composable
 fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
@@ -138,6 +145,23 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
         tracker.shown = d
     }
     val turn = tracker.turn.value
+    // The finger-driven curl draws with Canvas.drawVertices, hardware-accelerated from Android 10.
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+    val peel = remember {
+        val scale = { Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q && scale() > 0f) PeelController(scope, context.resources.displayMetrics.density, scale) else null
+    }
+    if (peel != null) {
+        peel.accent = accent
+        peel.onTorn = {
+            // Torn off by hand: the curl has already shown the turn, so no PageTurn.
+            val next = tracker.shown.plusDays(1)
+            tracker.shown = next
+            tracker.turn.value = null
+            state.selectDate(next)
+        }
+    }
     // The arrows always step from the selected day, also while a turn shows an older sheet.
     val prev = { state.selectDate(d.plusDays(-1)) }
     val next = { state.selectDate(d.plusDays(1)) }
@@ -158,6 +182,8 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
         )
 
         // No clip here: the turning sheet leaves the sheet's box. Binding and paper round their own corners.
+        // A sideways swipe steps a day; with the curl, only above its bottom zone (the curl takes its
+        // touches first: it consumes them before the swipe's slop).
         BoxWithConstraints(Modifier.fillMaxWidth().webShadow(SheetShape, float = true).swipe(onNext = next, onPrev = prev)) {
             val sheetWidth = maxWidth
             // Solar day: 44% of the sheet's width (the web's 44cqw), 80–184, and in a pane no
@@ -168,11 +194,12 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
             fit.box = numberDp * 1.05f
             Column {
                 Binding(state, d)
-                Box {
+                Box(if (peel != null) Modifier.pointerInput(peel) { peel.gestures(this) } else Modifier) {
                     val layer = rememberGraphicsLayer()
+                    val liveLayer = rememberGraphicsLayer()
                     if (turn != null) {
-                        // The turning sheet, recorded into a layer and not drawn: PageTurn draws it
-                        // piece by piece. Composed first, so the live sheet above it takes the touches.
+                        // The turning sheet, recorded into a layer and not drawn: the curl draws it.
+                        // Composed first, so the live sheet above it takes the touches.
                         val turning = if (turn.forward) turn.from else d
                         key(turn.id) {
                             SheetPage(
@@ -181,13 +208,54 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
                             )
                         }
                     }
-                    // The sheet underneath: the new day going forward, the old one going back.
-                    val under = if (turn != null && !turn.forward) turn.from else d
-                    SheetPage(under, infoOf(under), now, sheetWidth, numberDp, prev, next)
+                    // The sheet underneath: the new day going forward, the old one going back, the
+                    // next day while a finger holds the sheet.
+                    val under = when {
+                        turn != null && !turn.forward -> turn.from
+                        peel?.peeking == true -> d.plusDays(1)
+                        else -> d
+                    }
+                    SheetPage(
+                        under, infoOf(under), now, sheetWidth, numberDp, prev, next,
+                        if (peel == null) Modifier else Modifier.drawWithContent {
+                            liveLayer.record { this@drawWithContent.drawContent() }
+                            drawLayer(liveLayer)
+                        },
+                    )
                     // Two brass rings, over the sheet (30dp below the binding's top = 18dp above the paper).
                     Ring(Modifier.offset(x = sheetWidth * 0.26f, y = (-18).dp))
                     Ring(Modifier.offset(x = sheetWidth * 0.74f - 9.dp, y = (-18).dp))
-                    if (turn != null) {
+                    if (peel != null) {
+                        // Snapshot the current day's sheet while idle, so a touch curls at once.
+                        val liveKey = listOf(d, now.hour, now.minute, c, sheetWidth, numberDp)
+                        val idle = turn == null && !peel.peeking
+                        LaunchedEffect(liveKey, idle) {
+                            if (idle) {
+                                withFrameNanos { }
+                                withFrameNanos { }
+                                peel.snapshotLive(liveLayer, liveKey)
+                            }
+                        }
+                        if (turn != null) {
+                            LaunchedEffect(turn.id) {
+                                peel.playTurn(layer, turn.forward) { if (tracker.turn.value?.id == turn.id) tracker.turn.value = null }
+                            }
+                        }
+                        val ringXs = sheetWidth * 0.26f to sheetWidth * 0.74f - 9.dp
+                        val flatTurn = turn?.forward == true
+                        Spacer(
+                            Modifier.matchParentSize().drawBehind {
+                                val rings: DrawScope.() -> Unit = {
+                                    drawRing(Offset(ringXs.first.toPx(), -18.dp.toPx()))
+                                    drawRing(Offset(ringXs.second.toPx(), -18.dp.toPx()))
+                                }
+                                // A forward turn shows the old sheet flat until its curl starts (a
+                                // frame or two for the snapshot): never the new day alone.
+                                if (flatTurn && peel.curl == null) { drawLayer(layer); rings() }
+                                else peel.draw(this, rings)
+                            },
+                        )
+                    } else if (turn != null) {
                         key(turn.id) {
                             PageTurn(layer, turn.forward, sheetWidth, Modifier.matchParentSize()) {
                                 if (tracker.turn.value?.id == turn.id) tracker.turn.value = null

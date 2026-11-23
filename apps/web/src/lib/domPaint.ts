@@ -7,6 +7,29 @@
  * The page curl (curlGL) uses the result as the turning sheet's texture.
  */
 
+/**
+ * Canvas 2D has no font-variant-numeric: Playfair Display set in `lining-nums` (the sheet's day
+ * numbers) came out in its default old-style figures, so the numbers changed shape the moment a
+ * finger curled the sheet (2026-11-23). Such text is drawn with "Sheet Digits" first: Playfair's
+ * lining figures as plain digits (public/fonts/sheet-digits.woff, scripts/sheet-digits.py).
+ */
+const DIGITS = 'Sheet Digits';
+let digits: Promise<boolean> | null = null;
+let digitsLoaded = false;
+
+/** Loads the fonts the painter adds to the page's own; true once they can be used. */
+export function paintFontsReady(): Promise<boolean> {
+  if (!digits) {
+    const face = new FontFace(DIGITS, `url(${import.meta.env.BASE_URL}fonts/sheet-digits.woff)`, { weight: '400 900' });
+    document.fonts.add(face);
+    digits = face.load().then(() => (digitsLoaded = true), () => false);
+  }
+  return digits;
+}
+
+/** Whether paintFontsReady has finished loading (a texture painted before it should be repainted). */
+export const paintFontsLoaded = () => digitsLoaded;
+
 /** A CSS colour as the canvas accepts it: rgb()/rgba() as is; color(srgb …), oklab(), oklch() converted. */
 export function cssColor(c: string): string {
   const s = c.trim();
@@ -169,9 +192,39 @@ function shadows(v: string): { inset: boolean; x: number; y: number; blur: numbe
   });
 }
 
+/**
+ * The box's 2D turn and scale (translation dropped: the box is drawn about its laid-out centre),
+ * from the individual `rotate` and `scale` properties and `transform`, in CSS order; null when
+ * there is none.
+ */
+function boxMatrix(cs: CSSStyleDeclaration): DOMMatrix | null {
+  const st = cs as CSSStyleDeclaration & { rotate?: string; scale?: string };
+  const rotate = st.rotate && st.rotate !== 'none' ? st.rotate : null;
+  const scale = st.scale && st.scale !== 'none' ? st.scale : null;
+  const transform = cs.transform && cs.transform !== 'none' ? cs.transform : null;
+  if (!rotate && !scale && !transform) return null;
+  let m = new DOMMatrix();
+  if (rotate) {
+    // "45deg", or "z 45deg" / "0 0 1 45deg": only turns in the page's plane matter here.
+    const angle = /(-?[\d.]+)(deg|rad|turn|grad)\s*$/.exec(rotate);
+    if (angle) {
+      const v = parseFloat(angle[1]);
+      const deg = angle[2] === 'rad' ? (v * 180) / Math.PI : angle[2] === 'turn' ? v * 360 : angle[2] === 'grad' ? v * 0.9 : v;
+      m = m.rotate(deg);
+    }
+  }
+  if (scale) {
+    const [sx, sy = sx] = scale.split(/\s+/).map(v => (v.endsWith('%') ? parseFloat(v) / 100 : parseFloat(v)));
+    m = m.scale(sx, sy);
+  }
+  if (transform) m = m.multiply(new DOMMatrix(transform));
+  return m;
+}
+
 /** Draws one line of text whose ink box is `r` (from a Range). */
 function drawText(ctx: CanvasRenderingContext2D, text: string, r: { left: number; top: number; height: number }, cs: CSSStyleDeclaration, fill: string | CanvasGradient, dropShadow: string | null) {
-  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${cs.fontFamily}`;
+  const lining = digitsLoaded && /lining-nums/.test(cs.fontVariantNumeric) && /playfair/i.test(cs.fontFamily);
+  ctx.font = `${cs.fontStyle} ${cs.fontWeight} ${cs.fontSize} ${lining ? `"${DIGITS}", ` : ''}${cs.fontFamily}`;
   const spacing = parseFloat(cs.letterSpacing) || 0;
   const c = ctx as CanvasRenderingContext2D & { letterSpacing?: string; fontVariantNumeric?: string };
   const native = 'letterSpacing' in c;
@@ -268,8 +321,10 @@ export function paintElement(ctx: CanvasRenderingContext2D, root: Element, origi
     if (br.width === 0 && br.height === 0 && el.childNodes.length === 0) return;
 
     // Rotated boxes (the ornament's diamond): draw the untransformed box, turned about its centre.
+    // Tailwind v4 turns boxes with the `rotate` / `scale` properties, not `transform`.
     const html = el as HTMLElement;
-    const transformed = cs.transform && cs.transform !== 'none';
+    const matrix = boxMatrix(cs);
+    const transformed = matrix !== null;
     const w = transformed ? html.offsetWidth : br.width;
     const h = transformed ? html.offsetHeight : br.height;
     const x = transformed ? br.left + br.width / 2 - origin.left - w / 2 : br.left - origin.left;
@@ -278,7 +333,7 @@ export function paintElement(ctx: CanvasRenderingContext2D, root: Element, origi
     ctx.save();
     ctx.globalAlpha = op;
     if (transformed) {
-      const m = new DOMMatrix(cs.transform);
+      const m = matrix;
       ctx.translate(x + w / 2, y + h / 2);
       ctx.transform(m.a, m.b, m.c, m.d, 0, 0);
       ctx.translate(-(x + w / 2), -(y + h / 2));

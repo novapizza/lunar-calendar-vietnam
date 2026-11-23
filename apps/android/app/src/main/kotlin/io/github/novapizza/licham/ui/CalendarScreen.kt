@@ -17,7 +17,28 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.runtime.Stable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Outline
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onPlaced
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInParent
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.zIndex
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.ChevronLeft
@@ -101,9 +122,31 @@ fun CalendarScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
         }
     }
     if (!wide && LocalHinge.current == null) {
-        Page(padding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp), gap = 12.dp) {
-            CalendarHeader(state, wide)
-            MonthGrid(state, cells, userChi != null, wide)
+        // One column: the header stays at the top and the month folds up under it to two week
+        // rows as the page scrolls (WeekFold), as the web's useStickyWeeks.
+        val scroll = rememberScrollState()
+        val fold = remember { WeekFold() }
+        val selectedIndex = cells.indexOfFirst { it.date == state.selectedDate }
+        fold.rows = cells.size / 7
+        fold.first = fold.pairFor(if (selectedIndex < 0) -1 else selectedIndex / 7, cells.size / 7)
+        Page(padding = PaddingValues(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 40.dp), gap = 12.dp, scroll = scroll) {
+            val c = LocalLichAmColors.current
+            CalendarHeader(
+                state, wide,
+                Modifier
+                    .onPlaced { fold.headerTop = it.positionInParent().y; fold.headerH = it.size.height.toFloat() }
+                    .zIndex(2f)
+                    // Scrolls up by the chip row's height, then stays (the title row is held: WeekFold).
+                    .graphicsLayer { translationY = scroll.value - fold.chipsHidden(scroll.value.toFloat()) }
+                    // Opaque from the screen's top edge (the page's 12dp padding) across the gutters.
+                    .drawBehind {
+                        val side = 16.dp.toPx()
+                        val top = 12.dp.toPx()
+                        drawRect(c.bg, Offset(-side, -top), Size(size.width + 2 * side, size.height + top))
+                    },
+                fold to scroll,
+            )
+            MonthGrid(state, cells, userChi != null, wide, fold to scroll)
             Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) { SelectedDayPanel(state, now) }
         }
     } else {
@@ -119,7 +162,7 @@ fun CalendarScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
 }
 
 @Composable
-private fun CalendarHeader(state: AppState, wide: Boolean) {
+private fun CalendarHeader(state: AppState, wide: Boolean, modifier: Modifier = Modifier, folding: Pair<WeekFold, ScrollState>? = null) {
     val c = LocalLichAmColors.current
     val m = state.shownMonth
     val today = AppState.today()
@@ -127,8 +170,21 @@ private fun CalendarHeader(state: AppState, wide: Boolean) {
     // text-[clamp(1.25rem,6.4vw,1.5rem)], text-3xl with the rail.
     val vw = LocalConfiguration.current.screenWidthDp
     val titleSize = if (wide) 30f else (vw * 0.064f).coerceIn(20f, 24f)
-    Column {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+    val fold = folding?.first
+    val s = { folding?.second?.value?.toFloat() ?: 0f }
+    if (fold != null) with(LocalDensity.current) { fold.keepGap = 12.dp.toPx() }
+    Column(modifier) {
+        Row(
+            if (fold == null) Modifier
+            else Modifier.zIndex(1f)
+                .graphicsLayer { translationY = fold.chipsHidden(s()) }
+                // Opaque above the title row and across the gutters: the chips slide away under it.
+                .drawBehind {
+                    val side = 16.dp.toPx()
+                    drawRect(c.bg, Offset(-side, -20 * size.height), Size(size.width + 2 * side, 21 * size.height))
+                },
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Column(
                 Modifier.weight(1f).clip(R12)
                     .semantics(mergeDescendants = true) { contentDescription = "Chọn tháng, năm" }
@@ -151,7 +207,11 @@ private fun CalendarHeader(state: AppState, wide: Boolean) {
         }
         // Chip row (mt-3), scrolling sideways; shadows need a little room.
         Row(
-            Modifier.bleed(16.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp).padding(top = 8.dp),
+            (
+                if (fold == null) Modifier
+                else Modifier.onSizeChanged { fold.chipsH = it.height.toFloat() }
+                    .graphicsLayer { alpha = fold.chipsFold.let { h -> if (h > 0f) 1 - fold.chipsHidden(s()) / h else 1f } }
+                ).bleed(16.dp).horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 4.dp).padding(top = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (!wide && !showingThisMonth) Chip("Hôm nay", Icons.AutoMirrored.Filled.Undo, { state.selectDate(today) }, textColor = c.brand)
@@ -163,41 +223,157 @@ private fun CalendarHeader(state: AppState, wide: Boolean) {
 }
 
 @Composable
-private fun MonthGrid(state: AppState, cells: List<Cell>, showClash: Boolean, wide: Boolean) {
+private fun MonthGrid(state: AppState, cells: List<Cell>, showClash: Boolean, wide: Boolean, folding: Pair<WeekFold, ScrollState>? = null) {
     val c = LocalLichAmColors.current
     val m = state.shownMonth
     val today = AppState.today()
     val gap = if (wide) 4.dp else 2.dp
-    // Phones: -mx-2 p-1 (8px gutter, 4px padding); with the rail p-3.
+    val pad = if (wide) 12.dp else 4.dp
+    val fold = folding?.first
+    val scroll = folding?.second
+    if (fold != null) with(LocalDensity.current) { fold.pad = pad.toPx(); fold.gap = gap.toPx() }
+    val s = { scroll?.value?.toFloat() ?: 0f }
+    // Phones: p-1 (4px padding), as wide as the cards below (the 8dp bleed made it wider than
+    // them, user 2026-11-23); with the rail p-3.
+    val tint = c.shadowTint
     Card(
-        padding = if (wide) 12.dp else 4.dp,
-        modifier = (if (wide) Modifier else Modifier.bleed(8.dp)).swipe(
+        padding = pad,
+        modifier = (
+            if (fold == null) Modifier
+            else Modifier
+                .onPlaced { fold.cardY = it.positionInParent().y }
+                .zIndex(1f)
+                // Stays right under the header once it gets there, and gets shorter: the card's
+                // shape (corners and shadow as webShadow's) loses `folded` at the bottom and
+                // clips the content to it. The page's colour behind the whole card, the page's
+                // 16dp gutters beside it and 16dp under it keeps the usual gap, and neither the
+                // cards scrolling up under it nor their shadows show outside its rounded corners.
+                .graphicsLayer { translationY = fold.cardShift(s()) }
+                .drawBehind {
+                    val bottom = size.height - fold.folded(s())
+                    val side = 16.dp.toPx()
+                    drawRect(c.bg, Offset(-side, 0f), Size(size.width + 2 * side, bottom + 16.dp.toPx()))
+                }
+                .graphicsLayer {
+                    shape = ShorterCardShape(fold.folded(s()), 20.dp.toPx())
+                    clip = true
+                    shadowElevation = 3.dp.toPx()
+                    ambientShadowColor = tint.copy(alpha = 0.06f)
+                    spotShadowColor = tint.copy(alpha = 0.14f)
+                }
+            ).swipe(
             onNext = { m.plusMonths(1).let { state.showMonth(it.year, it.month) } },
             onPrev = { m.plusMonths(-1).let { state.showMonth(it.year, it.month) } },
         ),
     ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+        Row(
+            Modifier.fillMaxWidth().then(
+                if (fold == null) Modifier
+                else Modifier.zIndex(1f)
+                    // Covers everything above the labels too (the card's clip bounds it): the rows
+                    // moving up under them never show above them.
+                    .drawBehind { drawRect(c.surface, Offset(0f, -20 * size.height), Size(size.width, 21 * size.height)) },
+            ),
+            horizontalArrangement = Arrangement.spacedBy(gap),
+        ) {
             CalendarData.calendar.weekDays.forEach { w ->
                 Text(w, Modifier.weight(1f).padding(vertical = 8.dp), color = if (w == "CN") c.lunar else c.fg3, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
             }
         }
         Column(Modifier.padding(top = gap), verticalArrangement = Arrangement.spacedBy(gap)) {
-            cells.chunked(7).forEach { week ->
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(gap)) {
+            cells.chunked(7).forEachIndexed { row, week ->
+                Row(
+                    Modifier.fillMaxWidth().then(
+                        if (fold == null) Modifier
+                        else Modifier
+                            .then(if (row == 0) Modifier.onSizeChanged { fold.rowH = it.height.toFloat() } else Modifier)
+                            .graphicsLayer {
+                                val t = fold.progress(s())
+                                translationY = fold.rowShift(t)
+                                alpha = if (row == fold.first || row == fold.first + 1) 1f else 1 - t
+                            },
+                    ),
+                    horizontalArrangement = Arrangement.spacedBy(gap),
+                ) {
                     week.forEach { cell ->
                         DayCell(cell, Modifier.weight(1f), selected = cell.date == state.selectedDate, today = cell.date == today, inMonth = cell.date.month == m.month) { state.selectDate(cell.date) }
                     }
                 }
             }
         }
-        // Legend: pt-3 pb-1, gap-x-4, 11px.
-        Row(Modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally)) {
+        // Legend: pt-3 pb-1, gap-x-4, 11px. While the card gets shorter it fades with the rows.
+        Row(
+            Modifier.fillMaxWidth().then(
+                if (fold == null) Modifier
+                else Modifier.onSizeChanged { fold.legendH = it.height.toFloat() }.graphicsLayer { alpha = 1 - fold.progress(s()) },
+            ).padding(top = 12.dp, bottom = 4.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+        ) {
             Legend(c.good, "Ngày tốt")
             Legend(c.bad.copy(alpha = 0.7f), "Ngày xấu")
             Legend(c.gold, "Ghi chú")
             if (showClash) Legend(c.clash, "Xung tuổi")
         }
     }
+}
+
+/**
+ * The month card getting shorter under the sticky header as the Calendar page scrolls (user,
+ * 2026-11-23), as the web's hooks/useStickyWeeks.ts: the same card, corners, labels and legend,
+ * with only two week rows left, one of them the selected day's week (the next one with it, the
+ * one before when it is the last; kept while the selection moves between the two).
+ *
+ * The header's chip row goes first: the header scrolls up by its height while its title row is
+ * held in place and covers it as it fades. Then the card stays right under the header and, over
+ * the next K px of scrolling (K = all rows but two, and the legend), by `folded` = 0..K, loses
+ * that much at the bottom: the rows move up by t·first·step (t = folded/K) so rows [first,
+ * first + 1] end under the labels, and the other rows and the legend fade. Px, in the page
+ * column's coordinates.
+ */
+/** The card without its bottom [cut] px, all four corners rounded by [radius] px. */
+private class ShorterCardShape(private val cut: Float, private val radius: Float) : Shape {
+    override fun createOutline(size: Size, layoutDirection: LayoutDirection, density: Density): Outline =
+        Outline.Rounded(RoundRect(0f, 0f, size.width, (size.height - cut).coerceAtLeast(0f), CornerRadius(radius)))
+}
+
+@Stable
+private class WeekFold {
+    var headerTop by mutableFloatStateOf(0f)
+    var headerH by mutableFloatStateOf(0f)
+    var cardY by mutableFloatStateOf(0f)
+    var rowH by mutableFloatStateOf(0f)
+    var legendH by mutableFloatStateOf(0f)
+    /** The header's chip row (with its 12dp top padding): it hides first. */
+    var chipsH by mutableFloatStateOf(0f)
+    /** The chip row's top padding stays under the title row (the web header's pb-3). */
+    var keepGap = 0f
+    /** Px of scrolling over which the chip row slides away. */
+    val chipsFold: Float get() = maxOf(0f, chipsH - keepGap)
+    var pad = 0f
+    var gap = 0f
+    var rows by mutableIntStateOf(6)
+    var first by mutableIntStateOf(0)
+    private var pair = 0
+
+    fun pairFor(selectedRow: Int, rows: Int): Int {
+        var f = pair
+        if (selectedRow >= 0 && selectedRow != f && selectedRow != f + 1) f = selectedRow
+        f = f.coerceIn(0, maxOf(0, rows - 2))
+        pair = f
+        return f
+    }
+
+    private val step: Float get() = rowH + gap
+    /** All rows but two, and the legend. */
+    private val foldBy: Float get() = maxOf(0f, (rows - 2) * step + legendH)
+    /** How much of the chip row has slid away under the title row at scroll s. */
+    fun chipsHidden(s: Float): Float = s.coerceIn(0f, chipsFold)
+    /** Scroll at which the card's top meets the header's bottom (the header without its chip row). */
+    private val start: Float get() = cardY - (headerTop + headerH - chipsFold)
+    fun folded(s: Float): Float = (s - start).coerceIn(0f, foldBy)
+    fun progress(s: Float): Float = if (foldBy > 0f) folded(s) / foldBy else 0f
+    fun rowShift(t: Float): Float = -t * first * step
+    fun cardShift(s: Float): Float = maxOf(0f, s - start)
 }
 
 @Composable

@@ -1,9 +1,10 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties } from 'react';
+import { useLayoutEffect, useRef, useState, type CSSProperties, type TouchEvent } from 'react';
 import { format, getWeek, addDays, subDays, isToday } from 'date-fns';
 import { vi } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Undo2, Sun, Moon, SunMoon } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SheetPeel } from './SheetPeel';
+import { useSwipe } from '../hooks/useSwipe';
 import type { LunarInfo } from '../types';
 import { LUNAR_MONTH_NAMES, getLunarDayLabel, getLunarInfo, getHoliday, getObservance } from '../services/lunarService';
 import type { ThemePref } from '../hooks/useTheme';
@@ -43,8 +44,8 @@ interface Props {
  * so it reads as a pad. (A 3D pad that thinned through the year was tried and dropped,
  * 2026-11-22: hard to read.)
  *
- * The page turns like paper (SheetPeel, WebGL): a finger on an edge curls that edge and the
- * paper follows it; a flick or a pull past half the sheet tears it off, uncovering the next day.
+ * The page turns like paper (SheetPeel, WebGL): a finger on the bottom edge curls it and the
+ * paper follows it (a sideways swipe higher up steps a day, as the arrows); a flick or a pull past half the sheet tears it off, uncovering the next day.
  * The arrows turn it from the bottom-right corner; an earlier day brings a sheet back down.
  */
 /** yyyymmdd of a local date, to compare days whatever their time of day. */
@@ -91,6 +92,13 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
   // The arrows always step from the selected day, also while a turn shows an older sheet
   // underneath, and work during a turn (pressing again starts the next turn at once).
   const nav = { prev: () => onDayChange(subDays(date, 1)), next: () => onDayChange(addDays(date, 1)) };
+  // Above the bottom zone (SheetPeel's) the sheet does not curl: a sideways swipe steps a day
+  // there, left to the next one, right to the previous one, with the arrows' turn.
+  const swipe = useSwipe(() => nav.next(), () => nav.prev());
+  const swipeAbove = {
+    onTouchStart: (e: TouchEvent) => { if (!(e.target as Element).closest('[data-peel-zone]')) swipe.onTouchStart(e); },
+    onTouchEnd: swipe.onTouchEnd,
+  };
   const sheet = (f: Face, interactive: boolean) => (
     <SheetFace face={f} now={now} currentTraditionalHour={currentTraditionalHour} nav={interactive ? nav : undefined} />
   );
@@ -134,7 +142,7 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
         {/* The sheet: underneath, the live sheet (the next day while a finger holds the sheet or
             a turn goes forward, the old one going back) with the rings over it; a hidden copy of
             the current day that SheetPeel paints into its texture; SheetPeel's WebGL overlay. */}
-        <div ref={paperRef} className="relative">
+        <div ref={paperRef} className="relative" {...swipeAbove}>
           {sheet(peek ?? (turn && !turn.forward ? turn.from : face), true)}
           <span className="tear-ring left-[26%]" style={{ top: 'calc(30px - 3rem)' }} aria-hidden="true" />
           <span className="tear-ring right-[26%]" style={{ top: 'calc(30px - 3rem)' }} aria-hidden="true" />

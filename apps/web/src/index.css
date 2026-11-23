@@ -177,6 +177,77 @@
   }
 }
 
+/* The Calendar page's header while its chip row hides (hooks/useStickyWeeks): opaque, the title
+   row held in place and covering everything above it (the header clips it), so the chips slide
+   away under it as they fade. */
+[data-head-folding] {
+  overflow: clip;
+  background: var(--color-bg);
+}
+[data-head-folding] [data-head-keep] {
+  position: relative;
+  z-index: 1;
+  translate: 0 var(--hd-keep, 0px);
+}
+[data-head-folding] [data-head-keep]::before {
+  content: '';
+  position: absolute;
+  z-index: -1;
+  inset-inline: -100vw;
+  bottom: 0;
+  height: 100vh;
+  background: var(--color-bg);
+}
+[data-head-folding] [data-head-hide] {
+  opacity: var(--hd-fade, 1);
+}
+
+/* The Calendar page's month card while it gets shorter (hooks/useStickyWeeks): the card's look
+   (background, corners, shadow) is drawn by a ::before that loses --wk-o at the bottom, the
+   content is clipped to it, the rows other than the two kept and the legend fade, and the
+   weekday labels cover the gap beside them, so the rows moving up under them stay hidden. The
+   transparent rest of the card lets touches through to the page. */
+[data-folding] {
+  background: transparent;
+  box-shadow: none;
+  pointer-events: none;
+}
+[data-folding]::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 var(--wk-o, 0px) 0;
+  z-index: -1;
+  border-radius: var(--radius-card);
+  background: var(--color-surface);
+  box-shadow: var(--shadow-card);
+}
+[data-folding] [data-fold-body] {
+  clip-path: inset(0 0 var(--wk-o, 0px) 0);
+  pointer-events: auto;
+}
+[data-folding] [data-weekday] {
+  box-shadow: 0 0 0 1px var(--color-surface);
+}
+[data-folding] [data-week] {
+  translate: 0 var(--wk-rows, 0px);
+}
+[data-folding] [data-week]:not([data-pair]) {
+  opacity: var(--wk-fade, 1);
+}
+[data-folding] [data-legend] {
+  opacity: var(--wk-fade, 1);
+}
+/* The page's colour behind the whole card, the page's 1rem gutters beside it and the gap under it
+   (the panel's mt-4): the cards scrolling up pass under it, and neither they nor their shadows
+   show outside the card's rounded corners. */
+[data-folding]::after {
+  content: '';
+  position: absolute;
+  inset: 0 -1rem calc(var(--wk-o, 0px) - 1rem) -1rem;
+  z-index: -2;
+  background: var(--color-bg);
+}
+
 @utility card {
   @apply bg-surface rounded-[var(--radius-card)] shadow-[var(--shadow-card)];
 }
