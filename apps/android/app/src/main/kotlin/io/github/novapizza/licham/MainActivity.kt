@@ -102,9 +102,13 @@ class MainActivity : ComponentActivity() {
         intent.getStringExtra(WidgetLinks.EXTRA_DATE)?.let(SolarDate::parse)?.let(state::selectDate)
     }
 
-    /** Widgets follow the app's palette and theme: redraw them when the app leaves the screen. */
+    /**
+     * Widgets and the launcher icon follow the app's palette (and widgets its theme): redraw them
+     * when the app leaves the screen.
+     */
     override fun onStop() {
         super.onStop()
         WidgetClock.refresh(applicationContext)
+        LauncherIcon.apply(applicationContext, state.palette)
     }
 }

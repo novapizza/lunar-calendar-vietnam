@@ -24,6 +24,8 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.SwapHoriz
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.PrivacyTip
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -41,6 +43,9 @@ import io.github.novapizza.licham.core.AccentPref
 import io.github.novapizza.licham.core.Element
 import io.github.novapizza.licham.core.Menh
 import io.github.novapizza.licham.core.MenhCalc
+
+/** The privacy policy, on the web app's site (apps/web/public/privacy.html). */
+const val PRIVACY_URL = "https://lunar.coding4pizza.com/privacy"
 
 /** Colour choices for a mệnh; a choice repeating an earlier palette is left out (as on the web). */
 private val R8 = RoundedCornerShape(8.dp)
@@ -79,6 +84,13 @@ fun ToolsScreen(state: AppState, wide: Boolean) {
         }
         Card(padding = 0.dp) {
             ToolRow(Icons.Outlined.Info, "Thông tin ứng dụng", "Cách tính âm lịch, ngày tốt xấu, xung tuổi") { state.sheet = SheetKind.ABOUT }
+            Divider()
+            // Google Play asks for the privacy policy in the app too; it opens in the browser (the app itself
+            // has no network access).
+            val uri = LocalUriHandler.current
+            ToolRow(Icons.Outlined.PrivacyTip, "Chính sách quyền riêng tư", "Ứng dụng không thu thập dữ liệu của bạn") {
+                runCatching { uri.openUri(PRIVACY_URL) }
+            }
         }
     }
     if (!wide && LocalHinge.current == null) {

@@ -39,6 +39,9 @@ export default defineConfig(() => {
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           navigateFallback: '/index.html',
+          // The privacy policy is its own page (public/privacy.html, linked from the Android app and
+          // Google Play): never answered with the app shell.
+          navigateFallbackDenylist: [/^\/privacy/],
           cleanupOutdatedCaches: true,
           runtimeCaching: [
             {

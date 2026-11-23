@@ -1,0 +1,173 @@
+# Builds the Android app (apps/android), signs it with the upload key and uploads it to Google Play.
+#
+# Runs on a tag android-vX.Y.Z (versionName X.Y.Z, versionCode X·10000 + Y·100 + Z; Y and Z below 100),
+# or by hand (Run workflow) on such a tag, choosing the track and the status.
+#
+# The release job runs in the GitHub environment `play-release`: give it required reviewers and limit
+# it to tags android-v*, so its secrets only reach a run someone has approved. Secrets and variables of
+# that environment:
+#   secrets  ANDROID_UPLOAD_KEYSTORE_BASE64  the upload key (.jks), base64
+#            ANDROID_UPLOAD_STORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS, ANDROID_UPLOAD_KEY_PASSWORD
+#            PLAY_SERVICE_ACCOUNT_JSON       key of the Google Cloud service account invited in Play
+#                                            Console (not needed with Workload Identity below)
+#   vars     ANDROID_UPLOAD_CERT_SHA256      SHA-256 of the upload certificate, checked on the bundle
+#            GCP_WORKLOAD_IDENTITY_PROVIDER  projects/<n>/locations/global/workloadIdentityPools/<pool>/providers/<p>
+#            GCP_SERVICE_ACCOUNT             <name>@<project>.iam.gserviceaccount.com
+#            (both set: keyless Workload Identity instead of PLAY_SERVICE_ACCOUNT_JSON)
+#
+# Play only accepts uploads through its API for an app that already has one release uploaded by hand
+# in Play Console, and only draft releases while the app itself is not yet published.
+# Third-party actions are pinned to commit SHAs (this job holds the signing key).
+
+name: Android release
+
+on:
+  push:
+    tags: ['android-v*']
+  workflow_dispatch:
+    inputs:
+      track:
+        description: Play track
+        type: choice
+        options: [internal, alpha, beta, production]
+        default: internal
+      status:
+        description: Release status (draft while the app is not yet published on Play)
+        type: choice
+        options: [draft, completed]
+        default: draft
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-release
+  cancel-in-progress: false
+
+defaults:
+  run:
+    working-directory: apps/android
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+      - name: Unit tests and debug build
+        run: ./gradlew :core:test :app:assembleDebug --console=plain
+
+  release:
+    name: Build, sign and upload to Play
+    needs: test
+    runs-on: ubuntu-latest
+    environment: play-release
+    permissions:
+      contents: read
+      id-token: write # Workload Identity, when configured
+    env:
+      TRACK: ${{ inputs.track || 'internal' }}
+      STATUS: ${{ inputs.status || 'draft' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Version from the tag
+        id: version
+        run: |
+          if [ "$GITHUB_REF_TYPE" != tag ]; then echo "::error::Run this on a tag android-vX.Y.Z"; exit 1; fi
+          v="${GITHUB_REF_NAME#android-v}"
+          if ! [[ "$v" =~ ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]; then echo "::error::Tag $GITHUB_REF_NAME is not android-vX.Y.Z"; exit 1; fi
+          major=${BASH_REMATCH[1]} minor=${BASH_REMATCH[2]} patch=${BASH_REMATCH[3]}
+          if [ "$minor" -ge 100 ] || [ "$patch" -ge 100 ]; then echo "::error::Minor and patch must be below 100"; exit 1; fi
+          code=$((10#$major * 10000 + 10#$minor * 100 + 10#$patch))
+          echo "name=$v" >> "$GITHUB_OUTPUT"
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "Version $v ($code), track $TRACK, status $STATUS" >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
+        with:
+          cache-read-only: true
+
+      - name: Upload key
+        env:
+          KEYSTORE_BASE64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_BASE64 }}
+        run: |
+          if [ -z "$KEYSTORE_BASE64" ]; then echo "::error::Secret ANDROID_UPLOAD_KEYSTORE_BASE64 is not set in environment play-release"; exit 1; fi
+          echo "$KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+
+      - name: Build the bundle
+        env:
+          ANDROID_UPLOAD_STORE_FILE: ${{ runner.temp }}/upload.jks
+          ANDROID_UPLOAD_STORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_STORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+          ANDROID_VERSION_CODE: ${{ steps.version.outputs.code }}
+          ANDROID_VERSION_NAME: ${{ steps.version.outputs.name }}
+        run: ./gradlew :app:bundleRelease --console=plain
+
+      - name: Check the signature
+        env:
+          EXPECTED_SHA256: ${{ vars.ANDROID_UPLOAD_CERT_SHA256 }}
+        run: |
+          cert="$(keytool -printcert -jarfile app/build/outputs/bundle/release/app-release.aab)"
+          if grep -q "CN=Android Debug" <<< "$cert"; then echo "::error::The bundle is signed with a debug key"; exit 1; fi
+          sha="$(grep -m1 'SHA256:' <<< "$cert" | sed 's/.*SHA256: *//' | tr -d ': ' | tr 'a-f' 'A-F')"
+          if [ -n "$EXPECTED_SHA256" ]; then
+            want="$(tr -d ': ' <<< "$EXPECTED_SHA256" | tr 'a-f' 'A-F')"
+            if [ "$sha" != "$want" ]; then echo "::error::Signed with $sha, expected $want"; exit 1; fi
+          fi
+          echo "Upload certificate SHA-256: $sha" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the bundle and the R8 mapping
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: android-${{ steps.version.outputs.name }}
+          path: |
+            apps/android/app/build/outputs/bundle/release/app-release.aab
+            apps/android/app/build/outputs/mapping/release/mapping.txt
+          retention-days: 30
+
+      - name: Google Cloud credentials (Workload Identity)
+        id: auth
+        if: vars.GCP_WORKLOAD_IDENTITY_PROVIDER != '' && vars.GCP_SERVICE_ACCOUNT != ''
+        uses: google-github-actions/auth@7c6bc770dae815cd3e89ee6cdf493a5fab2cc093 # v3.0.0
+        with:
+          workload_identity_provider: ${{ vars.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.GCP_SERVICE_ACCOUNT }}
+
+      - name: Upload to Play (Workload Identity)
+        if: steps.auth.outcome == 'success'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJson: ${{ steps.auth.outputs.credentials_file_path }}
+          packageName: com.coding4pizza.lunar
+          releaseFiles: apps/android/app/build/outputs/bundle/release/app-release.aab
+          mappingFile: apps/android/app/build/outputs/mapping/release/mapping.txt
+          releaseName: ${{ steps.version.outputs.name }}
+          track: ${{ env.TRACK }}
+          status: ${{ env.STATUS }}
+
+      - name: Upload to Play (service account key)
+        if: steps.auth.outcome != 'success'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1.1.5
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.coding4pizza.lunar
+          releaseFiles: apps/android/app/build/outputs/bundle/release/app-release.aab
+          mappingFile: apps/android/app/build/outputs/mapping/release/mapping.txt
+          releaseName: ${{ steps.version.outputs.name }}
+          track: ${{ env.TRACK }}
+          status: ${{ env.STATUS }}
+
+      - name: Remove the upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
