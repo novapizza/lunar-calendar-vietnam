@@ -342,14 +342,19 @@ export function getUpcomingEvents(maxCount = 10, daysToScan = 180): UpcomingEven
 /**
  * The events of the whole solar month `offset` months after today's (0 = this month, its past
  * days included), with daysUntil counted from `today` (local midnight; negative for past days).
- * Empty past LAST_EVENT_DAY.
+ * Empty past LAST_EVENT_DAY. `personal` gives the user's own events of a day; they come first.
  */
-export function getEventsOfMonth(today: Date, offset: number): UpcomingEvent[] {
+export function getEventsOfMonth(
+  today: Date,
+  offset: number,
+  personal?: (date: Date, daysUntil: number) => UpcomingEvent[],
+): UpcomingEvent[] {
   const first = new Date(today.getFullYear(), today.getMonth() + offset, 1);
   const results: UpcomingEvent[] = [];
   const cursor = new Date(first);
   while (cursor.getMonth() === first.getMonth() && cursor <= LAST_EVENT_DAY) {
     const daysUntil = Math.round((cursor.getTime() - today.getTime()) / 86_400_000);
+    if (personal) results.push(...personal(cursor, daysUntil));
     results.push(...eventsOn(cursor, daysUntil));
     cursor.setDate(cursor.getDate() + 1);
   }

@@ -5,8 +5,9 @@ import { ChevronLeft, ChevronRight, Undo2, Sun, Moon, SunMoon } from 'lucide-rea
 import { cn } from '../lib/utils';
 import { SheetPeel } from './SheetPeel';
 import { useSwipe } from '../hooks/useSwipe';
-import type { LunarInfo } from '../types';
+import type { LunarEvent, LunarInfo } from '../types';
 import { LUNAR_MONTH_NAMES, getLunarDayLabel, getLunarInfo, getHoliday, getObservance } from '../services/lunarService';
+import { personalEventsOn } from '../services/personalEvents';
 import type { ThemePref } from '../hooks/useTheme';
 
 const THEME_BUTTON = {
@@ -31,6 +32,8 @@ interface Props {
   lunarInfo: LunarInfo;
   holiday: string | undefined;
   observance: string | undefined;
+  /** The user's own events: the next sheet (peek) names its day with them like `observance`. */
+  personalEvents: LunarEvent[];
   onDayChange: (date: Date) => void;
   themePref: ThemePref;
   onCycleTheme: () => void;
@@ -51,7 +54,7 @@ interface Props {
 /** yyyymmdd of a local date, to compare days whatever their time of day. */
 const dayKey = (d: Date) => d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate();
 
-export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, holiday, observance, onDayChange, themePref, onCycleTheme }: Props) {
+export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, holiday, observance, personalEvents, onDayChange, themePref, onCycleTheme }: Props) {
   // The sheet on show, and the turn in progress (state adjusted during render, React's pattern
   // for "previous prop"; safe under StrictMode).
   const face: Face = { date, lunarInfo, holiday, observance };
@@ -77,7 +80,7 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
       date: d,
       lunarInfo: info,
       holiday: getHoliday(info.lunarDay, info.lunarMonth, d.getDate(), d.getMonth() + 1, d.getFullYear()),
-      observance: getObservance(info.lunarDay, info.lunarMonth, d),
+      observance: personalEventsOn(personalEvents, d)[0]?.title ?? getObservance(info.lunarDay, info.lunarMonth, d),
     };
   };
   // What the texture of the current sheet shows: day, clock and palette (the hero colours).

@@ -1,37 +1,31 @@
-import { useState } from 'react';
-import { CalendarHeart, Plus, Pencil, Trash, Download, TriangleExclamationPoint, CircleCheck, Check } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { CalendarHeart, Download, TriangleExclamationPoint, CircleCheck, Check } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { LunarEvent } from '../../types';
-import { generateAndDownloadICS, ExportSummary } from '../../services/icsService';
+import { buildICS, generateAndDownloadICS, ExportSummary } from '../../services/icsService';
 import { PresetId, PRESET_DEFINITIONS } from '../../constants/presets';
 import { Sheet } from '../Sheet';
+import { EVENT_COLORS } from '../../lib/eventColors';
+import { colorOf, describeEvent } from '../../services/personalEvents';
 
 interface Props {
   events: LunarEvent[];
   enabledPresets: Set<PresetId>;
   expandedPresets: LunarEvent[];
-  onAddEvent:    (draft: Omit<LunarEvent, 'id' | 'createdAt'>) => void;
-  onDeleteEvent: (id: string) => void;
-  onUpdateEvent: (id: string, patch: Partial<Omit<LunarEvent, 'id' | 'createdAt'>>) => void;
+  /** Opens Sự kiện của bạn (add, edit, delete the user's events). */
+  onManageEvents: () => void;
   onTogglePreset: (id: PresetId) => void;
   onClose: () => void;
 }
-
-const EMPTY_FORM = { title: '', lunarDay: 1, lunarMonth: 1, isLeapMonth: false };
 
 export function LunarEventModal({
   events,
   enabledPresets,
   expandedPresets,
-  onAddEvent,
-  onDeleteEvent,
-  onUpdateEvent,
+  onManageEvents,
   onTogglePreset,
   onClose,
 }: Props) {
-  const [form, setForm]           = useState(EMPTY_FORM);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [showForm, setShowForm]   = useState(false);
   const [yearCount, setYearCount] = useState(5);
   const [exportResult, setExportResult] = useState<ExportSummary | null>(null);
 
@@ -39,45 +33,11 @@ export function LunarEventModal({
   const endYear   = startYear + yearCount - 1;
 
   const allExportEvents = [...expandedPresets, ...events];
-  const totalItems      = yearCount * allExportEvents.length;
-
-  function handleEdit(event: LunarEvent) {
-    setEditingId(event.id);
-    setForm({
-      title:       event.title,
-      lunarDay:    event.lunarDay,
-      lunarMonth:  event.lunarMonth,
-      isLeapMonth: event.isLeapMonth,
-    });
-    setShowForm(true);
-    setExportResult(null);
-  }
-
-  function handleSave() {
-    const title = form.title.trim();
-    if (!title) return;
-    if (editingId) {
-      onUpdateEvent(editingId, { ...form, title });
-      setEditingId(null);
-    } else {
-      onAddEvent({ ...form, title });
-    }
-    setForm(EMPTY_FORM);
-    setShowForm(false);
-    setExportResult(null);
-  }
-
-  function handleCancel() {
-    setEditingId(null);
-    setForm(EMPTY_FORM);
-    setShowForm(false);
-  }
-
-  function handleDelete(id: string) {
-    onDeleteEvent(id);
-    if (editingId === id) handleCancel();
-    setExportResult(null);
-  }
+  // VEVENTs the file will hold: one per solar series, one per occurrence of the rest.
+  const totalItems = useMemo(
+    () => buildICS(allExportEvents, startYear, yearCount, '').totalEvents,
+    [expandedPresets, events, startYear, yearCount],
+  );
 
   function handleTogglePreset(id: PresetId) {
     onTogglePreset(id);
@@ -90,7 +50,7 @@ export function LunarEventModal({
 
   return (
     <Sheet
-      title="Xuất lịch âm"
+      title="Xuất lịch"
       subtitle="Tạo file .ics cho Google Calendar, Apple Calendar, Outlook"
       icon={<CalendarHeart size={20} />}
       onClose={onClose}
@@ -139,91 +99,25 @@ export function LunarEventModal({
         {/* Custom events */}
         <section>
           <div className="flex items-center justify-between mb-2">
-            <h3 className="section-label">Sự kiện riêng ({events.length})</h3>
-            {!showForm && (
-              <button
-                onClick={() => { setShowForm(true); setEditingId(null); setForm(EMPTY_FORM); }}
-                className="btn-soft px-3 py-1.5 text-xs"
-              >
-                <Plus size={14} /> Thêm
-              </button>
-            )}
+            <h3 className="section-label">Sự kiện của bạn ({events.length})</h3>
+            <button onClick={onManageEvents} className="btn-soft px-3 py-1.5 text-xs">{events.length ? 'Sửa' : 'Thêm'}</button>
           </div>
-
-          {events.length === 0 && !showForm && (
+          {events.length === 0 ? (
             <div className="rounded-2xl border border-dashed border-line px-4 py-6 text-center text-sm text-fg-2">
-              Thêm giỗ, sinh nhật âm lịch… để xuất cùng lúc.
+              Thêm giỗ, sinh nhật… để xuất cùng lúc.
             </div>
-          )}
-
-          {events.length > 0 && (
+          ) : (
             <ul className="rounded-2xl bg-surface-2 divide-y divide-line">
-              {events.map(event => (
-                <li key={event.id} className={cn('flex items-center gap-2 pl-4 pr-1.5 py-2', editingId === event.id && 'bg-brand-soft')}>
-                  <div className="flex-1 min-w-0 py-1">
-                    <p className="text-sm font-semibold text-fg break-words">{event.title}</p>
-                    <p className="text-xs text-fg-2">
-                      Âm {event.lunarDay}/{event.lunarMonth}{event.isLeapMonth && ' · nhuận'}
-                    </p>
-                  </div>
-                  <button onClick={() => handleEdit(event)} className="icon-btn" aria-label="Chỉnh sửa">
-                    <Pencil size={16} />
-                  </button>
-                  <button onClick={() => handleDelete(event.id)} className="icon-btn hover:text-bad" aria-label="Xoá">
-                    <Trash size={16} />
-                  </button>
+              {events.map(e => (
+                <li key={e.id} className="flex items-center gap-3 px-4 py-2.5">
+                  <span className={cn('h-2.5 w-2.5 shrink-0 rounded-full', EVENT_COLORS[colorOf(e)].dot)} aria-hidden="true" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm font-semibold text-fg break-words">{e.title}</span>
+                    <span className="block text-xs text-fg-2">{describeEvent(e)}</span>
+                  </span>
                 </li>
               ))}
             </ul>
-          )}
-
-          {showForm && (
-            <div className="mt-2 flex flex-col gap-3 rounded-2xl bg-surface-2 p-4">
-              <p className="text-sm font-bold text-fg">{editingId ? 'Sửa sự kiện' : 'Sự kiện mới'}</p>
-              <input
-                type="text"
-                value={form.title}
-                onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                onKeyDown={e => e.key === 'Enter' && handleSave()}
-                placeholder="Tên sự kiện, vd: Giỗ ông nội"
-                enterKeyHint="done"
-                className="field bg-surface"
-                aria-label="Tên sự kiện"
-              />
-              <div className="grid grid-cols-2 gap-2">
-                <select
-                  value={form.lunarDay}
-                  onChange={e => setForm(f => ({ ...f, lunarDay: +e.target.value }))}
-                  className="field bg-surface font-semibold"
-                  aria-label="Ngày âm"
-                >
-                  {Array.from({ length: 30 }, (_, i) => i + 1).map(d => <option key={d} value={d}>Ngày {d}</option>)}
-                </select>
-                <select
-                  value={form.lunarMonth}
-                  onChange={e => setForm(f => ({ ...f, lunarMonth: +e.target.value }))}
-                  className="field bg-surface font-semibold"
-                  aria-label="Tháng âm"
-                >
-                  {Array.from({ length: 12 }, (_, i) => i + 1).map(m => <option key={m} value={m}>Tháng {m}</option>)}
-                </select>
-              </div>
-              <label className="flex items-center gap-2.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={form.isLeapMonth}
-                  onChange={e => setForm(f => ({ ...f, isLeapMonth: e.target.checked }))}
-                  className="w-5 h-5 rounded accent-[var(--brand)]"
-                />
-                <span className="text-sm text-fg">
-                  Tháng nhuận <span className="text-xs text-fg-2">(chỉ chọn nếu đúng là tháng nhuận)</span>
-                </span>
-              </label>
-              <div className="flex gap-2 justify-end">
-                <button onClick={handleCancel} className="btn-ghost bg-surface">Huỷ</button>
-                <button onClick={handleSave} disabled={!form.title.trim()} className="btn-primary px-6">Lưu</button>
-              </div>
-            </div>
           )}
         </section>
 
@@ -248,7 +142,7 @@ export function LunarEventModal({
                 <span className="w-16 text-right text-sm font-bold text-brand tabular-nums">{yearCount} năm</span>
               </div>
               <p className="mt-2 text-xs text-fg-2">
-                {allExportEvents.length} sự kiện × {yearCount} năm. Mỗi năm có ngày dương lịch riêng.
+                Sự kiện lặp theo âm lịch được ghi từng lần trong {yearCount} năm này; sự kiện theo dương lịch ghi một lần kèm quy tắc lặp.
               </p>
             </div>
 

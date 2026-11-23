@@ -49,6 +49,7 @@ import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.DarkMode
+import androidx.compose.material.icons.outlined.EventNote
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.FileDownload
 import androidx.compose.material.icons.outlined.Search
@@ -81,6 +82,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.SheetKind
+import io.github.novapizza.licham.core.LunarEvent
+import io.github.novapizza.licham.core.PersonalEvents
 import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayFacts
 import io.github.novapizza.licham.core.DayInfo
@@ -97,7 +100,11 @@ import io.github.novapizza.licham.core.plusMonths
 import io.github.novapizza.licham.core.weekOfYear
 import java.time.LocalDateTime
 
-private data class Cell(val date: SolarDate, val info: DayInfo?, val hasNote: Boolean, val clash: Boolean)
+/**
+ * [personal]: the first of the user's own events that day (its name in large cells); [dot]: the
+ * colour token of the dot beside the solar day, the first event's colour, gold for a note alone (null: none).
+ */
+private data class Cell(val date: SolarDate, val info: DayInfo?, val dot: String?, val clash: Boolean, val personal: String? = null, val personalColor: String? = null)
 
 /** Widens a child by [by] on both sides (the web's negative margin, -mx-2). */
 fun Modifier.bleed(by: Dp) = layout { measurable, constraints ->
@@ -113,12 +120,15 @@ fun Modifier.bleed(by: Dp) = layout { measurable, constraints ->
 @Composable
 fun CalendarScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
     val m = state.shownMonth
-    val noteDates = remember(state.notes) { state.notes.map { it.date }.toSet() }
     val userChi = state.userChi
-    val cells = remember(m, noteDates, userChi) {
+    val personal = state.lunarEvents
+    val cells = remember(m, userChi, personal) {
         monthGrid(m.year, m.month).map { d ->
             val info = DayInfo.orNull(d)
-            Cell(d, info, d.toString() in noteDates, info != null && Zodiac.clashes(userChi, info))
+            val own = if (info != null) PersonalEvents.on(personal, d) else emptyList()
+            val first = own.firstOrNull()
+            val dot = first?.color
+            Cell(d, info, dot, info != null && Zodiac.clashes(userChi, info), first?.title, first?.color)
         }
     }
     if (!wide && LocalHinge.current == null) {
@@ -311,7 +321,7 @@ private fun MonthGrid(state: AppState, cells: List<Cell>, showClash: Boolean, wi
         ) {
             Legend(c.good, "Ngày tốt")
             Legend(c.bad.copy(alpha = 0.7f), "Ngày xấu")
-            Legend(c.gold, "Ghi chú")
+            Legend(c.gold, "Sự kiện")
             if (showClash) Legend(c.clash, "Xung tuổi")
         }
     }
@@ -422,7 +432,7 @@ private fun DayCell(cell: Cell, modifier: Modifier, selected: Boolean, today: Bo
                     fontWeight = if (today || selected) FontWeight.Bold else FontWeight.SemiBold,
                     modifier = Modifier.leadingNone(solarFs),
                 )
-                if (cell.hasNote) Box(Modifier.align(Alignment.CenterEnd).offset(x = 7.dp)) { Dot(c.gold) }
+                if (cell.dot != null) Box(Modifier.align(Alignment.CenterEnd).offset(x = 7.dp)) { Dot(c.eventColor(cell.dot)) }
             }
             if (info != null) {
                 val firstDay = info.lunar.day == 1
@@ -446,8 +456,9 @@ private fun DayCell(cell: Cell, modifier: Modifier, selected: Boolean, today: Bo
                         }
                     }
                 }
-                if (w >= 88.dp && info.holiday != null) {
-                    Text(info.holiday!!, color = c.lunar, fontSize = cappedSp(10f), lineHeight = cappedSp(12f), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = w - 12.dp))
+                val cellName = info.holiday ?: cell.personal
+                if (w >= 88.dp && cellName != null) {
+                    Text(cellName, color = if (info.holiday != null) c.lunar else c.eventColor(cell.personalColor), fontSize = cappedSp(10f), lineHeight = cappedSp(12f), fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = w - 12.dp))
                 }
             }
         }
@@ -470,7 +481,8 @@ private fun SelectedDayPanel(state: AppState, now: LocalDateTime) {
     val clash = Zodiac.clashes(state.userChi, info)
     // Everything the Today page shows for a day, so the panel is the same day in short: its
     // commemorative days and festivals, and "Mồng 1" / "Ngày rằm" when the day has no name.
-    val dayLabel = if (info.holiday != null || info.observances.isNotEmpty()) null else lunarDayLabel(info.lunar)
+    val own = state.personalOn(d)
+    val dayLabel = if (info.holiday != null || info.observances.isNotEmpty() || own.isNotEmpty()) null else lunarDayLabel(info.lunar)
     Card {
         SectionLabel("Ngày đã chọn · Tuần ${d.weekOfYear}")
         Column(Modifier.padding(top = 4.dp)) {
@@ -501,9 +513,9 @@ private fun SelectedDayPanel(state: AppState, now: LocalDateTime) {
             if (clash) DayNote(Icons.Outlined.SentimentDissatisfied, "Xung tuổi ${state.userChi}", "nên cân nhắc việc quan trọng", c.clash, c.clashSoft)
         }
     }
+    DayEventsCard(state, d, compact = true)
     Activities(info)
     GioHoangDaoCard(info, if (d == AppState.today()) DayFacts.chiOfHour(now.hour) else null)
-    NotesCard(state.notesOn(d), { state.addNote(d, it) }, state::deleteNote, compact = true)
 }
 
 /** One line of the day panel: the rating and Trực, a holiday, commemorative day, festival, "Mồng 1" or a zodiac clash. */

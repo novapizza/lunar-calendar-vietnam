@@ -80,6 +80,8 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.ThemePref
+import io.github.novapizza.licham.core.LunarEvent
+import io.github.novapizza.licham.core.PersonalEvents
 import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayFacts
 import io.github.novapizza.licham.core.DayInfo
@@ -196,6 +198,7 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
                             SheetPage(
                                 turning, infoOf(turning), now, sheetWidth, numberDp, {}, {},
                                 Modifier.drawWithContent { layer.record { this@drawWithContent.drawContent() } },
+                                personal = state.lunarEvents,
                             )
                         }
                     }
@@ -212,6 +215,7 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
                             liveLayer.record { this@drawWithContent.drawContent() }
                             drawLayer(liveLayer)
                         },
+                        personal = state.lunarEvents,
                     )
                     // Two brass rings, over the sheet (30dp below the binding's top = 18dp above the paper).
                     Ring(Modifier.offset(x = sheetWidth * 0.26f, y = (-18).dp))
@@ -422,7 +426,7 @@ private fun Dp.fixedSp(): TextUnit = with(LocalDensity.current) { this@fixedSp.t
 
 /** One sheet of paper: lacquer with its light and moons, the frame and the dates. */
 @Composable
-private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidth: Dp, numberDp: Dp, onPrev: () -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier) {
+private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidth: Dp, numberDp: Dp, onPrev: () -> Unit, onNext: () -> Unit, modifier: Modifier = Modifier, personal: List<LunarEvent> = emptyList()) {
     val c = LocalLichAmColors.current
     val accent = c.heroAccent
     val red = d.weekdayIndex == 6 || info.holiday != null
@@ -481,7 +485,8 @@ private fun SheetPage(d: SolarDate, info: DayInfo, now: LocalDateTime, sheetWidt
             }
 
             Text(
-                info.holiday ?: info.observance ?: lunarDayLabel(info.lunar) ?: "", color = accent, fontFamily = PlayfairDisplay, fontStyle = FontStyle.Italic,
+                // A day without a holiday is named after the user's own event first.
+                info.holiday ?: PersonalEvents.on(personal, d).firstOrNull()?.title ?: info.observance ?: lunarDayLabel(info.lunar) ?: "", color = accent, fontFamily = PlayfairDisplay, fontStyle = FontStyle.Italic,
                 fontSize = 16.sp, lineHeight = 24.sp, textAlign = TextAlign.Center, modifier = Modifier.fillMaxWidth().padding(top = 8.dp).heightIn(min = 24.dp),
             )
 

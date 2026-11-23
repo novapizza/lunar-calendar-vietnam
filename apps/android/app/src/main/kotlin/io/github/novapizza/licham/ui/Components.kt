@@ -33,6 +33,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -244,6 +245,12 @@ fun GhostButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier
 fun <T> SelectField(value: T, options: List<T>, label: (T) -> String, onSelect: (T) -> Unit, modifier: Modifier = Modifier, bg: Color? = null) {
     val c = LocalLichAmColors.current
     var open by remember { mutableStateOf(false) }
+    // Long lists (hours, years 1900-2099) open on the chosen value, two items above it.
+    val menuScroll = rememberScrollState()
+    val itemPx = with(LocalDensity.current) { 48.dp.toPx() }
+    LaunchedEffect(open) {
+        if (open) menuScroll.scrollTo(((options.indexOf(value) - 2).coerceAtLeast(0) * itemPx).toInt())
+    }
     Box(modifier) {
         Row(
             Modifier.fillMaxWidth().clip(R12).background(bg ?: c.surface2).clickable { open = true }.padding(horizontal = 14.dp, vertical = 10.dp),
@@ -252,7 +259,7 @@ fun <T> SelectField(value: T, options: List<T>, label: (T) -> String, onSelect: 
             Text(label(value), color = c.fg, fontSize = 16.sp, lineHeight = 24.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f), maxLines = 1)
             Icon(Icons.Filled.ExpandMore, null, Modifier.size(18.dp), tint = c.fg2)
         }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 320.dp).background(c.surface)) {
+        DropdownMenu(expanded = open, onDismissRequest = { open = false }, modifier = Modifier.heightIn(max = 320.dp).background(c.surface), scrollState = menuScroll) {
             options.forEach { o ->
                 DropdownMenuItem(
                     text = { Text(label(o), color = c.fg, fontWeight = if (o == value) FontWeight.Bold else FontWeight.Normal) },

@@ -1,12 +1,26 @@
 import { useState, useEffect } from 'react';
 import { LunarEvent } from '../types';
+import { OldNote, noteToEvent } from '../services/personalEvents';
 
 const STORAGE_KEY = 'lunarEvents';
+/** The old day notes ("Ghi chú" card, removed 2026-11-23): moved into events once, then deleted. */
+const OLD_NOTES_KEY = 'userNotes';
 
 function load(): LunarEvent[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as LunarEvent[]) : [];
+    const events = raw ? (JSON.parse(raw) as LunarEvent[]) : [];
+    const oldRaw = localStorage.getItem(OLD_NOTES_KEY);
+    if (!oldRaw) return events;
+    const have = new Set(events.map(e => e.id));
+    const moved = (JSON.parse(oldRaw) as OldNote[])
+      .filter(n => n && n.id && n.date && typeof n.content === 'string' && !have.has(n.id))
+      .map(noteToEvent);
+    const all = [...events, ...moved];
+    // Saved before the old key goes: a failed write keeps the notes for the next start.
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+    localStorage.removeItem(OLD_NOTES_KEY);
+    return all;
   } catch {
     return [];
   }

@@ -56,6 +56,9 @@ class MainActivity : ComponentActivity() {
         }
         enableEdgeToEdge()
         state = AppState(applicationContext)
+        // Event reminders: the channel and the next alarm, at every start.
+        Reminders.ensureChannel(applicationContext)
+        Reminders.reschedule(applicationContext)
         // Opened from a widget: its tab and day (not again when the activity is recreated).
         if (savedInstanceState == null) openFromWidget(intent)
         setContent {
@@ -116,7 +119,7 @@ class MainActivity : ComponentActivity() {
     /** A widget tap: Hôm nay, or the Calendar on the tapped day (widget/WidgetLinks). */
     private fun openFromWidget(intent: Intent?) {
         val tab = intent?.getStringExtra(WidgetLinks.EXTRA_TAB)?.let { name -> Tab.entries.firstOrNull { it.name == name } } ?: return
-        state.sheet = null
+        state.closeAllSheets()
         state.selectTab(tab)
         intent.getStringExtra(WidgetLinks.EXTRA_DATE)?.let(SolarDate::parse)?.let(state::selectDate)
     }

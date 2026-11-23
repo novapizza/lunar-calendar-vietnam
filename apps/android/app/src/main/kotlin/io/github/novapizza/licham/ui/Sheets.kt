@@ -75,6 +75,9 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
@@ -88,6 +91,8 @@ import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.Ics
 import io.github.novapizza.licham.core.IcsResult
 import io.github.novapizza.licham.core.LunarCalendar
+import io.github.novapizza.licham.core.LunarEvent
+import io.github.novapizza.licham.core.PersonalEvents
 import io.github.novapizza.licham.core.LunarToSolar
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.daysInMonth
@@ -105,12 +110,15 @@ private const val MAX_YEAR = 2099
 /** Opens the sheet [AppState.sheet] names, if any. */
 @Composable
 fun AppSheets(state: AppState) {
-    val close = { state.sheet = null }
+    val close = { state.closeSheet() }
     when (state.sheet) {
         SheetKind.MONTH_PICKER -> MonthYearPickerSheet(state, close)
         SheetKind.QUICK_DATE -> QuickDateSheet(state, close)
         SheetKind.AUSPICIOUS -> AuspiciousSheet(state, close)
         SheetKind.LUNAR_EVENTS -> LunarEventsSheet(state, close)
+        SheetKind.PERSONAL_EVENTS -> PersonalEventsSheet(state, close)
+        SheetKind.EVENT_EDITOR -> EventEditorSheet(state, close)
+        SheetKind.EVENT_DETAIL -> EventDetailSheet(state, close)
         SheetKind.ABOUT -> AboutSheet(close)
         SheetKind.BIRTH_DATE -> BirthDateSheet(state, close)
         null -> Unit
@@ -118,7 +126,7 @@ fun AppSheets(state: AppState) {
 }
 
 /** Dashed rounded-2xl border (the web's `border border-dashed border-line`). */
-private fun Modifier.dashedBorder(color: Color): Modifier = drawBehind {
+internal fun Modifier.dashedBorder(color: Color): Modifier = drawBehind {
     drawRoundRect(color, cornerRadius = CornerRadius(16.dp.toPx()), style = Stroke(1.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(6.dp.toPx(), 4.dp.toPx()))))
 }
 
@@ -129,16 +137,24 @@ private fun Modifier.dashedBorder(color: Color): Modifier = drawBehind {
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun SheetFrame(
+internal fun SheetFrame(
     title: String,
     onClose: () -> Unit,
     icon: ImageVector? = null,
     subtitle: String? = null,
     heading: (@Composable () -> Unit)? = null,
     footer: (@Composable () -> Unit)? = null,
+    /**
+     * Keep the height the sheet opened with: content that grows later (a date picker opening in
+     * the event form) scrolls inside instead of stretching the sheet to full screen (user,
+     * 2026-11-23). Sheets whose steps differ in height (year → month → day) leave it off.
+     */
+    keepHeight: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val c = LocalLichAmColors.current
+    val density = LocalDensity.current
+    var openedHeight by remember { mutableStateOf<Dp?>(null) }
     ModalBottomSheet(
         onDismissRequest = onClose,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
@@ -150,7 +166,14 @@ private fun SheetFrame(
             Box(Modifier.padding(top = 10.dp, bottom = 4.dp).width(40.dp).height(6.dp).clip(Pill).background(c.surface3))
         },
     ) {
-        Column(Modifier.navigationBarsPadding()) {
+        Column(
+            Modifier.navigationBarsPadding().then(
+                if (!keepHeight) Modifier
+                else Modifier
+                    .then(openedHeight?.let { Modifier.heightIn(max = it) } ?: Modifier)
+                    .onSizeChanged { if (openedHeight == null && it.height > 0) openedHeight = with(density) { it.height.toDp() } },
+            ),
+        ) {
             Row(Modifier.fillMaxWidth().padding(start = 20.dp, end = 12.dp, top = 8.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
                 if (icon != null) {
                     IconTile(icon, c.brandSoft, c.brand, iconSize = 20.dp)
@@ -193,7 +216,7 @@ private fun GridCell(text: String, active: Boolean, current: Boolean, enabled: B
 }
 
 @Composable
-private fun <T> Grid(items: List<T>, cols: Int, gap: Dp, cell: @Composable (T, Modifier) -> Unit) {
+internal fun <T> Grid(items: List<T>, cols: Int, gap: Dp, cell: @Composable (T, Modifier) -> Unit) {
     Column(verticalArrangement = Arrangement.spacedBy(gap)) {
         items.chunked(cols).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(gap)) {
@@ -498,25 +521,20 @@ private fun AuspiciousSheet(state: AppState, onClose: () -> Unit) {
 }
 
 // ---------------------------------------------------------------------------
-// Xuất lịch âm (LunarEventModal)
+// Xuất lịch (LunarEventModal)
 // ---------------------------------------------------------------------------
 
 @Composable
 private fun LunarEventsSheet(state: AppState, onClose: () -> Unit) {
     val c = LocalLichAmColors.current
     val context = LocalContext.current
-    var showForm by remember { mutableStateOf(false) }
-    var editingId by remember { mutableStateOf<String?>(null) }
-    var title by remember { mutableStateOf("") }
-    var day by remember { mutableIntStateOf(1) }
-    var month by remember { mutableIntStateOf(1) }
-    var leap by remember { mutableStateOf(false) }
     var yearCount by remember { mutableIntStateOf(5) }
     var result by remember { mutableStateOf<IcsResult?>(null) }
     var pending by remember { mutableStateOf<IcsResult?>(null) }
     val startYear = AppState.today().year
     val all = state.exportEvents
-    val total = yearCount * all.size
+    // VEVENTs written: one per rule, or one per occurrence (lunar repeats give 12-13 a year when monthly).
+    val total = remember(all, startYear, yearCount) { Ics.count(all, startYear, yearCount) }
 
     val createFile = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/calendar")) { uri ->
         val r = pending ?: return@rememberLauncherForActivityResult
@@ -527,10 +545,8 @@ private fun LunarEventsSheet(state: AppState, onClose: () -> Unit) {
         }
         pending = null
     }
-    fun resetForm() { editingId = null; title = ""; day = 1; month = 1; leap = false; showForm = false }
-
     SheetFrame(
-        "Xuất lịch âm", onClose, icon = Icons.Outlined.EventNote, subtitle = "Tạo file .ics cho Google Calendar, Apple Calendar, Outlook",
+        "Xuất lịch", onClose, icon = Icons.Outlined.EventNote, subtitle = "Tạo file .ics cho Google Calendar, Apple Calendar, Outlook",
         footer = {
             PrimaryButton(
                 if (all.isEmpty()) "Chọn sự kiện để xuất" else "Tải file .ics · $total mục",
@@ -566,60 +582,7 @@ private fun LunarEventsSheet(state: AppState, onClose: () -> Unit) {
                     }
                 }
             }
-            Column {
-                Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("Sự kiện riêng (${state.lunarEvents.size})", Modifier.weight(1f))
-                    if (!showForm) SoftButton("Thêm", { resetForm(); showForm = true }, icon = Icons.Filled.Add)
-                }
-                if (state.lunarEvents.isEmpty() && !showForm) {
-                    Box(Modifier.fillMaxWidth().dashedBorder(c.line).padding(horizontal = 16.dp, vertical = 24.dp), contentAlignment = Alignment.Center) {
-                        Text("Thêm giỗ, sinh nhật âm lịch… để xuất cùng lúc.", color = c.fg2, fontSize = 14.sp, lineHeight = 20.sp, textAlign = TextAlign.Center)
-                    }
-                }
-                if (state.lunarEvents.isNotEmpty()) {
-                    Column(Modifier.clip(R16).background(c.surface2)) {
-                        state.lunarEvents.forEachIndexed { i, e ->
-                            if (i > 0) Divider()
-                            Row(Modifier.fillMaxWidth().background(if (editingId == e.id) c.brandSoft else Color.Transparent).padding(start = 16.dp, end = 6.dp, top = 8.dp, bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                                Column(Modifier.weight(1f).padding(vertical = 4.dp)) {
-                                    Text(e.title, color = c.fg, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
-                                    Text("Âm ${e.lunarDay}/${e.lunarMonth}${if (e.isLeapMonth) " · nhuận" else ""}", color = c.fg2, fontSize = 12.sp, lineHeight = 16.sp)
-                                }
-                                IconBtn(Icons.Outlined.Edit, "Chỉnh sửa", {
-                                    editingId = e.id; title = e.title; day = e.lunarDay; month = e.lunarMonth; leap = e.isLeapMonth; showForm = true; result = null
-                                }, iconSize = 16.dp)
-                                IconBtn(Icons.Outlined.Delete, "Xoá", { state.deleteLunarEvent(e.id); if (editingId == e.id) resetForm(); result = null }, iconSize = 16.dp)
-                            }
-                        }
-                    }
-                }
-                if (showForm) {
-                    Column(Modifier.padding(top = 8.dp).fillMaxWidth().clip(R16).background(c.surface2).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text(if (editingId != null) "Sửa sự kiện" else "Sự kiện mới", color = c.fg, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold)
-                        WebTextField(title, { title = it }, "Tên sự kiện, vd: Giỗ ông nội", singleLine = true, bg = c.surface)
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            SelectField(day, (1..30).toList(), { "Ngày $it" }, { day = it }, Modifier.weight(1f), bg = c.surface)
-                            SelectField(month, (1..12).toList(), { "Tháng $it" }, { month = it }, Modifier.weight(1f), bg = c.surface)
-                        }
-                        Row(Modifier.clickable { leap = !leap }, verticalAlignment = Alignment.CenterVertically) {
-                            Checkbox(leap, { leap = it }, colors = CheckboxDefaults.colors(checkedColor = c.brand, checkmarkColor = c.onBrand, uncheckedColor = c.fg3))
-                            Text(
-                                buildAnnotatedString {
-                                    append("Tháng nhuận ")
-                                    pushStyle(SpanStyle(color = c.fg2, fontSize = 12.sp)); append("(chỉ chọn nếu đúng là tháng nhuận)"); pop()
-                                },
-                                color = c.fg, fontSize = 14.sp, lineHeight = 20.sp,
-                            )
-                        }
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End)) {
-                            GhostButton("Huỷ", { resetForm() }, bg = c.surface)
-                            PrimaryButton("Lưu", {
-                                if (title.isNotBlank()) { state.saveLunarEvent(editingId, title.trim(), day, month, leap); resetForm(); result = null }
-                            }, enabled = title.isNotBlank(), modifier = Modifier.width(88.dp))
-                        }
-                    }
-                }
-            }
+            PersonalEventsList(state, "Thêm giỗ, sinh nhật… để xuất cùng lúc.")
             if (all.isNotEmpty()) {
                 Column {
                     Row(Modifier.padding(bottom = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -639,7 +602,7 @@ private fun LunarEventsSheet(state: AppState, onClose: () -> Unit) {
                             HSpace(12.dp)
                             Text("$yearCount năm", color = c.brand, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.End, modifier = Modifier.width(64.dp))
                         }
-                        Text("${all.size} sự kiện × $yearCount năm. Mỗi năm có ngày dương lịch riêng.", color = c.fg2, fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
+                        Text("${all.size} sự kiện × $yearCount năm. Ngày âm lịch mỗi năm rơi vào ngày dương lịch khác.", color = c.fg2, fontSize = 12.sp, lineHeight = 16.sp, modifier = Modifier.padding(top = 8.dp))
                     }
                     result?.let { r ->
                         Column(Modifier.padding(top = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -669,6 +632,24 @@ private fun LunarEventsSheet(state: AppState, onClose: () -> Unit) {
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+/** Two-way switch (Âm lịch / Dương lịch, Hằng năm / Hằng tháng), the web's Segmented. */
+@Composable
+internal fun Segmented(value: String, options: List<Pair<String, String>>, onChange: (String) -> Unit) {
+    val c = LocalLichAmColors.current
+    Row(Modifier.fillMaxWidth().clip(R12).background(c.surface).padding(4.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        options.forEach { (v, text) ->
+            val on = v == value
+            Box(
+                Modifier.weight(1f).clip(RoundedCornerShape(8.dp)).background(if (on) c.brand else Color.Transparent)
+                    .clickable { onChange(v) }.padding(vertical = 6.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(text, color = if (on) c.onBrand else c.fg2, fontSize = 14.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold)
             }
         }
     }
