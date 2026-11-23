@@ -135,23 +135,26 @@ private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean,
     val gridH = (h - 2 * pad - headerH - weekH).coerceAtLeast(12f)
 
     // Day numbers from the cell box, the lunar day under each (two lines must fit the cell's height).
-    // Small cells (2×2, about 21 dp wide) get type up to 20 % bigger and a tighter line allowance:
-    // at the base sizes the digits looked lost in their cells (user, 2026-11-23). From 36 dp cells
-    // (about 4×4) the base sizes stand.
-    val boost = (1.2f - (cellW - 22f) / (36f - 22f) * 0.2f).coerceIn(1f, 1.2f)
-    val lineAllowance = 1.3f - (boost - 1f) / 0.2f * 0.1f
+    // Small cells (2×2, about 21 dp wide) get type up to 28 % bigger: at the base sizes the digits
+    // looked lost in their cells (user, 2026-11-23: +20 %, then "a little bigger" on a Xiaomi 2×2).
+    // From 36 dp cells (about 4×4) the base sizes stand.
+    val boost = (1.28f - (cellW - 22f) / (36f - 22f) * 0.28f).coerceIn(1f, 1.28f)
+    // The two lines' box (DayCell's pairH, 1.25 + 0.98 × 0.62 = 1.86 of the solar size) starts and
+    // ends in font padding nothing is drawn in (about 0.35 at the top, 0.17 at the bottom): up to
+    // 0.3 of it may spill into the gap between rows, so the cell must hold 1.56 of the solar size.
+    val fitH = 1.56f
 
     // A widget wider than tall whose week rows would come out much lower than the cells' width asks
     // (under 3/4 of the height the width's type needs) shows only the weeks that fit, today's week
     // first, then the weeks after it, moved back near the month's end so the rows stay full (user,
     // 2026-11-23). The rest of the month is a tap away.
     val allRows = month.size / 7
-    val needH = cellW * 0.42f * boost / minOf(0.44f * boost, 1f / (lineAllowance * 1.62f))
+    val needH = cellW * 0.42f * boost / minOf(0.44f * boost, 1f / fitH)
     val rows = if (w > h && gridH / allRows < 0.75f * needH) (gridH / needH).roundToInt().coerceIn(1, allRows) else allRows
     val first = minOf(month.indexOf(today).coerceAtLeast(0) / 7, allRows - rows)
     val grid = month.subList(first * 7, (first + rows) * 7)
     val cellH = gridH / rows
-    val solarDp = minOf(cellW * 0.42f * boost, cellH * 0.44f * boost, cellH / (lineAllowance * 1.62f))
+    val solarDp = minOf(cellW * 0.42f * boost, cellH * 0.44f * boost, cellH / fitH)
     val lunarDp = solarDp * 0.62f
     val showLunar = true
 
