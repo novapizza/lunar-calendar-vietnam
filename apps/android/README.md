@@ -34,13 +34,13 @@ Play App Signing keeps the app signing key; the build signs with an upload key k
    ```
    & "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -genkeypair -v -keystore "$env:USERPROFILE\keys\lunar-upload.jks" -alias upload -keyalg RSA -keysize 4096 -validity 10000
    ```
-2. Write `apps/android/keystore.properties` (ignored by git):
+2. Write `apps/android/keystore.properties` (ignored by git), with the passwords either in it or, better, in a file next to the .jks that `passwordsFile` names, so nothing secret sits in the repository folder:
    ```
    storeFile=C:/Users/<you>/keys/lunar-upload.jks
-   storePassword=...
    keyAlias=upload
-   keyPassword=...
+   passwordsFile=C:/Users/<you>/keys/lunar-upload-passwords.properties
    ```
+   and in that file `storePassword=...` and `keyPassword=...` (the same for a PKCS12 keystore, keytool's default: `keytool -storepasswd` changes both).
 3. `.\gradlew.bat :app:bundleRelease` gives `app/build/outputs/bundle/release/app-release.aab`, the file to upload. Raise `versionCode` in `app/build.gradle.kts` for every upload.
 
 In CI the same key comes from environment variables (`ANDROID_UPLOAD_STORE_FILE`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD`), and `ANDROID_VERSION_CODE` / `ANDROID_VERSION_NAME` set the version.

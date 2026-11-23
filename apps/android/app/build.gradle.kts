@@ -7,11 +7,14 @@ plugins {
 }
 
 // Upload key for Google Play (Play App Signing keeps the app signing key), never committed: on a
-// developer's machine apps/android/keystore.properties (storeFile, storePassword, keyAlias,
-// keyPassword); in CI (.github/workflows/android-release.yml) the ANDROID_UPLOAD_* variables.
+// developer's machine apps/android/keystore.properties (storeFile, keyAlias, and storePassword,
+// keyPassword or a passwordsFile holding them); in CI (.github/workflows/android-release.yml) the ANDROID_UPLOAD_* variables.
 fun env(name: String): String? = providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+// keystore.properties may leave the passwords to another file (passwordsFile=...), e.g. next to the .jks,
+// so the file in the repository folder holds nothing secret.
+fun loadProperties(f: File) = Properties().apply { f.inputStream().use { load(it) } }
 val uploadKey: Properties? = rootProject.file("keystore.properties").takeIf { it.exists() }
-    ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
+    ?.let { f -> loadProperties(f).also { p -> p.getProperty("passwordsFile")?.let { p.putAll(loadProperties(file(it))) } } }
     ?: env("ANDROID_UPLOAD_STORE_FILE")?.let { file ->
         Properties().apply {
             setProperty("storeFile", file)
