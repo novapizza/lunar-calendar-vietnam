@@ -54,7 +54,6 @@ A Vietnamese lunar calendar single-page application built with React 19, TypeScr
 - **Be Vietnam Pro** typeface (designed for Vietnamese diacritics)
 - **Automatic dark mode** following the device setting
 - Popups are bottom sheets on phones and centred dialogs on desktop (`apps/web/src/components/Sheet.tsx`)
-- The Botpress chat widget loads on tablet/desktop only — never on phones
 
 ### Mobile & Installable App (PWA)
 - Built for phones first: bottom tab bar, safe-area support (notch / home indicator), no horizontal scrolling down to 320px wide

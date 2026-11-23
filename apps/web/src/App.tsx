@@ -102,10 +102,9 @@ export default function App() {
   const anyModalOpen =
     isQuickPickerOpen || isMonthPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen || isBirthPickerOpen;
 
-  // While a modal is open: hide the chat bubble (body class) and let Escape close it.
+  // While a modal is open, Escape closes it.
   useEffect(() => {
     if (!anyModalOpen) return;
-    document.body.classList.add('modal-open');
     const onKey = (e: KeyboardEvent) => {
       if (e.key !== 'Escape') return;
       setIsQuickPickerOpen(false);
@@ -119,7 +118,6 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => {
-      document.body.classList.remove('modal-open');
       window.removeEventListener('keydown', onKey);
     };
   }, [anyModalOpen]);
