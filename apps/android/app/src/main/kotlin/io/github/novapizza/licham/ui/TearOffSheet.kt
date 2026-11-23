@@ -170,17 +170,8 @@ fun TearOffSheet(state: AppState, info: DayInfo, now: LocalDateTime) {
     val fit = remember { SheetFit() }
     val density = LocalDensity.current
 
-    Box(Modifier.fillMaxWidth().padding(bottom = 12.dp).onSizeChanged { fit.rest = with(density) { it.height.toDp() } + 12.dp - fit.box }) {
-        // The pad: two sheets under the current one (inset-x-4 / inset-x-2, from 32dp down).
-        Box(
-            Modifier.matchParentSize().padding(start = 16.dp, end = 16.dp, top = 32.dp).offset(y = 12.dp)
-                .clip(PadShape).background(c.heroTo.copy(alpha = 0.7f)).border(1.dp, accent.copy(alpha = 0.15f), PadShape),
-        )
-        Box(
-            Modifier.matchParentSize().padding(start = 8.dp, end = 8.dp, top = 32.dp).offset(y = 6.dp)
-                .webShadow(PadShape).clip(PadShape).background(c.heroVia).border(1.dp, accent.copy(alpha = 0.2f), PadShape),
-        )
-
+    // One sheet, nothing under it: the two sheets that peeked out below were removed (user, 2026-11-23).
+    Box(Modifier.fillMaxWidth().onSizeChanged { fit.rest = with(density) { it.height.toDp() } - fit.box }) {
         // No clip here: the turning sheet leaves the sheet's box. Binding and paper round their own corners.
         // A sideways swipe steps a day; with the curl, only above its bottom zone (the curl takes its
         // touches first: it consumes them before the swipe's slop).

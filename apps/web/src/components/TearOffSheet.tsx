@@ -40,9 +40,9 @@ interface Props {
  * The Today page's date as one sheet of a Vietnamese tear-off wall calendar (lịch bóc):
  * a lacquer sheet hung on two brass rings, framed by a double gold hairline, the solar day in
  * large gold-foil serif (Sundays and holidays, red on a paper calendar, get a gold seal on the
- * weekday), and the lunar date in a gold "moon" next to the can chi. Two sheets peek out below,
- * so it reads as a pad. (A 3D pad that thinned through the year was tried and dropped,
- * 2026-11-22: hard to read.)
+ * weekday), and the lunar date in a gold "moon" next to the can chi. One sheet, nothing under it:
+ * the two sheets that peeked out below were removed (user, 2026-11-23; a 3D pad thinning through
+ * the year had been tried and dropped on 2026-11-22: hard to read).
  *
  * The page turns like paper (SheetPeel, WebGL): a finger on the bottom edge curls it and the
  * paper follows it (a sideways swipe higher up steps a day, as the arrows); a flick or a pull past half the sheet tears it off, uncovering the next day.
@@ -106,13 +106,9 @@ export function TearOffSheet({ date, now, currentTraditionalHour, lunarInfo, hol
   return (
     <div
       ref={numberMax.ref}
-      className="relative pb-3"
+      className="relative"
       style={numberMax.px ? ({ '--tear-number-max': `${numberMax.px}px` } as CSSProperties) : undefined}
     >
-      {/* The pad: two sheets under the current one. */}
-      <div className="absolute inset-x-4 bottom-0 top-8 rounded-b-[1.25rem] border border-hero-accent/15 bg-hero-to opacity-70" aria-hidden="true" />
-      <div className="absolute inset-x-2 bottom-1.5 top-8 rounded-b-[1.25rem] border border-hero-accent/20 bg-hero-via shadow-[var(--shadow-card)]" aria-hidden="true" />
-
       {/* No overflow clip here: the turning page leaves the sheet's box. The binding and the
           paper round their own corners. */}
       <section
@@ -183,7 +179,7 @@ const TWO_PANES = '(min-width: 52.5rem), (min-width: 37.5rem) and (max-width: 52
  * 1.05 x number size, and the number may be at most (room - rest) / 1.05, room being the
  * scroller's height below the sheet's top less 16px. The sheet's column is sticky there
  * (TodayView), so its top on screen is the same scrolled or not. Returns the cap in px (null:
- * no cap; at least 48) and the ref for the pad wrapper.
+ * no cap; at least 48) and the ref for the sheet's wrapper.
  */
 function useFitToPane() {
   const ref = useRef<HTMLDivElement>(null);

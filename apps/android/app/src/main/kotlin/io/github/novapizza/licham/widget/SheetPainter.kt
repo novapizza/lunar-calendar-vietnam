@@ -47,14 +47,14 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
         var w = MIN_W
         var layout = lunarRow(info, w)
         var extra = 0f
-        val natural = BINDING + paperHeight(layout.height) + PAD
+        val natural = BINDING + paperHeight(layout.height)
         if (w * aspect >= natural) {
             extra = w * aspect - natural
         } else {
             w = natural / aspect
             layout = lunarRow(info, w)
             // A wider sheet can fit the inline labels, and the row is never taller then.
-            extra = (w * aspect - (BINDING + paperHeight(layout.height) + PAD)).coerceAtLeast(0f)
+            extra = (w * aspect - (BINDING + paperHeight(layout.height))).coerceAtLeast(0f)
         }
         val s = widthPx / w
         cv.scale(s, s)
@@ -74,18 +74,7 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
         val fill = Paint(Paint.ANTI_ALIAS_FLAG)
         val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1f }
 
-        // The pad: two sheets under this one (inset 16 / 8, peeking 12 / 6 below).
-        fun padSheet(inset: Float, drop: Float, color: Int, edge: Int) {
-            val r = RectF(inset, paperTop + 20f, W - inset, paperBottom + drop)
-            val p = bottomRounded(r, 20f)
-            fill.shader = null; fill.color = color; cv.drawPath(p, fill)
-            stroke.color = edge; cv.drawPath(p, stroke)
-        }
-        // A soft drop shadow under the pad.
-        fill.shader = null; fill.color = argb(Color.Black, 0.18f)
-        cv.drawPath(bottomRounded(RectF(10f, paperTop + 20f, W - 10f, paperBottom + 14f), 20f), fill)
-        padSheet(16f, 12f, argb(c.heroTo, 0.7f), argb(accent, 0.15f))
-        padSheet(8f, 6f, argb(c.heroVia), argb(accent, 0.2f))
+        // One sheet, nothing under it (the two sheets that peeked out below were removed, user 2026-11-23).
 
         // Paper: lacquer gradient, soft light at 50% 25%, two faint moons.
         val paper = RectF(0f, paperTop, W, paperBottom)
@@ -329,8 +318,6 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
         /** The narrowest sheet drawn (the web's phone width); a wider box widens it. */
         const val MIN_W = 343f
         const val BINDING = 48f
-        /** Pad sheets peeking below the paper. */
-        const val PAD = 12f
         /** Padding and frame from the paper's side to the contents (12 + 4 + 1 + 16). */
         const val SIDE = 33f
         /** The solar day: 44% of the 343dp sheet, as TearOffSheet sizes it. */
