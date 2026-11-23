@@ -1,7 +1,10 @@
 # Builds the Android app (apps/android), signs it with the upload key and uploads it to Google Play.
 #
 # Runs on a tag android-vX.Y.Z (versionName X.Y.Z, versionCode X·10000 + Y·100 + Z; Y and Z below 100),
-# or by hand (Run workflow) on such a tag, choosing the track and the status.
+# or by hand (Run workflow) on such a tag, choosing the track and the status. The release is named
+# "X.Y.Z (code)". Its notes on Play ("What's new") come from apps/android/whatsnew/whatsnew-vi-VN
+# (500 characters at most): update that file before tagging; the run warns when it has not changed
+# since the previous android-v* tag.
 #
 # The release job runs in the GitHub environment `play-release`: give it required reviewers and limit
 # it to tags android-v*, so its secrets only reach a run someone has approved. Secrets and variables of
@@ -75,6 +78,8 @@ jobs:
       STATUS: ${{ inputs.status || 'draft' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # tags and history, to compare the release notes with the previous tag
 
       - name: Version from the tag
         id: version
@@ -88,6 +93,18 @@ jobs:
           echo "name=$v" >> "$GITHUB_OUTPUT"
           echo "code=$code" >> "$GITHUB_OUTPUT"
           echo "Version $v ($code), track $TRACK, status $STATUS" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Release notes
+        run: |
+          f=whatsnew/whatsnew-vi-VN
+          if [ ! -s "$f" ]; then echo "::error::$f is missing or empty"; exit 1; fi
+          n=$(python3 -c "import sys; print(len(open(sys.argv[1], encoding='utf-8').read()))" "$f")
+          if [ "$n" -gt 500 ]; then echo "::error::$f has $n characters; Play allows 500"; exit 1; fi
+          prev=$(git tag --list 'android-v*' --sort=-version:refname | grep -vx "$GITHUB_REF_NAME" | head -1)
+          if [ -n "$prev" ] && git diff --quiet "$prev" HEAD -- "$f"; then
+            echo "::warning::$f has not changed since $prev: the release notes repeat that release's"
+          fi
+          { echo "Release notes (vi-VN, $n characters):"; echo; cat "$f"; echo; } >> "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
         with:
@@ -152,9 +169,10 @@ jobs:
           packageName: com.coding4pizza.lunar
           releaseFiles: apps/android/app/build/outputs/bundle/release/app-release.aab
           mappingFile: apps/android/app/build/outputs/mapping/release/mapping.txt
-          releaseName: ${{ steps.version.outputs.name }}
-          track: ${{ env.TRACK }}
+          releaseName: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
+          tracks: ${{ env.TRACK }}
           status: ${{ env.STATUS }}
+          whatsNewDirectory: apps/android/whatsnew
 
       - name: Upload to Play (service account key)
         if: steps.auth.outcome != 'success'
@@ -164,9 +182,10 @@ jobs:
           packageName: com.coding4pizza.lunar
           releaseFiles: apps/android/app/build/outputs/bundle/release/app-release.aab
           mappingFile: apps/android/app/build/outputs/mapping/release/mapping.txt
-          releaseName: ${{ steps.version.outputs.name }}
-          track: ${{ env.TRACK }}
+          releaseName: ${{ steps.version.outputs.name }} (${{ steps.version.outputs.code }})
+          tracks: ${{ env.TRACK }}
           status: ${{ env.STATUS }}
+          whatsNewDirectory: apps/android/whatsnew
 
       - name: Remove the upload key
         if: always()
