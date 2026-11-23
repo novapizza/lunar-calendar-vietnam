@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.core.DayInfo
-import io.github.novapizza.licham.core.UserNote
 
 /**
  * GioHoangDao (components/GioHoangDao.tsx): brand-soft card, one row of six tiles
@@ -94,29 +93,3 @@ fun GioHoangDaoCard(info: DayInfo, currentHourChi: Int?) {
     }
 }
 
-/**
- * Notes card: list (rounded-xl gold-soft px-3 py-2.5 text-sm), field (2 rows), primary button.
- * [compact] = the month view's variant (label mb-2, items py-2, "Thêm ghi chú…", "Lưu").
- */
-@Composable
-fun NotesCard(notes: List<UserNote>, onAdd: (String) -> Unit, onDelete: (String) -> Unit, compact: Boolean = false) {
-    val c = LocalLichAmColors.current
-    var draft by rememberSaveable { mutableStateOf("") }
-    Card {
-        SectionLabel("Ghi chú", icon = Icons.Outlined.StickyNote2)
-        VSpace(if (compact) 8.dp else 12.dp)
-        if (notes.isNotEmpty()) {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(bottom = if (compact) 8.dp else 12.dp)) {
-                notes.forEach { note ->
-                    Row(Modifier.fillMaxWidth().clip(R12).background(c.goldSoft).padding(start = 12.dp, end = 6.dp, top = 4.dp, bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(note.content, color = c.fg, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(vertical = 6.dp))
-                        IconBtn(Icons.Outlined.Delete, "Xoá ghi chú", { onDelete(note.id) }, tint = c.fg3, size = 30.dp, iconSize = 15.dp)
-                    }
-                }
-            }
-        }
-        WebTextField(draft, { draft = it }, if (compact) "Thêm ghi chú…" else "Thêm ghi chú cho ngày này…", minLines = 2)
-        VSpace(8.dp)
-        PrimaryButton(if (compact) "Lưu" else "Lưu ghi chú", { onAdd(draft); draft = "" }, Modifier.fillMaxWidth(), enabled = draft.isNotBlank(), icon = Icons.Filled.Add)
-    }
-}

@@ -1,29 +1,14 @@
-import { lunarToSolar, SolarYMD } from './lunarService';
+import {
+  LAST_DAY, SkippedOccurrence, addDays, calendarOf, describeEvent, endTimeOf, exportsAsRule, isAllDay, isoOf, lunarOf,
+  nextOccurrence, occurrenceStarts, parts, repeatOf, skippedYears, spanOf, startTimeOf, weekdaysOf,
+} from './personalEvents';
 import { LunarEvent } from '../types';
 
 // ---------------------------------------------------------------------------
 // Result types
 // ---------------------------------------------------------------------------
 
-export interface ResolvedEventYear {
-  skipped: false;
-  /** Lunar year of this occurrence — stable identity, used in the event UID. */
-  lunarYear: number;
-  /** Solar year the occurrence actually falls in (differs for months 11–12). */
-  solarYear: number;
-  solarDate: SolarYMD;
-  /** True when day 30 was moved to day 29 because the month has only 29 days. */
-  adjustedDay: boolean;
-}
-
-export interface SkippedEventYear {
-  skipped: true;
-  lunarYear: number;
-  title: string;
-  reason: 'leap_month_not_found' | 'conversion_error';
-}
-
-export type EventYearResult = ResolvedEventYear | SkippedEventYear;
+export type SkippedEventYear = SkippedOccurrence;
 
 export interface ExportSummary {
   totalEvents: number;
@@ -81,14 +66,7 @@ function pad2(n: number): string {
   return String(n).padStart(2, '0');
 }
 
-function toDateString(y: number, m: number, d: number): string {
-  return `${y}${pad2(m)}${pad2(d)}`;
-}
 
-function nextDay(y: number, m: number, d: number): string {
-  const dt = new Date(y, m - 1, d + 1);
-  return toDateString(dt.getFullYear(), dt.getMonth() + 1, dt.getDate());
-}
 
 function utcStamp(): string {
   const now = new Date();
@@ -99,84 +77,94 @@ function utcStamp(): string {
 }
 
 // ---------------------------------------------------------------------------
-// Core resolution logic
+// ICS formatting (shared/design/events.md, "Export")
 // ---------------------------------------------------------------------------
 
-/**
- * Returns every occurrence of a lunar event that falls in the solar years
- * `startYear` … `startYear + yearCount - 1`.
- *
- * Works per lunar year, not per solar year: months 11–12 of lunar year N often
- * land in January/February of solar year N+1. So lunar year `startYear - 1` is
- * checked too, and each occurrence is kept only if its real solar date is
- * inside the range. Results are labelled with both years.
- */
-export function resolveEventYears(
-  event: LunarEvent,
-  startYear: number,
-  yearCount: number,
-): EventYearResult[] {
-  const endYear = startYear + yearCount - 1;
-  const results: EventYearResult[] = [];
+const compact = (day: string) => day.replaceAll('-', '');
+const hhmmss = (t: string) => `${t.replace(':', '')}00`;
 
-  for (let lunarYear = startYear - 1; lunarYear <= endYear; lunarYear++) {
-    const r = lunarToSolar(event.lunarDay, event.lunarMonth, lunarYear, event.isLeapMonth);
-
-    if (r.ok === false) {
-      // Lunar year startYear-1 is only probed for spill-over into startYear;
-      // a miss there is not something the user asked about.
-      if (lunarYear >= startYear) {
-        results.push({ skipped: true, lunarYear, title: event.title, reason: r.reason });
-      }
-      continue;
-    }
-
-    if (r.solar.year < startYear || r.solar.year > endYear) continue;
-
-    results.push({
-      skipped: false,
-      lunarYear,
-      solarYear: r.solar.year,
-      solarDate: r.solar,
-      adjustedDay: r.adjustedDay,
-    });
-  }
-
-  return results;
+/** DTSTART / DTEND / EXDATE value of a day: a DATE when all day, a floating local time otherwise. */
+function when(e: LunarEvent, day: string, time: string): string {
+  return isAllDay(e) ? `;VALUE=DATE:${compact(day)}` : `:${compact(day)}T${hhmmss(time)}`;
 }
 
-// ---------------------------------------------------------------------------
-// ICS formatting
-// ---------------------------------------------------------------------------
-
-function formatVEvent(event: LunarEvent, resolved: ResolvedEventYear, dtstamp: string): string {
-  const { year, month, day } = resolved.solarDate;
-  const dtstart = toDateString(year, month, day);
-  const dtend   = nextDay(year, month, day);
-
-  const leapTag = event.isLeapMonth ? ' Nhuận' : '';
-  const summary = escapeText(
-    `${event.title} (Âm ${event.lunarDay}/${event.lunarMonth}${leapTag})`,
-  );
-  const adjustedNote = resolved.adjustedDay
-    ? `\nTháng ${event.lunarMonth} năm nay chỉ có 29 ngày nên sự kiện được đặt vào ngày 29.`
-    : '';
-  const description = escapeText(
-    `Sự kiện âm lịch ngày ${event.lunarDay} tháng ${event.lunarMonth}${leapTag} (năm âm ${resolved.lunarYear})${adjustedNote}\nTạo bởi Lịch Âm Việt Nam`,
-  );
-
+/** Start, end, alarms, location: the lines every VEVENT of `e` shares, for the occurrence on `start`. */
+function bodyLines(e: LunarEvent, start: string): string[] {
+  const last = addDays(start, spanOf(e) - 1);
   const lines = [
-    'BEGIN:VEVENT',
-    foldLine(`UID:${event.id}-${resolved.lunarYear}@lunar-vn`),
-    `DTSTAMP:${dtstamp}`,
-    `DTSTART;VALUE=DATE:${dtstart}`,
-    `DTEND;VALUE=DATE:${dtend}`,
-    foldLine(`SUMMARY:${summary}`),
-    foldLine(`DESCRIPTION:${description}`),
-    'END:VEVENT',
+    `DTSTART${when(e, start, startTimeOf(e))}`,
+    isAllDay(e) ? `DTEND;VALUE=DATE:${compact(addDays(last, 1))}` : `DTEND:${compact(last)}T${hhmmss(endTimeOf(e))}`,
   ];
+  if (e.location) lines.push(foldLine(`LOCATION:${escapeText(e.location)}`));
+  return lines;
+}
 
-  return lines.join('\r\n');
+function alarmLines(e: LunarEvent): string[] {
+  const out: string[] = [];
+  for (const minutes of e.reminders ?? []) {
+    // All day: the reminder base is 08:00, so the trigger counts from midnight (DTSTART).
+    const offset = isAllDay(e) ? 480 - minutes : -minutes;
+    out.push('BEGIN:VALARM', 'ACTION:DISPLAY', foldLine(`DESCRIPTION:${escapeText(e.title)}`), `TRIGGER:${offset < 0 ? '-' : ''}PT${Math.abs(offset)}M`, 'END:VALARM');
+  }
+  return out;
+}
+
+function vevent(uid: string, dtstamp: string, summary: string, description: string, body: string[], extra: string[], e: LunarEvent): string {
+  return [
+    'BEGIN:VEVENT',
+    foldLine(`UID:${uid}@lunar-vn`),
+    `DTSTAMP:${dtstamp}`,
+    ...body,
+    ...extra,
+    foldLine(`SUMMARY:${escapeText(summary)}`),
+    foldLine(`DESCRIPTION:${escapeText(description)}`),
+    ...alarmLines(e),
+    'END:VEVENT',
+  ].join('\r\n');
+}
+
+const BYDAY = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+const notesLine = (e: LunarEvent) => (e.notes ? `\n${e.notes}` : '');
+
+/** One VEVENT with an RRULE (exportsAsRule), or null when the series has no occurrence. */
+function ruleEvent(e: LunarEvent, dtstamp: string): string | null {
+  // DTSTART is the first candidate from the start (exceptions go to EXDATE, and COUNT counts them).
+  const first = e.start
+    ? occurrenceStarts({ ...e, exceptions: [] }, e.start, LAST_DAY)[0]
+    : nextOccurrence({ ...e, exceptions: [] }, isoOf(new Date()).slice(0, 4) + '-01-01');
+  if (!first) return null;
+  const [, m, d] = parts(first);
+  const repeat = repeatOf(e);
+  const extra: string[] = [];
+  if (repeat !== 'none') {
+    let rule = { daily: 'FREQ=DAILY', weekly: `FREQ=WEEKLY;BYDAY=${weekdaysOf(e).slice().sort().map(w => BYDAY[w]).join(',')}`,
+      monthly: `FREQ=MONTHLY;BYMONTHDAY=${d}`, yearly: `FREQ=YEARLY;BYMONTH=${m};BYMONTHDAY=${d}` }[repeat];
+    if (e.until) rule += `;UNTIL=${compact(e.until)}${isAllDay(e) ? '' : 'T235959'}`;
+    else if (e.count && e.start) rule += `;COUNT=${e.count}`;
+    extra.push(`RRULE:${rule}`);
+    const ex = (e.exceptions ?? []).filter(x => x >= first);
+    if (ex.length) extra.push(foldLine(`EXDATE${isAllDay(e) ? ';VALUE=DATE:' : ':'}${ex.map(x => isAllDay(e) ? compact(x) : `${compact(x)}T${hhmmss(startTimeOf(e))}`).join(',')}`));
+  }
+  return vevent(e.id, dtstamp, e.title, `${describeEvent(e)}${notesLine(e)}\nTạo bởi Lịch Âm Việt Nam`, bodyLines(e, first), extra, e);
+}
+
+/** One VEVENT for the occurrence of `e` on `start` (lunar rules, solar days past 28). */
+function occurrenceEvent(e: LunarEvent, start: string, dtstamp: string): string {
+  const monthly = repeatOf(e) === 'monthly';
+  const [y, m, d] = parts(start);
+  if (calendarOf(e) === 'lunar') {
+    const l = lunarOf(start);
+    const leapTag = l.leap ? ' Nhuận' : '';
+    const uid = monthly ? `${e.id}-${l.year}-${l.month}${l.leap ? 'n' : ''}` : `${e.id}-${l.year}`;
+    const about = monthly
+      ? `Sự kiện âm lịch ngày ${e.lunarDay} hằng tháng, tháng ${l.month}${leapTag} (năm âm ${l.year})`
+      : `Sự kiện âm lịch ngày ${e.lunarDay} tháng ${e.lunarMonth}${leapTag} (năm âm ${l.year})`;
+    const adjusted = l.day !== e.lunarDay ? `\nTháng ${l.month} năm nay chỉ có 29 ngày nên sự kiện được đặt vào ngày 29.` : '';
+    return vevent(uid, dtstamp, `${e.title} (Âm ${e.lunarDay}/${l.month}${leapTag})`, `${about}${adjusted}${notesLine(e)}\nTạo bởi Lịch Âm Việt Nam`, bodyLines(e, start), [], e);
+  }
+  const about = monthly ? `Sự kiện dương lịch ngày ${e.lunarDay} hằng tháng` : `Sự kiện dương lịch ngày ${e.lunarDay} tháng ${e.lunarMonth} hằng năm`;
+  const adjusted = d !== e.lunarDay ? `\nTháng ${m} chỉ có ${d} ngày nên sự kiện được đặt vào ngày ${d}.` : '';
+  return vevent(monthly ? `${e.id}-${y}-${m}` : `${e.id}-${y}`, dtstamp, e.title, `${about}${adjusted}${notesLine(e)}\nTạo bởi Lịch Âm Việt Nam`, bodyLines(e, start), [], e);
 }
 
 function wrapVCalendar(vevents: string[]): string {
@@ -193,37 +181,36 @@ function wrapVCalendar(vevents: string[]): string {
 }
 
 // ---------------------------------------------------------------------------
-// Public entry point
+// Public entry points
 // ---------------------------------------------------------------------------
 
+export interface IcsBuild extends ExportSummary { text: string }
+
 /**
- * Generates an ICS file for all saved lunar events across `yearCount` years
- * starting from `startYear`, then triggers a browser download.
+ * The .ics text for `events`: solar series RFC 5545 can express as one VEVENT with an RRULE
+ * (whole series), the rest one VEVENT per occurrence in solar years startYear … +yearCount-1.
  */
-export function generateAndDownloadICS(
-  events: LunarEvent[],
-  startYear: number,
-  yearCount: number,
-): ExportSummary {
-  const dtstamp = utcStamp();
+export function buildICS(events: LunarEvent[], startYear: number, yearCount: number, dtstamp = utcStamp()): IcsBuild {
+  const from = `${startYear}-01-01`;
+  const to = `${startYear + yearCount - 1}-12-31`;
   const vevents: string[] = [];
   const skippedReasons: SkippedEventYear[] = [];
-  let totalEvents = 0;
-
-  for (const event of events) {
-    const results = resolveEventYears(event, startYear, yearCount);
-    for (const result of results) {
-      if (result.skipped === true) {
-        skippedReasons.push(result);
-      } else {
-        vevents.push(formatVEvent(event, result, dtstamp));
-        totalEvents++;
-      }
+  for (const e of events) {
+    if (exportsAsRule(e)) {
+      const v = ruleEvent(e, dtstamp);
+      if (v) vevents.push(v);
+      continue;
     }
+    skippedReasons.push(...skippedYears(e, startYear, yearCount));
+    for (const start of occurrenceStarts(e, from, to)) vevents.push(occurrenceEvent(e, start, dtstamp));
   }
+  return { text: wrapVCalendar(vevents), totalEvents: vevents.length, skippedCount: skippedReasons.length, skippedReasons };
+}
 
-  const icsContent = wrapVCalendar(vevents);
-  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+/** Builds the .ics file (buildICS) and triggers a browser download. */
+export function generateAndDownloadICS(events: LunarEvent[], startYear: number, yearCount: number): ExportSummary {
+  const { text, ...summary } = buildICS(events, startYear, yearCount);
+  const blob = new Blob([text], { type: 'text/calendar;charset=utf-8' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');
   a.href     = url;
@@ -232,6 +219,5 @@ export function generateAndDownloadICS(
   a.click();
   document.body.removeChild(a);
   URL.revokeObjectURL(url);
-
-  return { totalEvents, skippedCount: skippedReasons.length, skippedReasons };
+  return summary;
 }

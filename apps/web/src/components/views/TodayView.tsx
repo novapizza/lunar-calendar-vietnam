@@ -1,6 +1,6 @@
 import { isToday } from 'date-fns';
 import {
-  FaceSlightlyFrowning, StickyNote, Plus, Trash, ThumbsUp, ThumbsDown, Minus,
+  FaceSlightlyFrowning, ThumbsUp, ThumbsDown, Minus,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/utils';
@@ -8,7 +8,9 @@ import { ELEMENTS, type Menh } from '../../lib/menh';
 import { CHI_EMOJI } from '../../constants/calendar';
 import { GioHoangDao } from '../GioHoangDao';
 import { ActivitiesCard } from '../ActivitiesCard';
-import { LunarInfo, UserNote } from '../../types';
+import { LunarEvent, LunarInfo } from '../../types';
+import { DayEvent, eventsOnDay, isoOf } from '../../services/personalEvents';
+import { DayEventsCard } from '../DayEventsCard';
 import { TearOffSheet } from '../TearOffSheet';
 import { InstallBanner } from '../InstallBanner';
 import type { ThemePref } from '../../hooks/useTheme';
@@ -30,11 +32,10 @@ interface Props {
   holiday: string | undefined;
   /** A commemorative day or festival, shown on the sheet when there is no holiday. */
   observance: string | undefined;
-  todayNotes: UserNote[];
-  newNoteContent: string;
-  onNewNoteChange: (v: string) => void;
-  onAddNote: () => void;
-  onDeleteNote: (id: string) => void;
+  /** The user's own events (TearOffSheet names the next sheet's day with them). */
+  personalEvents: LunarEvent[];
+  onOpenEvent: (item: DayEvent) => void;
+  onAddEvent: (day: string) => void;
   /** Opens "Tiện ích", where the birth date is entered. */
   onOpenSettings: () => void;
   onDayChange: (date: Date) => void;
@@ -52,11 +53,9 @@ export function TodayView({
   zodiacClash,
   holiday,
   observance,
-  todayNotes,
-  newNoteContent,
-  onNewNoteChange,
-  onAddNote,
-  onDeleteNote,
+  personalEvents,
+  onOpenEvent,
+  onAddEvent,
   onOpenSettings,
   onDayChange,
   themePref,
@@ -72,7 +71,7 @@ export function TodayView({
       <div className="max-w-5xl xl:max-w-7xl mx-auto px-4 rail:px-8 pt-4 rail:pt-8 pb-10 lg:pb-0 book:pb-0">
 
         {/* Two parts: A the date (the tear-off sheet) and the day's cards (assessment,
-            activities, giờ hoàng đạo, notes) in one flow.
+            events, activities, giờ hoàng đạo) in one flow.
             < 840px: one column. lg 840px: A | cards. xl 1200px: A | cards over two thirds.
             The cards are CSS columns at least 20rem wide: one column where only that fits,
             two where there is room, balanced by the browser, so no card waits in a row of its
@@ -99,6 +98,7 @@ export function TodayView({
             lunarInfo={lunarInfo}
             holiday={holiday}
             observance={observance}
+            personalEvents={personalEvents}
             onDayChange={onDayChange}
             themePref={themePref}
             onCycleTheme={onCycleTheme}
@@ -148,42 +148,11 @@ export function TodayView({
               )}
             </section>
 
+            <DayEventsCard items={eventsOnDay(personalEvents, isoOf(today))} onOpen={onOpenEvent} onAdd={() => onAddEvent(isoOf(today))} />
+
             <ActivitiesCard info={lunarInfo} />
 
             <GioHoangDao hours={lunarInfo.gioHoangDao} currentHour={viewingToday ? currentTraditionalHour : null} />
-
-            {/* Notes */}
-            <section className="card p-4">
-              <h2 className="section-label mb-3 flex items-center gap-1.5">
-                <StickyNote size={13} /> Ghi chú
-              </h2>
-              {todayNotes.length > 0 && (
-                <ul className="flex flex-col gap-2 mb-3">
-                  {todayNotes.map(note => (
-                    <li key={note.id} className="group flex items-start gap-2 rounded-xl bg-gold-soft px-3 py-2.5">
-                      <p className="flex-1 text-sm text-fg whitespace-pre-wrap break-words">{note.content}</p>
-                      <button
-                        onClick={() => onDeleteNote(note.id)}
-                        aria-label="Xoá ghi chú"
-                        className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 transition"
-                      >
-                        <Trash size={15} />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <textarea
-                value={newNoteContent}
-                onChange={e => onNewNoteChange(e.target.value)}
-                placeholder="Thêm ghi chú cho ngày này…"
-                rows={2}
-                className="field resize-none"
-              />
-              <button onClick={onAddNote} disabled={!newNoteContent.trim()} className="btn-primary w-full mt-2">
-                <Plus size={16} /> Lưu ghi chú
-              </button>
-            </section>
         </div>
         </div>
         </div>

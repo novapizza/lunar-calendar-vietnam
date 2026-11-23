@@ -1,0 +1,99 @@
+{
+  "about": "Personal event dates both apps must reproduce (shared/design/events.md). Made with the web app's personalEvents.ts on 2026-11-23 and checked by hand (Tết 2026 = 17/2, leap month 6 in 2025, 23/11/2026 a Monday); check, do not regenerate blindly. starts: occurrenceStarts(event, range.from, range.to). covering: occurrences covering one day. reminders.fires: [event id, occurrence start, minutes, local fire time] for fires in [from, to).",
+  "range": { "from": "2024-01-01", "to": "2028-12-31" },
+  "cases": [
+    {
+      "name": "old lunar yearly 10/3 (no calendar, no repeat)",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 3, "lunarDay": 10 },
+      "starts": ["2024-04-18", "2025-04-07", "2026-04-26", "2027-04-16", "2028-04-04"]
+    },
+    {
+      "name": "lunar yearly 30/12 (falls on 29 in short years)",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 12, "lunarDay": 30, "calendar": "lunar", "repeat": "yearly" },
+      "starts": ["2024-02-09", "2025-01-28", "2026-02-16", "2027-02-05", "2028-01-25"]
+    },
+    {
+      "name": "lunar yearly 15/6 leap",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": true, "lunarMonth": 6, "lunarDay": 15, "calendar": "lunar", "repeat": "yearly" },
+      "starts": ["2025-08-08"]
+    },
+    {
+      "name": "lunar monthly 30",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 1, "lunarDay": 30, "calendar": "lunar", "repeat": "monthly" },
+      "starts": [
+        "2024-01-10", "2024-02-09", "2024-03-09", "2024-04-08", "2024-05-07", "2024-06-05", "2024-07-05", "2024-08-03",
+        "2024-09-02", "2024-10-02", "2024-10-31", "2024-11-30", "2024-12-30", "2025-01-28", "2025-02-27", "2025-03-28",
+        "2025-04-27", "2025-05-26", "2025-06-24", "2025-07-24", "2025-08-22", "2025-09-21", "2025-10-20", "2025-11-19",
+        "2025-12-19", "2026-01-18", "2026-02-16", "2026-03-18", "2026-04-16", "2026-05-16", "2026-06-14", "2026-07-13",
+        "2026-08-12", "2026-09-10", "2026-10-09", "2026-11-08", "2026-12-08", "2027-01-07", "2027-02-05", "2027-03-07",
+        "2027-04-06", "2027-05-05", "2027-06-04", "2027-07-03", "2027-08-01", "2027-08-31", "2027-09-29", "2027-10-28",
+        "2027-11-27", "2027-12-27", "2028-01-25", "2028-02-24", "2028-03-25", "2028-04-24", "2028-05-23", "2028-06-22",
+        "2028-07-21", "2028-08-19", "2028-09-18", "2028-10-17", "2028-11-15", "2028-12-15"
+      ]
+    },
+    {
+      "name": "lunar monthly 1 from 2025-06-01 count 8",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 1, "lunarDay": 1, "calendar": "lunar", "repeat": "monthly", "start": "2025-06-01", "count": 8 },
+      "starts": ["2025-06-25", "2025-07-25", "2025-08-23", "2025-09-22", "2025-10-21", "2025-11-20", "2025-12-20", "2026-01-19"]
+    },
+    {
+      "name": "solar yearly 29/2",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 2, "lunarDay": 29, "calendar": "solar", "repeat": "yearly" },
+      "starts": ["2024-02-29", "2025-02-28", "2026-02-28", "2027-02-28", "2028-02-29"]
+    },
+    {
+      "name": "solar monthly 31 until 2025-06-30",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 1, "lunarDay": 31, "calendar": "solar", "repeat": "monthly", "until": "2025-06-30" },
+      "starts": [
+        "2024-01-31", "2024-02-29", "2024-03-31", "2024-04-30", "2024-05-31", "2024-06-30", "2024-07-31", "2024-08-31",
+        "2024-09-30", "2024-10-31", "2024-11-30", "2024-12-31", "2025-01-31", "2025-02-28", "2025-03-31", "2025-04-30",
+        "2025-05-31", "2025-06-30"
+      ]
+    },
+    {
+      "name": "solar yearly 25/11 from 2026-11-25 with exception 2027-11-25",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 11, "lunarDay": 25, "calendar": "solar", "repeat": "yearly", "start": "2026-11-25", "exceptions": ["2027-11-25"] },
+      "starts": ["2026-11-25", "2028-11-25"]
+    },
+    {
+      "name": "none 2026-12-24",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 12, "lunarDay": 24, "calendar": "solar", "repeat": "none", "start": "2026-12-24" },
+      "starts": ["2026-12-24"]
+    },
+    {
+      "name": "daily from 2026-11-20 count 5",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 11, "lunarDay": 20, "calendar": "solar", "repeat": "daily", "start": "2026-11-20", "count": 5 },
+      "starts": ["2026-11-20", "2026-11-21", "2026-11-22", "2026-11-23", "2026-11-24"]
+    },
+    {
+      "name": "weekly Mon+Thu from 2026-11-23 until 2026-12-31 minus 2026-12-03",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 11, "lunarDay": 23, "calendar": "solar", "repeat": "weekly", "start": "2026-11-23", "weekdays": [0, 3], "until": "2026-12-31", "exceptions": ["2026-12-03"] },
+      "starts": ["2026-11-23", "2026-11-26", "2026-11-30", "2026-12-07", "2026-12-10", "2026-12-14", "2026-12-17", "2026-12-21", "2026-12-24", "2026-12-28", "2026-12-31"]
+    },
+    {
+      "name": "weekly default weekday from 2026-11-25 count 4",
+      "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 11, "lunarDay": 25, "calendar": "solar", "repeat": "weekly", "start": "2026-11-25", "count": 4 },
+      "starts": ["2026-11-25", "2026-12-02", "2026-12-09", "2026-12-16"]
+    }
+  ],
+  "covering": {
+    "event": { "id": "x", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 11, "lunarDay": 25, "calendar": "solar", "repeat": "weekly", "start": "2026-11-18", "weekdays": [2], "days": 3 },
+    "day": "2026-11-26",
+    "starts": ["2026-11-25"]
+  },
+  "reminders": {
+    "from": "2026-11-20 00:00",
+    "to": "2026-12-31 00:00",
+    "events": [
+      { "id": "r1", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 11, "lunarDay": 25, "calendar": "solar", "repeat": "none", "start": "2026-11-25", "allDay": false, "startTime": "09:30", "endTime": "10:00", "reminders": [0, 15, 1440] },
+      { "id": "r2", "title": "t", "createdAt": 0, "isLeapMonth": false, "lunarMonth": 1, "lunarDay": 10, "calendar": "lunar", "repeat": "monthly", "reminders": [0, 1440] }
+    ],
+    "fires": [
+      ["r1", "2026-11-25", 1440, "2026-11-24 09:30"],
+      ["r1", "2026-11-25", 15, "2026-11-25 09:15"],
+      ["r1", "2026-11-25", 0, "2026-11-25 09:30"],
+      ["r2", "2026-12-18", 1440, "2026-12-17 08:00"],
+      ["r2", "2026-12-18", 0, "2026-12-18 08:00"]
+    ]
+  }
+}

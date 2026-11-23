@@ -40,6 +40,7 @@ import androidx.glance.unit.ColorProvider
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.R
 import io.github.novapizza.licham.Tab
+import io.github.novapizza.licham.core.PersonalEvents
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.isSunday
@@ -57,7 +58,9 @@ class TodaySheetWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val look = WidgetLook.of(context)
-        provideContent { Sheet(look, AppState.today()) }
+        val today = AppState.today()
+        val own = PersonalEvents.on(AppState(context.applicationContext).lunarEvents, today).firstOrNull()?.title
+        provideContent { Sheet(look, today, own) }
     }
 }
 
@@ -77,7 +80,7 @@ private val WHITE_70 = ColorProvider(Color.White.copy(alpha = 0.7f))
 private val WHITE_55 = ColorProvider(Color.White.copy(alpha = 0.55f))
 
 @Composable
-private fun Sheet(look: WidgetLook, d: SolarDate) {
+private fun Sheet(look: WidgetLook, d: SolarDate, own: String?) {
     val context = LocalContext.current
     val size = LocalSize.current
     val info = DayInfo.of(d)
@@ -88,7 +91,7 @@ private fun Sheet(look: WidgetLook, d: SolarDate) {
     if (w <= h * 1.05f) {
         val density = context.resources.displayMetrics.density
         val bitmap = SheetPainter(context, look.now(context))
-            .paint(d, info, (size.width.value * density).toInt(), (size.height.value * density).toInt())
+            .paint(d, info, (size.width.value * density).toInt(), (size.height.value * density).toInt(), nameOf(info, own))
         Image(
             ImageProvider(bitmap),
             contentDescription = "${d.weekdayName()}, ${d.day}/${d.month}/${d.year}, âm lịch ${info.lunar.day}/${info.lunar.month}",
@@ -108,18 +111,17 @@ private fun Sheet(look: WidgetLook, d: SolarDate) {
                 contentAlignment = Alignment.Center,
             ) {
                 // Wider than tall: the solar day on the left, the lunar date on the right.
-                Landscape(d, info, w, h)
+                Landscape(d, info, w, h, nameOf(info, own))
             }
         }
     }
 }
 
-/** The sheet's name line: holiday, else commemorative day / festival, else "Mồng 1" / "Ngày rằm". */
-private fun nameOf(info: DayInfo) = info.holiday ?: info.observance ?: lunarDayLabel(info.lunar)
+/** The sheet's name line: holiday, else the user's own event, else commemorative day / festival, else "Mồng 1" / "Ngày rằm". */
+private fun nameOf(info: DayInfo, own: String?) = info.holiday ?: own ?: info.observance ?: lunarDayLabel(info.lunar)
 
 @Composable
-private fun Landscape(d: SolarDate, info: DayInfo, w: Float, h: Float) {
-    val name = nameOf(info)
+private fun Landscape(d: SolarDate, info: DayInfo, w: Float, h: Float, name: String?) {
     Row(GlanceModifier.fillMaxSize(), verticalAlignment = Alignment.CenterVertically) {
         Column(GlanceModifier.defaultWeight(), horizontalAlignment = Alignment.CenterHorizontally) {
             Text(

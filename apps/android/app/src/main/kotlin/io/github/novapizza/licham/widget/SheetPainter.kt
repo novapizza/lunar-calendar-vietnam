@@ -18,7 +18,6 @@ import io.github.novapizza.licham.R
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.isSunday
-import io.github.novapizza.licham.core.lunarDayLabel
 import io.github.novapizza.licham.core.weekOfYear
 import io.github.novapizza.licham.ui.LUNAR_MONTH_NAMES
 import io.github.novapizza.licham.ui.LichAmColors
@@ -40,7 +39,8 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
 
     private val accent = c.heroAccent
 
-    fun paint(d: SolarDate, info: DayInfo, widthPx: Int, heightPx: Int): Bitmap {
+    /** [name]: the day's name line (TodaySheetWidget's nameOf: holiday, the user's own event, …). */
+    fun paint(d: SolarDate, info: DayInfo, widthPx: Int, heightPx: Int, name: String?): Bitmap {
         val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
         val cv = Canvas(bmp)
         val aspect = heightPx.toFloat() / widthPx
@@ -58,13 +58,13 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
         }
         val s = widthPx / w
         cv.scale(s, s)
-        drawSheet(cv, d, info, w, layout, extra)
+        drawSheet(cv, d, info, w, layout, extra, name)
         return bmp
     }
 
     private fun argb(color: Color, alpha: Float = 1f) = color.copy(alpha = color.alpha * alpha).toArgb()
 
-    private fun drawSheet(cv: Canvas, d: SolarDate, info: DayInfo, W: Float, row: LunarRow, extra: Float) {
+    private fun drawSheet(cv: Canvas, d: SolarDate, info: DayInfo, W: Float, row: LunarRow, extra: Float, name: String?) {
         val paperTop = BINDING
         val paperH = paperHeight(row.height) + extra
         val paperBottom = BINDING + paperH
@@ -146,7 +146,6 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
 
         // The day's name in italic gold.
         y += 8f
-        val name = info.holiday ?: info.observance ?: lunarDayLabel(info.lunar)
         if (name != null) text(cv, name, cx, y, 24f, 16f, playfairItalic, argb(accent), maxWidth = right - left, wght = 400)
         y += 24f
 

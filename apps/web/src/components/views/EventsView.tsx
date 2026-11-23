@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Moon, Sun, CalendarX2 } from 'lucide-react';
+import { Moon, Sun, CalendarX2, CalendarHeart, Plus, Clock } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { getEventsOfMonth, LAST_EVENT_DAY } from '../../services/lunarService';
-import { UpcomingEvent } from '../../types';
+import { LunarEvent, UpcomingEvent } from '../../types';
+import { isoOf, personalUpcoming } from '../../services/personalEvents';
+import { EVENT_COLORS } from '../../lib/eventColors';
 
 function countdown(days: number): string {
   if (days === 0) return 'Hôm nay';
@@ -14,7 +16,7 @@ function countdown(days: number): string {
   return `${days} ngày nữa`;
 }
 
-const KIND_LABEL = { observance: 'Kỷ niệm', festival: 'Lễ hội' } as const;
+const KIND_LABEL = { observance: 'Kỷ niệm', festival: 'Lễ hội', personal: 'Của bạn' } as const;
 
 /** Months loaded at least: this month and the next three, so three months from today or more. */
 const MIN_MONTHS = 4;
@@ -27,23 +29,33 @@ const LOAD_AHEAD = 600;
  * screen is full, then as the list nears the bottom of the screen, up to the end of the lunar
  * tables (2099).
  */
-export function EventsView() {
+interface Props {
+  /** The user's own events, listed with the holidays (first on their day). */
+  personalEvents: LunarEvent[];
+  onOpenPersonalEvents: () => void;
+  /** Opens a personal event's detail (its occurrence on `day`). */
+  onOpenEvent: (eventId: string, day: string) => void;
+}
+
+export function EventsView({ personalEvents, onOpenPersonalEvents, onOpenEvent }: Props) {
   const today = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
     return t;
   }, []);
   const [count, setCount] = useState(1);
-  const cache = useRef(new Map<number, UpcomingEvent[]>());
+  // Loaded months, computed again when the personal events change.
+  const cache = useMemo(() => new Map<number, UpcomingEvent[]>(), [personalEvents]);
   const events = useMemo(() => {
+    const personal = (d: Date, daysUntil: number) => personalUpcoming(personalEvents, d, daysUntil);
     const out: UpcomingEvent[] = [];
     for (let i = 0; i < count; i++) {
-      let month = cache.current.get(i);
-      if (!month) cache.current.set(i, (month = getEventsOfMonth(today, i)));
+      let month = cache.get(i);
+      if (!month) cache.set(i, (month = getEventsOfMonth(today, i, personal)));
       out.push(...month);
     }
     return out;
-  }, [count, today]);
+  }, [count, today, cache, personalEvents]);
   const ended = new Date(today.getFullYear(), today.getMonth() + count, 1) > LAST_EVENT_DAY;
   // This month's past days are listed too (dimmed); the highlight is the next event from today.
   const next = events.find(e => e.daysUntil >= 0);
@@ -90,9 +102,15 @@ export function EventsView() {
             the fold). */}
         <div className="grid grid-cols-1 gap-y-6 items-start lg:grid-cols-2 lg:gap-x-6 book:grid-cols-2 book:gap-x-4">
           <div className="min-w-0 lg:col-span-2 book:col-span-2">
-            <header className="mb-4 rail:mb-6">
-              <p className="section-label">Sắp diễn ra</p>
-              <h1 className="text-2xl rail:text-3xl font-extrabold text-fg">Ngày lễ & sự kiện</h1>
+            <header className="mb-4 rail:mb-6 flex items-end justify-between gap-3">
+              <div className="min-w-0">
+                <p className="section-label">Sắp diễn ra</p>
+                <h1 className="text-2xl rail:text-3xl font-extrabold text-fg">Ngày lễ & sự kiện</h1>
+              </div>
+              <button onClick={onOpenPersonalEvents} className="btn-soft shrink-0 px-3 py-2 text-sm">
+                {personalEvents.length ? <CalendarHeart size={16} /> : <Plus size={16} />}
+                {personalEvents.length ? `Của bạn (${personalEvents.length})` : 'Thêm sự kiện'}
+              </button>
             </header>
 
             {!next ? (
@@ -133,10 +151,14 @@ export function EventsView() {
               <h2 className="section-label mb-2 px-1">{month}</h2>
               <ul className="card divide-y divide-line overflow-hidden">
                 {list.map(event => (
-                  <li key={`${event.title}-${event.solarDate.getTime()}`} className={cn('flex items-center gap-3 px-4 py-3', event.daysUntil < 0 && 'opacity-55')}>
+                  <li
+                    key={`${event.eventId ?? event.title}-${event.solarDate.getTime()}`}
+                    {...(event.eventId ? { role: 'button', tabIndex: 0, onClick: () => onOpenEvent(event.eventId!, isoOf(event.solarDate)), onKeyDown: (k: React.KeyboardEvent) => k.key === 'Enter' && onOpenEvent(event.eventId!, isoOf(event.solarDate)) } : {})}
+                    className={cn('flex items-center gap-3 px-4 py-3', event.daysUntil < 0 && 'opacity-55', event.eventId && 'cursor-pointer hover:bg-surface-2')}
+                  >
                     <div className={cn(
                       'w-12 h-12 shrink-0 rounded-2xl flex flex-col items-center justify-center',
-                      event.source === 'lunar' ? 'bg-lunar-soft text-lunar' : 'bg-brand-soft text-brand',
+                      event.color ? `${EVENT_COLORS[event.color].soft} ${EVENT_COLORS[event.color].text}` : event.source === 'lunar' ? 'bg-lunar-soft text-lunar' : 'bg-brand-soft text-brand',
                     )}>
                       <span className="text-lg font-extrabold leading-none tabular-nums">{format(event.solarDate, 'd')}</span>
                       <span className="text-[10px] font-semibold mt-0.5 capitalize">{format(event.solarDate, 'EEEEEE', { locale: vi })}</span>
@@ -144,9 +166,11 @@ export function EventsView() {
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-fg leading-snug">{event.title}</p>
                       <p className="mt-0.5 flex items-center gap-1 text-xs text-fg-2">
-                        {event.source === 'lunar'
-                          ? <><Moon size={11} className="text-gold fill-current" /> {event.lunarDay}/{event.lunarMonth} âm lịch</>
-                          : <><Sun size={11} className="text-gold" /> Dương lịch</>}
+                        {event.time
+                          ? <><Clock size={11} className="text-gold" /> {event.time}</>
+                          : event.source === 'lunar'
+                            ? <><Moon size={11} className="text-gold fill-current" /> {event.lunarDay}/{event.lunarMonth} âm lịch</>
+                            : <><Sun size={11} className="text-gold" /> Dương lịch</>}
                         {event.kind && <span className="text-fg-3">· {KIND_LABEL[event.kind]}</span>}
                       </p>
                     </div>

@@ -9,14 +9,17 @@ import {
 import { vi } from 'date-fns/locale';
 import {
   ChevronLeft, ChevronRight, ChevronDown,
-  StickyNote, Flag, FaceSlightlyFrowning,
-  Search, CalendarSearch, Download, Plus, Trash, ThumbsUp, ThumbsDown, Minus, Undo2,
+  Flag, FaceSlightlyFrowning,
+  Search, CalendarSearch, Download, ThumbsUp, ThumbsDown, Minus, Undo2,
   Sparkles, Landmark, Moon,
 } from 'lucide-react';
 import { cn } from '../../lib/utils';
 import { WEEK_DAYS, CHI_NAMES } from '../../constants/calendar';
 import { getLunarInfo, getHoliday, getObservances, getLunarDayLabel, LUNAR_MONTH_NAMES } from '../../services/lunarService';
-import { LunarInfo, UserNote } from '../../types';
+import { LunarEvent, LunarInfo } from '../../types';
+import { DayEvent, colorOf, eventsOnDay, isoOf, personalEventsOn } from '../../services/personalEvents';
+import { EVENT_COLORS } from '../../lib/eventColors';
+import { DayEventsCard } from '../DayEventsCard';
 import { useSwipe } from '../../hooks/useSwipe';
 import { useStickyWeeks } from '../../hooks/useStickyWeeks';
 import { GioHoangDao } from '../GioHoangDao';
@@ -27,15 +30,15 @@ interface Props {
   /** Chi of the hour now (highlighted in Giờ hoàng đạo when today is selected). */
   currentTraditionalHour: string;
   selectedDate: Date;
-  notes: UserNote[];
+  /** The user's own events: a gold dot like a note, the name in large cells, a line in the day panel. */
+  personalEvents: LunarEvent[];
+  /** Opens an event's detail (an occurrence starting on `start`). */
+  onOpenEvent: (item: DayEvent) => void;
+  /** Opens the editor for a new event on `day`. */
+  onAddEvent: (day: string) => void;
   userZodiac: string | null;
   selectedLunarInfo: LunarInfo;
   holiday: string | undefined;
-  selectedDateNotes: UserNote[];
-  newNoteContent: string;
-  onNewNoteChange: (v: string) => void;
-  onAddNote: () => void;
-  onDeleteNote: (id: string) => void;
   /** Show the month of `date`; the selected day moves into that month too. */
   onShowMonth: (date: Date) => void;
   onSelectedDateChange: (date: Date) => void;
@@ -71,15 +74,12 @@ export function CalendarView({
   currentTraditionalHour,
   currentDate,
   selectedDate,
-  notes,
+  personalEvents,
+  onOpenEvent,
+  onAddEvent,
   userZodiac,
   selectedLunarInfo,
   holiday,
-  selectedDateNotes,
-  newNoteContent,
-  onNewNoteChange,
-  onAddNote,
-  onDeleteNote,
   onShowMonth,
   onSelectedDateChange,
   onOpenQuickPicker,
@@ -94,19 +94,21 @@ export function CalendarView({
       start: startOfWeek(monthStart, { weekStartsOn: 1 }),
       end:   endOfWeek(endOfMonth(monthStart), { weekStartsOn: 1 }),
     });
-    const noteDates = new Set(notes.map(n => n.date));
     const cells = days.map(day => {
       const lunar = getLunarInfo(day);
+      const own = personalEventsOn(personalEvents, day);
       return {
         day,
         lunar,
         holiday: getHoliday(lunar.lunarDay, lunar.lunarMonth, day.getDate(), day.getMonth() + 1, day.getFullYear()),
-        hasNote: noteDates.has(format(day, 'yyyy-MM-dd')),
+        personal: own[0]?.title,
+        // The dot beside the solar day: the first event's colour.
+        dot: own.length ? EVENT_COLORS[colorOf(own[0])].dot : null,
         clash: clashes(userZodiac, lunar),
       };
     });
     return Array.from({ length: cells.length / 7 }, (_, i) => cells.slice(i * 7, i * 7 + 7));
-  }, [monthStart.getTime(), notes, userZodiac]);
+  }, [monthStart.getTime(), personalEvents, userZodiac]);
 
   // "Tháng 9 – 10 âm lịch · Bính Ngọ" for the header subtitle
   const lunarSubtitle = useMemo(() => {
@@ -141,7 +143,9 @@ export function CalendarView({
   // Everything the Today page shows for a day, so the panel is the same day in short: its
   // commemorative days and festivals, and "Mồng 1" / "Ngày rằm" when the day has no name.
   const observances = getObservances(selectedLunarInfo.lunarDay, selectedLunarInfo.lunarMonth, selectedDate);
-  const lunarDayLabel = holiday || observances.length ? null : getLunarDayLabel(selectedLunarInfo.lunarDay, selectedLunarInfo.lunarMonth);
+  const dayEvents = eventsOnDay(personalEvents, isoOf(selectedDate));
+  const ownEvents = dayEvents.map(x => x.event);
+  const lunarDayLabel = holiday || observances.length || ownEvents.length ? null : getLunarDayLabel(selectedLunarInfo.lunarDay, selectedLunarInfo.lunarMonth);
   const lunarMonthName = LUNAR_MONTH_NAMES[Math.abs(selectedLunarInfo.lunarMonth) - 1];
   const selectedClash = clashes(userZodiac, selectedLunarInfo);
   const showingThisMonth = isSameMonth(currentDate, new Date());
@@ -237,7 +241,7 @@ export function CalendarView({
               >
                 {getWeek(week[0].day, { weekStartsOn: 1, locale: vi })}
               </div>,
-              ...week.map(({ day, lunar, holiday: dayHoliday, hasNote, clash }) => {
+              ...week.map(({ day, lunar, holiday: dayHoliday, personal, dot, clash }) => {
                 const selected = isSameDay(day, selectedDate);
                 const today    = isToday(day);
                 const inMonth  = isSameMonth(day, monthStart);
@@ -274,8 +278,8 @@ export function CalendarView({
                       )}
                     >
                       {format(day, 'd')}
-                      {hasNote && (
-                        <span className={cn(DOT_SLOT, DOT, 'bg-gold')} aria-hidden="true" />
+                      {dot && (
+                        <span className={cn(DOT_SLOT, DOT, dot)} aria-hidden="true" />
                       )}
                     </span>
                     {/* Lunar day; day-quality and zodiac-clash dots (both from the lunar day) to its right. */}
@@ -301,9 +305,9 @@ export function CalendarView({
                         </span>
                       )}
                     </span>
-                    {dayHoliday && (
-                      <span className="hidden @min-[88px]:block w-full px-1.5 mt-0.5 text-[10px] font-semibold text-lunar leading-tight truncate text-center">
-                        {dayHoliday}
+                    {(dayHoliday || personal) && (
+                      <span className={cn('hidden @min-[88px]:block w-full px-1.5 mt-0.5 text-[10px] font-semibold leading-tight truncate text-center', dayHoliday ? 'text-lunar' : 'text-gold')}>
+                        {dayHoliday ?? personal}
                       </span>
                     )}
                   </button>
@@ -316,14 +320,14 @@ export function CalendarView({
           <div data-legend className="flex flex-wrap justify-center gap-x-4 gap-y-1 pt-3 pb-1 text-[11px] text-fg-2">
             <Legend className="bg-good" label="Ngày tốt" />
             <Legend className="bg-bad/70" label="Ngày xấu" />
-            <Legend className="bg-gold" label="Ghi chú" />
+            <Legend className="bg-gold" label="Sự kiện" />
             {userZodiac && <Legend className="bg-clash" label="Xung tuổi" />}
           </div>
           </div>
         </section>
 
         {/* Selected-day panel. Phones: cards stacked. book: the whole right pane. stack: two columns (day card on the
-            left, activities + hours + notes on the right). wide: a column beside the calendar, 18rem
+            left, activities + events + hours on the right). wide: a column beside the calendar, 18rem
             wide and growing to 32rem once the calendar has reached its cap. */}
         <aside className="mt-4 flex flex-col gap-3 book:mt-0 book:col-start-2 book:row-start-1 book:row-span-2 book:overflow-y-auto book:px-2 book:pb-4 book:pt-[calc(env(safe-area-inset-top)+0.75rem)] stack:grid stack:grid-cols-2 stack:items-start stack:gap-4 wide:mt-0 wide:flex-[1_0_18rem] wide:max-w-[32rem] wide:min-w-0 wide:overflow-y-auto no-scrollbar">
           <section className="card p-4 stack:row-span-3">
@@ -386,42 +390,14 @@ export function CalendarView({
             </div>
           </section>
 
+          <DayEventsCard items={dayEvents} onOpen={onOpenEvent} onAdd={() => onAddEvent(isoOf(selectedDate))} />
+
           <ActivitiesCard info={selectedLunarInfo} />
 
           <GioHoangDao
             hours={selectedLunarInfo.gioHoangDao}
             currentHour={isToday(selectedDate) ? currentTraditionalHour : null}
           />
-
-          <section className="card p-4">
-            <p className="section-label mb-2 flex items-center gap-1.5"><StickyNote size={13} /> Ghi chú</p>
-            {selectedDateNotes.length > 0 && (
-              <ul className="flex flex-col gap-2 mb-2">
-                {selectedDateNotes.map(note => (
-                  <li key={note.id} className="group flex items-start gap-2 rounded-xl bg-gold-soft px-3 py-2">
-                    <p className="flex-1 text-sm text-fg whitespace-pre-wrap break-words">{note.content}</p>
-                    <button
-                      onClick={() => onDeleteNote(note.id)}
-                      aria-label="Xoá ghi chú"
-                      className="-m-1.5 p-1.5 rounded-lg text-fg-3 hover:text-bad pointer-fine:opacity-0 pointer-fine:group-hover:opacity-100 focus-visible:opacity-100 transition"
-                    >
-                      <Trash size={14} />
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <textarea
-              value={newNoteContent}
-              onChange={e => onNewNoteChange(e.target.value)}
-              placeholder="Thêm ghi chú…"
-              rows={2}
-              className="field resize-none"
-            />
-            <button onClick={onAddNote} disabled={!newNoteContent.trim()} className="btn-primary w-full mt-2">
-              <Plus size={16} /> Lưu
-            </button>
-          </section>
         </aside>
       </div>
     </div>

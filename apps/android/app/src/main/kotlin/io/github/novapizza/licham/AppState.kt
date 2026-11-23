@@ -6,9 +6,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.novapizza.licham.core.AccentPref
 import io.github.novapizza.licham.core.CalendarData
+import io.github.novapizza.licham.core.DayEvent
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.Element
 import io.github.novapizza.licham.core.LunarEvent
+import io.github.novapizza.licham.core.PersonalEvents
 import io.github.novapizza.licham.core.Menh
 import io.github.novapizza.licham.core.MenhCalc
 import io.github.novapizza.licham.core.SolarDate
@@ -29,7 +31,13 @@ enum class Tab { TODAY, CALENDAR, EVENTS, TOOLS }
 enum class ThemePref { SYSTEM, LIGHT, DARK }
 
 /** Popups ("sheets"), as in the web app. */
-enum class SheetKind { MONTH_PICKER, QUICK_DATE, AUSPICIOUS, LUNAR_EVENTS, ABOUT, BIRTH_DATE }
+enum class SheetKind { MONTH_PICKER, QUICK_DATE, AUSPICIOUS, LUNAR_EVENTS, PERSONAL_EVENTS, EVENT_EDITOR, EVENT_DETAIL, ABOUT, BIRTH_DATE }
+
+/** What the event editor opens on: an event ([id], null = a new one) and the day it was opened from; [onlyThis] = that occurrence alone. */
+data class EventEditTarget(val id: String?, val day: SolarDate, val onlyThis: Boolean = false)
+
+/** The occurrence the event detail shows: the event and the occurrence's start day. */
+data class EventRef(val id: String, val start: SolarDate)
 
 /**
  * Everything the screens read and change. Persisted in SharedPreferences with the
@@ -37,14 +45,21 @@ enum class SheetKind { MONTH_PICKER, QUICK_DATE, AUSPICIOUS, LUNAR_EVENTS, ABOUT
  * accent and theme preferences).
  */
 class AppState(context: Context) {
+    private val app = context.applicationContext
     private val prefs = context.getSharedPreferences("licham", Context.MODE_PRIVATE)
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = JSON
 
     private fun <T> read(key: String, decode: (String) -> T, default: T): T =
         prefs.getString(key, null)?.let { runCatching { decode(it) }.getOrNull() } ?: default
 
     var tab by mutableStateOf(Tab.TODAY)
     var sheet by mutableStateOf<SheetKind?>(null)
+    /** Sheets under the one shown (the events list under an event's detail under its editor): closing one shows the one below. */
+    private var sheetStack = emptyList<SheetKind>()
+    var editTarget by mutableStateOf<EventEditTarget?>(null)
+        private set
+    var detailRef by mutableStateOf<EventRef?>(null)
+        private set
 
     var selectedDate by mutableStateOf(today())
         private set
@@ -52,9 +67,7 @@ class AppState(context: Context) {
     var shownMonth by mutableStateOf(today().let { SolarDate(it.year, it.month, 1) })
         private set
 
-    var notes by mutableStateOf(read("userNotes", { json.decodeFromString(ListSerializer(UserNote.serializer()), it) }, emptyList()))
-        private set
-    var lunarEvents by mutableStateOf(read("lunarEvents", { json.decodeFromString(ListSerializer(LunarEvent.serializer()), it) }, emptyList()))
+    var lunarEvents by mutableStateOf(readEvents(prefs))
         private set
     var enabledPresets by mutableStateOf(read("lunarPresets", { json.decodeFromString(SetSerializer(String.serializer()), it) }, emptySet()))
         private set
@@ -71,7 +84,39 @@ class AppState(context: Context) {
     val selectedInfo: DayInfo get() = DayInfo.of(selectedDate)
     val exportEvents: List<LunarEvent> get() = presetEvents(enabledPresets) + lunarEvents
 
-    fun notesOn(date: SolarDate): List<UserNote> = notes.filter { it.date == date.toString() }
+    /** The user's own events covering [date]: all-day ones first, then by start time. */
+    fun personalOn(date: SolarDate): List<DayEvent> = PersonalEvents.eventsOnDay(lunarEvents, date)
+    fun eventById(id: String): LunarEvent? = lunarEvents.firstOrNull { it.id == id }
+
+    // ---- sheets -------------------------------------------------------------
+
+    /** Shows [kind] over the sheet open now, which comes back when [kind] closes. */
+    fun pushSheet(kind: SheetKind) {
+        sheet?.let { if (it != kind) sheetStack = sheetStack + it }
+        sheet = kind
+    }
+
+    /** Closes the sheet shown: the one under it comes back. */
+    fun closeSheet() {
+        sheet = sheetStack.lastOrNull()
+        sheetStack = sheetStack.dropLast(1)
+    }
+
+    fun closeAllSheets() {
+        sheetStack = emptyList()
+        sheet = null
+    }
+
+    /** The event editor: a new event on [day] ([id] null), the series [id], or its occurrence on [day] alone. */
+    fun openEditor(id: String?, day: SolarDate, onlyThis: Boolean = false) {
+        editTarget = EventEditTarget(id, day, onlyThis)
+        pushSheet(SheetKind.EVENT_EDITOR)
+    }
+
+    fun openDetail(id: String, start: SolarDate) {
+        detailRef = EventRef(id, start)
+        pushSheet(SheetKind.EVENT_DETAIL)
+    }
 
     // ---- navigation -------------------------------------------------------
 
@@ -97,34 +142,45 @@ class AppState(context: Context) {
         shownMonth = SolarDate(year, month, 1)
     }
 
-    // ---- notes ------------------------------------------------------------
+    // ---- personal events -------------------------------------------------
 
-    fun addNote(date: SolarDate, content: String) {
-        val text = content.trim()
-        if (text.isEmpty()) return
-        notes = notes + UserNote(UUID.randomUUID().toString(), date.toString(), text, System.currentTimeMillis())
-        save("userNotes", json.encodeToString(ListSerializer(UserNote.serializer()), notes))
-    }
-
-    fun deleteNote(id: String) {
-        notes = notes.filterNot { it.id == id }
-        save("userNotes", json.encodeToString(ListSerializer(UserNote.serializer()), notes))
-    }
-
-    // ---- lunar events -----------------------------------------------------
-
-    fun saveLunarEvent(id: String?, title: String, day: Int, month: Int, leap: Boolean) {
-        lunarEvents = if (id == null) {
-            lunarEvents + LunarEvent(UUID.randomUUID().toString(), title, day, month, leap, System.currentTimeMillis())
-        } else {
-            lunarEvents.map { if (it.id == id) it.copy(title = title, lunarDay = day, lunarMonth = month, isLeapMonth = leap) else it }
+    /** Adds [e] or replaces the event with its id. */
+    fun saveEvent(e: LunarEvent) {
+        lunarEvents = if (lunarEvents.any { it.id == e.id }) lunarEvents.map { if (it.id == e.id) e else it } else lunarEvents + e
+        // The detail open under the editor follows the edited series to an occurrence it still has.
+        detailRef?.takeIf { it.id == e.id }?.let { ref ->
+            val day = PersonalEvents.occurrencesCovering(e, ref.start, ref.start).firstOrNull()
+                ?: PersonalEvents.nextOccurrence(e, ref.start) ?: PersonalEvents.startOf(e) ?: ref.start
+            detailRef = EventRef(e.id, day)
         }
-        save("lunarEvents", json.encodeToString(ListSerializer(LunarEvent.serializer()), lunarEvents))
+        eventsChanged()
     }
 
-    fun deleteLunarEvent(id: String) {
+    /** "Chỉ lần này" on an edit: the occurrence on [day] leaves the series [seriesId] and [copy] (repeat none) takes its place. */
+    fun saveOccurrence(seriesId: String, day: SolarDate, copy: LunarEvent) {
+        lunarEvents = lunarEvents.map { if (it.id == seriesId) withException(it, day) else it } + copy
+        detailRef = EventRef(copy.id, PersonalEvents.startOf(copy) ?: day)
+        eventsChanged()
+    }
+
+    fun deleteEvent(id: String) {
         lunarEvents = lunarEvents.filterNot { it.id == id }
+        eventsChanged()
+    }
+
+    /** "Chỉ lần này" on a delete: [day] joins the series' exceptions. */
+    fun deleteOccurrence(id: String, day: SolarDate) {
+        lunarEvents = lunarEvents.map { if (it.id == id) withException(it, day) else it }
+        eventsChanged()
+    }
+
+    private fun withException(e: LunarEvent, day: SolarDate) =
+        e.copy(exceptions = (e.exceptions + day.toString()).distinct().sorted())
+
+    /** Saves the list and sets the next reminder alarm. */
+    private fun eventsChanged() {
         save("lunarEvents", json.encodeToString(ListSerializer(LunarEvent.serializer()), lunarEvents))
+        Reminders.reschedule(app)
     }
 
     fun togglePreset(id: String) {
@@ -156,6 +212,27 @@ class AppState(context: Context) {
     }
 
     companion object {
+        /** The web may write null for an absent value: it reads as the default (coerceInputValues). */
+        val JSON = Json { ignoreUnknownKeys = true; coerceInputValues = true }
+
+        fun prefs(context: Context) = context.getSharedPreferences("licham", Context.MODE_PRIVATE)
+
+        private fun readEvents(prefs: android.content.SharedPreferences): List<LunarEvent> {
+            val events = prefs.getString("lunarEvents", null)?.let { runCatching { JSON.decodeFromString(ListSerializer(LunarEvent.serializer()), it) }.getOrNull() } ?: emptyList()
+            // The old day notes ("Ghi chú" card, removed 2026-11-23) move into events once. The
+            // events are written (commit) before the old key goes, so a failure keeps the notes.
+            val oldRaw = prefs.getString("userNotes", null) ?: return events
+            val notes = runCatching { JSON.decodeFromString(ListSerializer(UserNote.serializer()), oldRaw) }.getOrNull() ?: return events
+            val have = events.map { it.id }.toSet()
+            val all = events + notes.filter { it.id !in have && it.content.isNotBlank() && SolarDate.parse(it.date) != null }.map(PersonalEvents::noteToEvent)
+            val saved = prefs.edit().putString("lunarEvents", JSON.encodeToString(ListSerializer(LunarEvent.serializer()), all)).commit()
+            if (saved) prefs.edit().remove("userNotes").commit()
+            return all
+        }
+
+        /** The stored personal events, for the reminder receiver and the widgets. */
+        fun readEvents(context: Context): List<LunarEvent> = readEvents(prefs(context))
+
         fun today(): SolarDate = LocalDate.now().toSolar()
         /** Names from shared/data so labels stay identical across apps. */
         val chiEmoji: Map<String, String> get() = CalendarData.calendar.chiEmoji

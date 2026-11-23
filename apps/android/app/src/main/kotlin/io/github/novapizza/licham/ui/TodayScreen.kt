@@ -54,9 +54,9 @@ fun TodayScreen(state: AppState, now: LocalDateTime, wide: Boolean) {
     val dateGroup: @Composable () -> Unit = { TearOffSheet(state, info, now) }
     val dayGroup: @Composable () -> Unit = {
         Assessment(state, info)
+        DayEventsCard(state, state.selectedDate)
         Activities(info)
         GioHoangDaoCard(info, hourChi)
-        NotesCard(state.notesOn(state.selectedDate), { state.addNote(state.selectedDate, it) }, state::deleteNote)
     }
 
     if (!wide && LocalHinge.current == null) {

@@ -46,6 +46,15 @@ fun monthGrid(year: Int, month: Int): List<SolarDate> {
 @Serializable
 data class UserNote(val id: String, val date: String, val content: String, val createdAt: Long)
 
+/**
+ * A personal event, also the built-in presets: the stored shape of shared/design/events.md (same
+ * JSON as the web app's types.ts). Fields are named after the lunar calendar because events were
+ * lunar-only at first. [lunarDay] / [lunarMonth] are the day and month of the monthly / yearly rule
+ * in [calendar] (for none / daily / weekly: the start day in [calendar]); [isLeapMonth] only for
+ * lunar yearly events. Every field after [createdAt] has the spec's default, which the encoder
+ * leaves out (encodeDefaults = false): events saved before 2026-11 decode as lunar, yearly, all
+ * day, and a lunar yearly event without the new fields is saved exactly as before.
+ */
 @Serializable
 data class LunarEvent(
     val id: String,
@@ -54,7 +63,49 @@ data class LunarEvent(
     val lunarMonth: Int,
     val isLeapMonth: Boolean,
     val createdAt: Long,
-)
+    val calendar: String = LUNAR,
+    val repeat: String = YEARLY,
+    /** First day, "YYYY-MM-DD" (solar). Required for none, daily, weekly; a lower bound otherwise. */
+    val start: String? = null,
+    /** Weekly: 0 = Monday … 6 = Sunday; empty = the weekday of [start]. */
+    val weekdays: List<Int> = emptyList(),
+    /** Last day an occurrence may start (inclusive). */
+    val until: String? = null,
+    /** At most this many occurrences from [start] (removed ones count too). */
+    val count: Int? = null,
+    /** Occurrence start days removed ("chỉ lần này"). */
+    val exceptions: List<String> = emptyList(),
+    val allDay: Boolean = true,
+    val startTime: String = "09:00",
+    val endTime: String = "10:00",
+    /** An occurrence covers its start day and the days - 1 days after it. */
+    val days: Int = 1,
+    /** Minutes before the start time, or before 08:00 of the start day when all day. */
+    val reminders: List<Int> = emptyList(),
+    val notes: String? = null,
+    val location: String? = null,
+    /** Theme colour token: gold, brand, lunar, good, clash. */
+    val color: String = GOLD,
+) {
+    val isSolar: Boolean get() = calendar == SOLAR
+    val isMonthly: Boolean get() = repeat == MONTHLY
+    /** Monthly or yearly on lunar dates (the rule follows the moon). */
+    val isLunarRule: Boolean get() = calendar == LUNAR && (repeat == MONTHLY || repeat == YEARLY)
+    val isRepeating: Boolean get() = repeat != NONE
+    val span: Int get() = maxOf(1, days)
+
+    companion object {
+        const val LUNAR = "lunar"
+        const val SOLAR = "solar"
+        const val NONE = "none"
+        const val DAILY = "daily"
+        const val WEEKLY = "weekly"
+        const val MONTHLY = "monthly"
+        const val YEARLY = "yearly"
+        const val GOLD = "gold"
+        val COLORS = listOf("gold", "brand", "lunar", "good", "clash")
+    }
+}
 
 /** Built-in event groups of shared/data/presets.json as LunarEvents. */
 fun presetEvents(enabled: Set<String>): List<LunarEvent> =
@@ -124,8 +175,8 @@ object Conversion {
 // Upcoming holidays and lunar days (Sự kiện tab)
 // ---------------------------------------------------------------------------
 
-/** What an upcoming event is; holidays include mồng 1 and rằm. */
-enum class EventKind { HOLIDAY, OBSERVANCE, OBSERVANCE_LUNAR, FESTIVAL }
+/** What an upcoming event is; holidays include mồng 1 and rằm. PERSONAL: one of the user's own events. */
+enum class EventKind { HOLIDAY, OBSERVANCE, OBSERVANCE_LUNAR, FESTIVAL, PERSONAL }
 
 data class UpcomingEvent(
     val solarDate: SolarDate,
@@ -135,6 +186,10 @@ data class UpcomingEvent(
     val lunar: Boolean,
     val daysUntil: Int,
     val kind: EventKind = EventKind.HOLIDAY,
+    /** PERSONAL: the event's id, colour token and time label (null when all day). */
+    val eventId: String? = null,
+    val color: String? = null,
+    val time: String? = null,
 )
 
 object Upcoming {
@@ -182,15 +237,17 @@ object Upcoming {
     /**
      * The events of the whole solar month [offset] months after [today]'s (0 = this month, its
      * past days included), daysUntil counted from [today] (negative for past days). Empty past
-     * the lunar tables (LunarCalendar.LAST_DAY).
+     * the lunar tables (LunarCalendar.LAST_DAY). The user's own [personal] events come first on their day.
      */
-    fun month(today: SolarDate, offset: Int): List<UpcomingEvent> {
+    fun month(today: SolarDate, offset: Int, personal: List<LunarEvent> = emptyList()): List<UpcomingEvent> {
         val first = monthStart(today, offset)
         val todayJd = LunarCalendar.jdFromDate(today.day, today.month, today.year)
         val out = ArrayList<UpcomingEvent>()
         var d = first
         while (d.month == first.month && d.isInRange()) {
-            out += on(d, LunarCalendar.jdFromDate(d.day, d.month, d.year) - todayJd)
+            val daysUntil = LunarCalendar.jdFromDate(d.day, d.month, d.year) - todayJd
+            out += PersonalEvents.upcoming(personal, d, daysUntil)
+            out += on(d, daysUntil)
             d = d.plusDays(1)
         }
         return out

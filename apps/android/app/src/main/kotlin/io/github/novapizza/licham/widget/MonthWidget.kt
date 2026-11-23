@@ -39,6 +39,9 @@ import androidx.glance.text.TextStyle
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.R
 import io.github.novapizza.licham.Tab
+import io.github.novapizza.licham.core.PersonalEvents
+import io.github.novapizza.licham.ui.eventColor
+import io.github.novapizza.licham.core.LunarEvent
 import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.Rating
@@ -74,7 +77,7 @@ class MonthWidget : GlanceAppWidget() {
         val look = WidgetLook.of(context)
         val square = defaultLauncher(context) in SQUARE_2X2_LAUNCHERS
         val app = AppState(context.applicationContext)
-        val marks = Marks(app.notes.map { it.date }.toSet(), app.userChi)
+        val marks = Marks(app.userChi, app.lunarEvents)
         provideContent { Month(look, AppState.today(), square, marks) }
     }
 }
@@ -96,8 +99,11 @@ class MonthWidgetReceiver : GlanceAppWidgetReceiver() {
     }
 }
 
-/** What the dots need from the app: the days with a note, the user's year branch (null: no birth date). */
-private class Marks(val noteDates: Set<String>, val userChi: String?)
+/**
+ * What the dots and today's events need from the app: the days with a note, the user's year branch
+ * (null: no birth date) and the user's own events (a dot in the first event's colour; named in the header).
+ */
+private class Marks(val userChi: String?, val personal: List<LunarEvent>)
 
 @Composable
 private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean, marks: Marks) {
@@ -121,7 +127,7 @@ private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean,
     // cannot measure text.
     val titleDp = (w * 0.065f).clampTo(11f, 18f)
     val eventDp = (titleDp * 0.72f).clampTo(9f, 13f)
-    val events = todayEvents(today)
+    val events = todayEvents(today, marks.personal)
     val titleW = "Tháng ${today.month}".length * 0.6f * titleDp
     val yearW = " ${today.year}".length * 0.6f * titleDp
     val eventGap = 6f
@@ -218,15 +224,17 @@ private fun ellipsize(text: String, chars: Float): String? {
 }
 
 /**
- * Today's events in one line ("Tết Hạ nguyên", several joined by " · "), and whether the first is
- * a commemorative day or festival (gold) rather than a holiday or mồng 1 / rằm (red); null: none.
+ * Today's events in one line ("Tết Hạ nguyên", several joined by " · "): a holiday, the user's own
+ * events, commemorative days and festivals, else mồng 1 / rằm. The flag: the first is the user's own
+ * or a commemorative day / festival (gold) rather than a holiday or mồng 1 / rằm (red); null: none.
  */
-private fun todayEvents(today: SolarDate): Pair<String, Boolean>? {
+private fun todayEvents(today: SolarDate, personal: List<LunarEvent>): Pair<String, Boolean>? {
     val info = DayInfo.orNull(today) ?: return null
-    val names = listOfNotNull(info.holiday) + info.observances.map { it.first } +
-        listOfNotNull(if (info.holiday == null && info.observances.isEmpty()) lunarDayLabel(info.lunar) else null)
+    val own = PersonalEvents.on(personal, today).map { it.title }
+    val names = listOfNotNull(info.holiday) + own + info.observances.map { it.first } +
+        listOfNotNull(if (info.holiday == null && own.isEmpty() && info.observances.isEmpty()) lunarDayLabel(info.lunar) else null)
     if (names.isEmpty()) return null
-    return names.joinToString(" · ") to (info.holiday == null && info.observances.isNotEmpty())
+    return names.joinToString(" · ") to (info.holiday == null && (own.isNotEmpty() || info.observances.isNotEmpty()))
 }
 
 @Composable
@@ -241,7 +249,9 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
     val solarColor = look.color { (if (isToday) it.brand else if (red) it.lunar else it.fg).copy(alpha = fade) }
     // Dots: the app's 5 dp beside a 17 dp number, so about 0.3 of the number; 1 dp apart when stacked.
     val dotDp = (solarDp * 0.3f).clampTo(2.5f, 5f)
-    val noteDot = if (d.toString() in marks.noteDates) listOf(look.color { it.gold.copy(alpha = fade) }) else emptyList()
+    // The first event's colour, gold for a note alone (as the Calendar page).
+    val dotToken = PersonalEvents.on(marks.personal, d).firstOrNull()?.color
+    val noteDot = if (dotToken != null) listOf(look.color { it.eventColor(dotToken).copy(alpha = fade) }) else emptyList()
     val dayDots = buildList {
         if (info?.rating == Rating.GOOD) add(look.color { it.good.copy(alpha = fade) })
         if (info?.rating == Rating.BAD) add(look.color { it.bad.copy(alpha = 0.7f * fade) })
