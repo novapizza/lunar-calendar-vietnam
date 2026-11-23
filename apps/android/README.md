@@ -1,6 +1,6 @@
 # Android app
 
-Kotlin + Jetpack Compose. Application id `io.github.novapizza.licham` (`.debug` for debug builds); change it before the first Play upload if another one is wanted, it is permanent after that.
+Kotlin + Jetpack Compose. Application id `com.coding4pizza.lunar` (`.debug` for debug builds), from the app's site lunar.coding4pizza.com; permanent after the first Play upload. The code's package stays `io.github.novapizza.licham`.
 
 ## Modules
 
@@ -26,6 +26,47 @@ Toolchain: Gradle 9.5.1, AGP 9.2.0, Kotlin 2.3.21, Compose BOM 2026.05.01, compi
 
 `core` must reproduce `shared/test-vectors/` exactly: 10,659 solar dates (every 7th day 1900–2099, each Tết and leap-month start) and 599 mệnh cases. `TestVectorsTest` also converts every vector back from lunar to solar.
 
+## Release builds (Google Play)
+
+Play App Signing keeps the app signing key; the build signs with an upload key kept outside the repo.
+
+1. Create the upload key once (it asks for the passwords; keep the .jks and the passwords safe, losing them means asking Google to reset the upload key):
+   ```
+   & "C:\Program Files\Android\Android Studio\jbr\bin\keytool.exe" -genkeypair -v -keystore "$env:USERPROFILE\keys\lunar-upload.jks" -alias upload -keyalg RSA -keysize 4096 -validity 10000
+   ```
+2. Write `apps/android/keystore.properties` (ignored by git):
+   ```
+   storeFile=C:/Users/<you>/keys/lunar-upload.jks
+   storePassword=...
+   keyAlias=upload
+   keyPassword=...
+   ```
+3. `.\gradlew.bat :app:bundleRelease` gives `app/build/outputs/bundle/release/app-release.aab`, the file to upload. Raise `versionCode` in `app/build.gradle.kts` for every upload.
+
+In CI the same key comes from environment variables (`ANDROID_UPLOAD_STORE_FILE`, `ANDROID_UPLOAD_STORE_PASSWORD`, `ANDROID_UPLOAD_KEY_ALIAS`, `ANDROID_UPLOAD_KEY_PASSWORD`), and `ANDROID_VERSION_CODE` / `ANDROID_VERSION_NAME` set the version.
+
+### Publishing from GitHub Actions
+
+`.github/workflows/android-release.yml` runs on a tag `android-vX.Y.Z`:
+1. Unit tests.
+2. Then, in the environment `play-release` (approval required), `bundleRelease` signed with the upload key: versionName X.Y.Z, versionCode X·10000 + Y·100 + Z.
+3. A check that the bundle is not debug-signed (and matches `ANDROID_UPLOAD_CERT_SHA256` when set).
+4. The AAB and the R8 mapping kept as an artifact.
+5. The upload to Play: track `internal`, status `draft` by default; Run workflow on a tag picks another track or status.
+
+The secrets and variables it needs are listed at the top of the workflow. Play's API only accepts an app that already has one release uploaded by hand in Play Console.
+
+```
+git tag android-v0.1.1
+git push origin android-v0.1.1
+```
+
+Without `keystore.properties` the release build is signed with the debug key: it installs for testing (`:app:assembleRelease`), Play refuses it. Release builds run R8; `proguard-rules.pro` keeps what reflection needs (WorkManager's Room database, crashed at start without it).
+
+The launcher icon follows the app's main colour (Màu chủ đạo): five `activity-alias` entries in the manifest, one per palette (`mipmap-anydpi-v26/ic_launcher*.xml`), exactly one enabled; `LauncherIcon` switches them when the app leaves the screen. Checked on the emulator's Pixel Launcher: an icon pinned to the home screen stays and changes colour. Other launchers not checked. The Play listing keeps one icon.
+
+The privacy policy Play asks for is `apps/web/public/privacy.html`, served at https://lunar.coding4pizza.com/privacy and linked from Tiện ích.
+
 ## Not done yet
 
-Widgets, release signing, Play listing, real-device testing, unfolded-foldable (two panes split at the fold) layout.
+Real-device testing, unfolded-foldable (two panes split at the fold) layout.

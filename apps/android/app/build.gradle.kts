@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
@@ -5,21 +6,48 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
+// Upload key for Google Play (Play App Signing keeps the app signing key), never committed: on a
+// developer's machine apps/android/keystore.properties (storeFile, storePassword, keyAlias,
+// keyPassword); in CI (.github/workflows/android-release.yml) the ANDROID_UPLOAD_* variables.
+fun env(name: String): String? = providers.environmentVariable(name).orNull?.takeIf { it.isNotBlank() }
+val uploadKey: Properties? = rootProject.file("keystore.properties").takeIf { it.exists() }
+    ?.let { f -> Properties().apply { f.inputStream().use { load(it) } } }
+    ?: env("ANDROID_UPLOAD_STORE_FILE")?.let { file ->
+        Properties().apply {
+            setProperty("storeFile", file)
+            setProperty("storePassword", env("ANDROID_UPLOAD_STORE_PASSWORD") ?: error("ANDROID_UPLOAD_STORE_PASSWORD is not set"))
+            setProperty("keyAlias", env("ANDROID_UPLOAD_KEY_ALIAS") ?: error("ANDROID_UPLOAD_KEY_ALIAS is not set"))
+            setProperty("keyPassword", env("ANDROID_UPLOAD_KEY_PASSWORD") ?: error("ANDROID_UPLOAD_KEY_PASSWORD is not set"))
+        }
+    }
+
 android {
-    // Application id: change before the first Play upload if another one is wanted; it is permanent after that.
+    // The code's package stays io.github.novapizza.licham; the application id is the Play identity, from the
+    // app's domain lunar.coding4pizza.com. Permanent after the first Play upload.
     namespace = "io.github.novapizza.licham"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "io.github.novapizza.licham"
+        applicationId = "com.coding4pizza.lunar"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        // CI sets both from the release tag (android-vX.Y.Z → X·10000 + Y·100 + Z); Play needs a higher
+        // versionCode for every upload.
+        versionCode = env("ANDROID_VERSION_CODE")?.toInt() ?: 1
+        versionName = env("ANDROID_VERSION_NAME") ?: "0.1.0"
     }
 
     androidResources {
         localeFilters += listOf("vi")
+    }
+
+    signingConfigs {
+        if (uploadKey != null) create("upload") {
+            storeFile = rootProject.file(uploadKey.getProperty("storeFile"))
+            storePassword = uploadKey.getProperty("storePassword")
+            keyAlias = uploadKey.getProperty("keyAlias")
+            keyPassword = uploadKey.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
@@ -27,6 +55,9 @@ android {
             applicationIdSuffix = ".debug"
         }
         release {
+            // Without keystore.properties the release build is signed with the debug key: runs on a device
+            // for testing, and Play refuses it.
+            signingConfig = signingConfigs.findByName("upload") ?: signingConfigs.getByName("debug")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
