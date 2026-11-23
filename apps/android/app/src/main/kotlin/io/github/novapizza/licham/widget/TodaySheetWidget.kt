@@ -49,8 +49,7 @@ import io.github.novapizza.licham.ui.LUNAR_MONTH_NAMES
 import io.github.novapizza.licham.ui.weekdayName
 
 /**
- * Tờ lịch hôm nay: today as the Today page's tear-off sheet (2×3 by default, the sheet's upright
- * shape). Upright, the app's sheet is drawn on a bitmap (SheetPainter: Playfair, gold foil, rings);
+ * Tờ lịch hôm nay: today as the Today page's tear-off sheet (4×4 by default, resizable). Upright, the app's sheet is drawn on a bitmap (SheetPainter: Playfair, gold foil, rings);
  * wider than tall, a Glance layout puts the solar day on the left and the lunar date on the right.
  */
 class TodaySheetWidget : GlanceAppWidget() {

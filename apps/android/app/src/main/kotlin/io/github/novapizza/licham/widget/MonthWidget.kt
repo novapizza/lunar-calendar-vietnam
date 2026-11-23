@@ -2,6 +2,8 @@ package io.github.novapizza.licham.widget
 
 import android.appwidget.AppWidgetManager
 import android.content.Context
+import android.content.Intent
+import android.content.pm.PackageManager
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
@@ -20,7 +22,9 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.fillMaxHeight
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
 import androidx.glance.layout.padding
 import androidx.glance.layout.width
@@ -46,14 +50,35 @@ import io.github.novapizza.licham.core.orNull
 open class MonthWidget : GlanceAppWidget() {
     override val sizeMode = SizeMode.Exact
 
+    /** Square in a cell a little taller than wide, on Xiaomi's launcher (see MonthSmallWidget). */
+    protected open fun squareInTallCell(context: Context) = defaultLauncher(context) in SQUARE_2X2_LAUNCHERS
+
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val look = WidgetLook.of(context)
-        provideContent { Month(look, AppState.today()) }
+        val square = squareInTallCell(context)
+        provideContent { Month(look, AppState.today(), square) }
     }
 }
 
-/** The same widget under the 2×2 picker entry. */
+/**
+ * The same widget under the 2×2 picker entry, now hidden from the picker (Lịch tháng resizes down to
+ * 2×2); kept for the widgets already placed. Both are drawn as the launcher's own widgets are. Launchers
+ * give 2×2 cells a little taller than wide and only say how big the cell is, not how their own widgets
+ * fill it (measured 2026-11-23 on screenshots):
+ * - HyperOS 4 (Xiaomi 17 Ultra): cell 375 × 430 px; its clock and weather draw a 375 × 375 square,
+ *   centred, so this widget, filling the cell, stood taller.
+ * - One UI 9 (Samsung): cell 374 × 418 px; the 2×2 widget beside it fills the cell, as this one does.
+ * The cells' shapes are too alike to tell them apart, so the square follows the launcher: Xiaomi's.
+ */
 class MonthSmallWidget : MonthWidget()
+
+/** Launchers whose own 2×2 widgets are square in a taller cell: MIUI / HyperOS, POCO Launcher. */
+private val SQUARE_2X2_LAUNCHERS = setOf("com.miui.home", "com.mi.android.globallauncher")
+
+/** The default home app's package (needs the HOME <queries> entry in the manifest); null when none is set. */
+private fun defaultLauncher(context: Context): String? =
+    context.packageManager.resolveActivity(Intent(Intent.ACTION_MAIN).addCategory(Intent.CATEGORY_HOME), PackageManager.MATCH_DEFAULT_ONLY)
+        ?.activityInfo?.packageName
 
 class MonthWidgetReceiver : GlanceAppWidgetReceiver() {
     override val glanceAppWidget: GlanceAppWidget = MonthWidget()
@@ -74,11 +99,14 @@ class MonthSmallWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun Month(look: WidgetLook, today: SolarDate) {
+private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean) {
     val context = LocalContext.current
     val size = LocalSize.current
     val w = size.width.value
-    val h = size.height.value
+    // A cell up to 1.3× taller than wide gets a square card, centred; a widget stretched further keeps
+    // the whole height.
+    val square = squareInTallCell && size.height.value > w && size.height.value <= w * 1.3f
+    val h = if (square) w else size.height.value
     val pad = if (minOf(w, h) < 200f) 8f else 12f
     val grid = monthGrid(today.year, today.month)
     val rows = grid.size / 7
@@ -98,9 +126,16 @@ private fun Month(look: WidgetLook, today: SolarDate) {
     val lunarDp = solarDp * 0.62f
     val showLunar = true
 
+    // The card and the grid fill the box the launcher actually gives, whatever size it reported:
+    // columns and week rows share it by weight. HyperOS reported about 80 % of a resized widget's
+    // box, and a grid laid out in dp from that left empty space on the right and at the bottom
+    // (Xiaomi 17 Ultra screenshots, 2026-11-23). Only the type sizes come from the reported size.
+    // The square card is the cell less a margin above and below (in reported dp, so close to square).
     val open = actionStartActivity(WidgetLinks.open(context, Tab.CALENDAR, today))
+    val squareMargin = if (square) ((size.height.value - w) / 2f).dp else 0.dp
+    Box(GlanceModifier.fillMaxSize().padding(vertical = squareMargin)) {
     Column(GlanceModifier.fillMaxSize().cornerRadius(20.dp).background(look.color { it.surface }).padding(pad.dp)) {
-        Column(GlanceModifier.height(headerH.dp).clickable(open), verticalAlignment = Alignment.CenterVertically) {
+        Column(GlanceModifier.fillMaxWidth().height(headerH.dp).clickable(open), verticalAlignment = Alignment.CenterVertically) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text("Tháng ${today.month}", style = TextStyle(color = look.color { it.fg }, fontSize = fixedSp(titleDp), fontWeight = FontWeight.Bold), maxLines = 1)
                 Text(" ${today.year}", style = TextStyle(color = look.color { it.fg3 }, fontSize = fixedSp(titleDp), fontWeight = FontWeight.Bold), maxLines = 1)
@@ -109,23 +144,24 @@ private fun Month(look: WidgetLook, today: SolarDate) {
                 Text(lunarMonthSubtitle(today.year, today.month), style = TextStyle(color = look.color { it.fg2 }, fontSize = fixedSp(subDp)), maxLines = 1)
             }
         }
-        Row {
+        Row(GlanceModifier.fillMaxWidth().height(weekH.dp)) {
             CalendarData.calendar.weekDays.forEach { wd ->
-                Box(GlanceModifier.width(cellW.dp).height(weekH.dp), contentAlignment = Alignment.Center) {
+                Box(GlanceModifier.defaultWeight().fillMaxHeight(), contentAlignment = Alignment.Center) {
                     Text(wd, style = TextStyle(color = look.color { if (wd == "CN") it.lunar else it.fg3 }, fontSize = fixedSp(weekDp), fontWeight = FontWeight.Medium), maxLines = 1)
                 }
             }
         }
         grid.chunked(7).forEach { week ->
-            Row {
-                week.forEach { d -> DayCell(look, d, today, cellW, cellH, solarDp, if (showLunar) lunarDp else null) }
+            Row(GlanceModifier.fillMaxWidth().defaultWeight()) {
+                week.forEach { d -> DayCell(look, d, today, GlanceModifier.defaultWeight().fillMaxHeight(), solarDp, if (showLunar) lunarDp else null) }
             }
         }
+    }
     }
 }
 
 @Composable
-private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, cellW: Float, cellH: Float, solarDp: Float, lunarDp: Float?) {
+private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, modifier: GlanceModifier, solarDp: Float, lunarDp: Float?) {
     val context = LocalContext.current
     val info = DayInfo.orNull(d)
     val isToday = d == today
@@ -135,7 +171,7 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, cellW: Flo
     val fade = if (inMonth) 1f else 0.35f
     val solarColor = look.color { (if (isToday) it.brand else if (red) it.lunar else it.fg).copy(alpha = fade) }
     Box(
-        GlanceModifier.width(cellW.dp).height(cellH.dp).padding(1.dp)
+        modifier.padding(1.dp)
             .clickable(actionStartActivity(WidgetLinks.open(context, Tab.CALENDAR, d))),
         contentAlignment = Alignment.Center,
     ) {

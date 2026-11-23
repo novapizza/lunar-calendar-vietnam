@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Lịch tháng nhỏ: the same widget, 2×2 by default. -->
+<!-- Lịch tháng nhỏ: the same widget, 2×2 by default. Hidden from the widget picker (user, 2026-11-23):
+     Lịch tháng resizes down to 2×2. Kept so the 2×2 widgets already placed keep working. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_month_small_desc"
     android:initialLayout="@layout/glance_default_loading_layout"
@@ -12,4 +13,5 @@
     android:targetCellWidth="2"
     android:targetCellHeight="2"
     android:updatePeriodMillis="3600000"
-    android:widgetCategory="home_screen" />
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="hide_from_picker" />

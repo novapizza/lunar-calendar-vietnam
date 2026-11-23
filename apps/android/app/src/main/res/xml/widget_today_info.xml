@@ -1,15 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Tờ lịch hôm nay: 2×3 by default (the sheet's upright shape), resizable. -->
+<!-- Tờ lịch hôm nay: 4×4 by default (user, 2026-11-23), resizable down to about 2×2.
+     minWidth/minHeight give launchers before Android 12 about four cells. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/widget_today_desc"
     android:initialLayout="@layout/glance_default_loading_layout"
-    android:minWidth="110dp"
-    android:minHeight="180dp"
+    android:minWidth="250dp"
+    android:minHeight="250dp"
     android:minResizeWidth="110dp"
     android:minResizeHeight="110dp"
     android:previewImage="@drawable/widget_preview_today"
     android:resizeMode="horizontal|vertical"
-    android:targetCellWidth="2"
-    android:targetCellHeight="3"
+    android:targetCellWidth="4"
+    android:targetCellHeight="4"
     android:updatePeriodMillis="3600000"
     android:widgetCategory="home_screen" />
