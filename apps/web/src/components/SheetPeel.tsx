@@ -134,7 +134,30 @@ export function SheetPeel({ paperRef, sourceRef, faceKey, turn, onTurnDone, onPe
     return () => { live = false; if (id !== undefined) cancel(id); };
   }, [faceKey, prepare, reduced]);
 
-  const show = (on: boolean) => { if (canvasRef.current) canvasRef.current.style.display = on ? 'block' : 'none'; };
+  /**
+   * Shows or hides the overlay. It hangs past the sheet (MARGIN_Y below it), so in a page that did
+   * not scroll it made the page's scroller overflow: a scrollbar appeared, the page narrowed by its
+   * width and the sheet slid out from under the curl, painted at the old width (desktop, user
+   * 2026-11-23; at 1280×760 the Today page went from 760 to 823 px tall, a 15 px bar, the sheet
+   * 366 → 361 px). While the overlay is up, such a scroller is held at overflow-y: hidden.
+   */
+  const locked = useRef<HTMLElement | null>(null);
+  const show = (on: boolean) => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    if (on && canvas.style.display !== 'block' && !locked.current) {
+      const s = scrollerOf(paperRef.current);
+      if (s && s.scrollHeight <= s.clientHeight && !s.style.overflowY) {
+        s.style.overflowY = 'hidden';
+        locked.current = s;
+      }
+    }
+    canvas.style.display = on ? 'block' : 'none';
+    if (!on && locked.current) {
+      locked.current.style.overflowY = '';
+      locked.current = null;
+    }
+  };
 
   /** One frame of whatever is running. */
   const frame = useCallback((now: number) => {
@@ -346,4 +369,13 @@ function hexRgb(v: string): [number, number, number] | null {
   }
   const r = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)/.exec(c);
   return r ? [+r[1] / 255, +r[2] / 255, +r[3] / 255] : null;
+}
+
+/** The nearest ancestor of [el] that scrolls vertically (overflow-y auto or scroll), or null. */
+function scrollerOf(el: HTMLElement | null): HTMLElement | null {
+  for (let e = el?.parentElement ?? null; e; e = e.parentElement) {
+    const o = getComputedStyle(e).overflowY;
+    if (o === 'auto' || o === 'scroll') return e;
+  }
+  return null;
 }
