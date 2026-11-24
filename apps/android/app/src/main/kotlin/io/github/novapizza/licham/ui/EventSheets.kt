@@ -1,6 +1,8 @@
 package io.github.novapizza.licham.ui
 
-import kotlinx.coroutines.delay
+import android.os.SystemClock
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.ui.window.Dialog
 import android.provider.Settings
 import android.content.Intent
 import androidx.core.app.NotificationManagerCompat
@@ -466,21 +468,42 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
     val builtin = target.builtin
     val original = if (builtin != null) BuiltinReminders.of(state.builtinReminders, builtin.ref) else target.id?.let { state.eventById(it) }
     val f = remember(target) { EventForm(target, original) }
-    // Whether the app may post notifications now (permission on Android 13+, and the user's switch);
-    // checked again every second while the form is open, so a change in Settings shows on return.
+    // Notifications for reminders (user, 2026-11-24: a popup, not a line of text). When the form
+    // opens with reminders, or one is added, and the app may not post notifications: Android 13+
+    // without the permission gets the system's request; when the system no longer shows it (denied
+    // twice: the answer comes back at once) or notifications are off in Settings, a dialog offers
+    // the app's notification settings. Lưu asks the system again but shows no dialog (the sheet closes).
     fun notificationsOn() = NotificationManagerCompat.from(context).areNotificationsEnabled()
-    var notifyOn by remember { mutableStateOf(notificationsOn()) }
-    LaunchedEffect(Unit) { while (true) { notifyOn = notificationsOn(); delay(1_000) } }
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notifyOn = notificationsOn() }
-    fun askIfNeeded() {
-        if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
-            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-        }
+    fun canRequest() = Build.VERSION.SDK_INT >= 33 &&
+        context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+    var settingsDialog by remember { mutableStateOf(false) }
+    var askedAt by remember { mutableLongStateOf(0L) }
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (!granted && !notificationsOn() && SystemClock.elapsedRealtime() - askedAt < NO_DIALOG_MS) settingsDialog = true
     }
+    fun requestPermission() {
+        askedAt = SystemClock.elapsedRealtime()
+        askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+    }
+    fun askIfNeeded() {
+        if (notificationsOn()) return
+        if (canRequest()) requestPermission() else settingsDialog = true
+    }
+    LaunchedEffect(Unit) { if (f.reminders.isNotEmpty()) askIfNeeded() }
     fun addReminder(m: Int) {
         f.reminders = (f.reminders + m).distinct().sorted()
         askIfNeeded()
     }
+    if (settingsDialog) NotificationsOffDialog(
+        onOpenSettings = {
+            settingsDialog = false
+            context.startActivity(
+                Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+        },
+        onDismiss = { settingsDialog = false },
+    )
     val start = f.start
     val error = f.error
     SheetFrame(
@@ -502,8 +525,7 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
                     if (original != null) GhostButton("Tắt nhắc", { state.removeBuiltinReminder(builtin.ref); onClose() }, Modifier.weight(1f))
                     PrimaryButton("Lưu", {
                         val e = f.build() ?: return@PrimaryButton
-                        // The form starts with a reminder that no "Thêm nhắc" asked permission for.
-                        askIfNeeded()
+                        if (canRequest()) requestPermission()
                         state.saveBuiltinReminder(e)
                         onClose()
                     }, Modifier.weight(2f), enabled = f.reminders.isNotEmpty() && error == null, tall = true)
@@ -511,7 +533,7 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
             } else {
             PrimaryButton("Lưu", {
                 val e = f.build() ?: return@PrimaryButton
-                if (e.reminders.isNotEmpty()) askIfNeeded()
+                if (e.reminders.isNotEmpty() && canRequest()) requestPermission()
                 if (target.onlyThis && original != null) state.saveOccurrence(original.id, target.day, e) else state.saveEvent(e)
                 onClose()
             }, Modifier.fillMaxWidth(), enabled = f.title.isNotBlank() && error == null, tall = true)
@@ -670,20 +692,6 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
                 }
             }
 
-            // Reminders without notifications are silent: say so, and open the app's notification settings.
-            if (f.reminders.isNotEmpty() && !notifyOn) {
-                Text(
-                    "Thông báo của app đang tắt nên nhắc sẽ không hiện. Bấm để bật.",
-                    color = c.bad, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.clip(R12).clickable {
-                        context.startActivity(
-                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
-                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
-                        )
-                    }.padding(vertical = 4.dp),
-                )
-            }
-
           if (builtin == null) {
             Column {
                 FieldLabel("Địa điểm")
@@ -713,6 +721,32 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
 
             if (error != null && f.title.isNotBlank()) Text(error, color = c.bad, fontSize = 13.sp, lineHeight = 18.sp)
             Spacer(Modifier.height(4.dp))
+        }
+    }
+}
+
+/** An answer to the permission request faster than this came without a system dialog (Android no longer asks). */
+private const val NO_DIALOG_MS = 400L
+
+/** Notifications are off and Android will not ask again: offer the app's notification settings. */
+@Composable
+private fun NotificationsOffDialog(onOpenSettings: () -> Unit, onDismiss: () -> Unit) {
+    val c = LocalLichAmColors.current
+    Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.clip(R16).background(c.surface).padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Icon(Icons.Outlined.NotificationsActive, null, tint = c.gold, modifier = Modifier.size(28.dp))
+            Text("Bật thông báo để nhận nhắc", color = c.fg, fontSize = 17.sp, lineHeight = 22.sp, fontWeight = FontWeight.ExtraBold)
+            Text(
+                "Thông báo của app đang tắt nên lời nhắc sẽ không hiện. Mở cài đặt và bật thông báo cho Lịch Âm.",
+                color = c.fg2, fontSize = 14.sp, lineHeight = 20.sp,
+            )
+            Row(Modifier.padding(top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                GhostButton("Để sau", onDismiss, Modifier.weight(1f))
+                PrimaryButton("Mở cài đặt", onOpenSettings, Modifier.weight(1.5f))
+            }
         }
     }
 }

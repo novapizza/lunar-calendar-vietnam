@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Bell, CalendarHeart, Plus, X } from 'lucide-react';
 import { builtinRepeats } from '../../services/builtinReminders';
 import { cn } from '../../lib/utils';
@@ -141,6 +141,10 @@ export function EventEditorModal({ event, day, single = false, builtin, onSave, 
   const lunar = f.calendar === 'lunar';
   const reminderOptions = f.allDay ? REMINDERS_ALL_DAY : REMINDERS_TIMED;
   const timeError = !f.allDay && f.days === 1 && f.endTime <= f.startTime;
+  // Opening a form with reminders asks at once (user, 2026-11-24: a popup, not only a line of
+  // text). The tap that opened the form still counts as the user's gesture. A browser never asks
+  // again once blocked: then only the line under the reminders remains.
+  useEffect(() => { if (f.reminders.length) askNotifications(); }, []);
 
   const ruleWords = f.repeat === 'monthly'
     ? lunar ? `Ngày ${l.day} âm lịch hằng tháng (cả tháng nhuận)` : `Ngày ${sd} hằng tháng${sd > 28 ? ' (tháng thiếu: ngày cuối tháng)' : ''}`
