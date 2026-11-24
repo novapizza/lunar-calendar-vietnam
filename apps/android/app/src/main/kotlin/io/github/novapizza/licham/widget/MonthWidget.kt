@@ -298,13 +298,9 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
         if (info?.rating == Rating.BAD) add(look.color { it.bad.copy(alpha = 0.7f * fade) })
         if (info != null && Zodiac.clashes(marks.userChi, info)) add(look.color { it.clash.copy(alpha = fade) })
     }
-    Box(
-        modifier.padding(1.dp)
-            .clickable(actionStartActivity(WidgetLinks.open(context, Tab.CALENDAR, d))),
-        contentAlignment = Alignment.Center,
-    ) {
+    val cell = @Composable {
         Column(
-            GlanceModifier.fillMaxSize().let { if (isToday) it.cornerRadius(8.dp).background(look.color { c -> c.brandSoft }) else it },
+            GlanceModifier.fillMaxSize().let { if (isToday) it.cornerRadius(6.dp).background(look.color { c -> c.brandSoft }) else it },
             horizontalAlignment = Alignment.CenterHorizontally, verticalAlignment = Alignment.CenterVertically,
         ) {
             val solar = "${d.day}"
@@ -360,6 +356,23 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
             } else {
                 solarLine()
             }
+        }
+    }
+    Box(
+        modifier.padding(1.dp)
+            .clickable(actionStartActivity(WidgetLinks.open(context, Tab.CALENDAR, d))),
+        contentAlignment = Alignment.Center,
+    ) {
+        // Today is the widget's selected day: the Calendar page's 2 dp brand ring too, not only the
+        // soft fill, which was hard to see on a dark widget (user, Xiaomi, 2026-11-24). Glance has
+        // no border, and a tinted stroke drawable came out filled (emulator): a brand box 2 dp
+        // larger behind the cell, the cell on the widget's surface, then the soft fill.
+        if (isToday) {
+            Box(GlanceModifier.fillMaxSize().cornerRadius(8.dp).background(look.color { it.brand }).padding(2.dp)) {
+                Box(GlanceModifier.fillMaxSize().cornerRadius(6.dp).background(look.color { it.surface })) { cell() }
+            }
+        } else {
+            cell()
         }
     }
 }
