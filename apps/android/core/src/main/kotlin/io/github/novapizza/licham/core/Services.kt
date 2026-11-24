@@ -86,6 +86,11 @@ data class LunarEvent(
     val location: String? = null,
     /** Theme colour token: gold, brand, lunar, good, clash. */
     val color: String = GOLD,
+    /**
+     * Only on a reminder for a built-in day (key `builtinReminders`, not `lunarEvents`): that
+     * day's ref ([UpcomingEvent.ref]). Such an event is never listed; it only fires reminders.
+     */
+    val ref: String? = null,
 ) {
     val isSolar: Boolean get() = calendar == SOLAR
     val isMonthly: Boolean get() = repeat == MONTHLY
@@ -190,6 +195,11 @@ data class UpcomingEvent(
     val eventId: String? = null,
     val color: String? = null,
     val time: String? = null,
+    /**
+     * Built-in days: what a reminder for this day is keyed by: its title, or "Mồng 1" / "Ngày rằm"
+     * for every month's mồng 1 / rằm (shared/design/events.md, "Reminders for built-in days").
+     */
+    val ref: String? = null,
 )
 
 object Upcoming {
@@ -200,21 +210,21 @@ object Upcoming {
     private fun on(d: SolarDate, daysUntil: Int): List<UpcomingEvent> {
         val h = CalendarData.holidays
         val out = ArrayList<UpcomingEvent>(2)
-        h.solarHoliday(d)?.let { out += UpcomingEvent(d, it, null, null, false, daysUntil) }
+        h.solarHoliday(d)?.let { out += UpcomingEvent(d, it, null, null, false, daysUntil, ref = it) }
         val l = LunarCalendar.solarToLunar(d)
         val named = h.lunar["${l.day}-${l.month}"]
         val observances = h.observancesOf(d, l)
         // A named lunar day (Tết Hạ nguyên on 15/10) stands for that month's mồng 1 / rằm.
         val lunarNamed = observances.any { it.second == EventKind.OBSERVANCE_LUNAR }
         when {
-            named != null -> out += UpcomingEvent(d, named, l.day, l.month, true, daysUntil)
+            named != null -> out += UpcomingEvent(d, named, l.day, l.month, true, daysUntil, ref = named)
             lunarNamed -> Unit
-            l.day == 1 && l.month != 1 -> out += UpcomingEvent(d, "Mồng 1 tháng ${l.month}", l.day, l.month, true, daysUntil)
-            l.day == 15 && l.month != 1 -> out += UpcomingEvent(d, "Ngày rằm tháng ${l.month}", l.day, l.month, true, daysUntil)
+            l.day == 1 && l.month != 1 -> out += UpcomingEvent(d, "Mồng 1 tháng ${l.month}", l.day, l.month, true, daysUntil, ref = BuiltinReminders.MONG_1)
+            l.day == 15 && l.month != 1 -> out += UpcomingEvent(d, "Ngày rằm tháng ${l.month}", l.day, l.month, true, daysUntil, ref = BuiltinReminders.RAM)
         }
         for ((title, kind) in observances) {
-            out += if (kind == EventKind.OBSERVANCE) UpcomingEvent(d, title, null, null, false, daysUntil, kind)
-            else UpcomingEvent(d, title, l.day, l.month, true, daysUntil, kind)
+            out += if (kind == EventKind.OBSERVANCE) UpcomingEvent(d, title, null, null, false, daysUntil, kind, ref = title)
+            else UpcomingEvent(d, title, l.day, l.month, true, daysUntil, kind, ref = title)
         }
         return out
     }

@@ -1,3 +1,4 @@
+import { SmallDate } from './SmallDate';
 import { useState } from 'react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
@@ -102,7 +103,7 @@ export function DatePickerField({ value, onChange, label, min }: Props) {
               >
                 <span className="text-sm font-semibold">{d}</span>
                 <span className={cn('text-[10px] mt-0.5', active ? 'text-on-brand/80' : ld.day === 1 || ld.day === 15 ? 'text-lunar font-semibold' : 'text-fg-3')}>
-                  {ld.day === 1 ? `${ld.day}/${ld.month}${ld.leap ? 'n' : ''}` : ld.day}
+                  <SmallDate day={ld.day} month={ld.month} leap={ld.leap} withMonth={ld.day === 1 || active} />
                 </span>
               </button>
             );

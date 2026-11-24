@@ -50,7 +50,11 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.BaselineShift
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,6 +64,7 @@ import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
+import io.github.novapizza.licham.core.SmallDate
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.weekdayIndex
 
@@ -369,6 +374,26 @@ fun Modifier.leadingNone(fontSize: TextUnit): Modifier {
 fun cappedSp(size: Float, maxScale: Float = MAX_FONT_SCALE): TextUnit {
     val scale = LocalDensity.current.fontScale
     return if (scale <= maxScale) size.sp else (size * maxScale / scale).sp
+}
+
+/**
+ * A month grid's small date ([SmallDate], shared/design/month-grid.md): "16" or "16/10", and after
+ * a leap month a small raised "n" (user, 2026-11-24: "n nhỏ ở góc trên bên phải").
+ */
+@Composable
+fun SmallDateText(
+    date: SmallDate, color: Color, fontSize: TextUnit, fontWeight: FontWeight,
+    modifier: Modifier = Modifier, lineHeight: TextUnit = fontSize,
+) {
+    val text = remember(date) {
+        buildAnnotatedString {
+            append(if (date.month == null) "${date.day}" else "${date.day}/${date.month}")
+            if (date.month != null && date.leap) {
+                withStyle(SpanStyle(fontSize = 0.7.em, baselineShift = BaselineShift(0.55f))) { append("n") }
+            }
+        }
+    }
+    Text(text, color = color, fontSize = fontSize, lineHeight = lineHeight, fontWeight = fontWeight, maxLines = 1, softWrap = false, modifier = modifier)
 }
 
 @Composable

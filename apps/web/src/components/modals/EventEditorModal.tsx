@@ -1,5 +1,6 @@
 import { useState } from 'react';
-import { CalendarHeart, Plus, X } from 'lucide-react';
+import { Bell, CalendarHeart, Plus, X } from 'lucide-react';
+import { builtinRepeats } from '../../services/builtinReminders';
 import { cn } from '../../lib/utils';
 import { EventCalendar, EventColor, EventRepeat, LunarEvent } from '../../types';
 import { EVENT_COLORS, EVENT_COLOR_ORDER } from '../../lib/eventColors';
@@ -12,6 +13,14 @@ import { DatePickerField } from '../DatePickerField';
 
 export type EventDraft = Omit<LunarEvent, 'id' | 'createdAt'>;
 
+/** A built-in day (holiday, observance, mồng 1, rằm) whose reminder the form sets. */
+export interface BuiltinDay {
+  ref: string;
+  /** The day's own title ("Mồng 1 tháng 10"); a monthly reminder takes the ref ("Mồng 1"). */
+  title: string;
+  calendar: EventCalendar;
+}
+
 interface Props {
   /** The event being edited, or null for a new one. */
   event: LunarEvent | null;
@@ -19,7 +28,14 @@ interface Props {
   day: string;
   /** Editing one occurrence of a repeating event: the repeat fields are hidden (it becomes a one-off). */
   single?: boolean;
+  /**
+   * Setting a built-in day's reminder (shared/design/events.md): title, day, time, place, notes and
+   * colour are the day's; only the repeat, its end and the reminders are shown.
+   */
+  builtin?: BuiltinDay;
   onSave: (draft: EventDraft) => void;
+  /** Built-in day with a reminder: turns it off. */
+  onDelete?: () => void;
   onClose: () => void;
 }
 
@@ -50,13 +66,14 @@ const REPEATS: [EventRepeat, string][] = [
   ['none', 'Không lặp'], ['daily', 'Hằng ngày'], ['weekly', 'Hằng tuần'], ['monthly', 'Hằng tháng'], ['yearly', 'Hằng năm'],
 ];
 
-function formOf(e: LunarEvent | null, day: string, single: boolean): Form {
+function formOf(e: LunarEvent | null, day: string, single: boolean, builtin?: BuiltinDay): Form {
   const l = lunarOf(day);
   if (!e) {
     return {
-      title: '', allDay: true, start: day, startTime: '09:00', endTime: '10:00', days: 1, repeat: 'none', calendar: 'lunar',
-      weekdays: [weekdayOf(day)], endMode: 'never', until: addDays(day, 30), count: 10, reminders: [], location: '', notes: '',
-      color: 'gold', leap: l.leap,
+      title: builtin?.title ?? '', allDay: true, start: day, startTime: '09:00', endTime: '10:00', days: 1,
+      repeat: builtin ? builtinRepeats(builtin.ref)[0] : 'none', calendar: builtin?.calendar ?? 'lunar',
+      weekdays: [weekdayOf(day)], endMode: 'never', until: addDays(day, 30), count: 10, reminders: builtin ? [0] : [], location: '', notes: '',
+      color: 'gold', leap: builtin ? false : l.leap,
     };
   }
   const repeat = single ? 'none' : repeatOf(e);
@@ -93,13 +110,29 @@ function Segmented<T extends string>({ value, options, onChange, label }: { valu
   );
 }
 
+/** Asks for notification permission once (the browser keeps the answer). */
+function askNotifications() {
+  try {
+    if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission();
+  } catch { /* not supported */ }
+}
+
+/** The page may not show notifications: blocked by the user or not supported. */
+function notificationsBlocked(): boolean {
+  try {
+    return !('Notification' in window) || Notification.permission === 'denied';
+  } catch {
+    return true;
+  }
+}
+
 const Group = ({ children }: { children: React.ReactNode }) => (
   <div className="flex flex-col gap-3 rounded-2xl bg-surface-2 p-4">{children}</div>
 );
 
 /** Sự kiện mới / Sửa sự kiện: every field of shared/design/events.md. */
-export function EventEditorModal({ event, day, single = false, onSave, onClose }: Props) {
-  const [f, setF] = useState<Form>(() => formOf(event, day, single));
+export function EventEditorModal({ event, day, single = false, builtin, onSave, onDelete, onClose }: Props) {
+  const [f, setF] = useState<Form>(() => formOf(event, day, single, builtin));
   const set = (patch: Partial<Form>) => setF(prev => ({ ...prev, ...patch }));
   const l = lunarOf(f.start);
   const [sy, sm, sd] = parts(f.start);
@@ -114,6 +147,28 @@ export function EventEditorModal({ event, day, single = false, onSave, onClose }
     : lunar ? `Ngày ${l.day}/${l.month}${l.leap && f.leap ? ' nhuận' : ''} âm lịch hằng năm` : `Ngày ${sd}/${sm} hằng năm${sd === 29 && sm === 2 ? ' (năm thường: 28/2)' : ''}`;
 
   function save() {
+    // Also on save: a built-in day's form starts with a reminder, which no "Thêm nhắc" asked for.
+    if (f.reminders.length) askNotifications();
+    if (builtin) {
+      if (!f.reminders.length) return;
+      onSave({
+        title: f.repeat === 'monthly' ? builtin.ref : builtin.title,
+        ref: builtin.ref,
+        calendar: byDate ? builtin.calendar : 'solar',
+        repeat: f.repeat,
+        lunarDay: byDate && lunar ? l.day : sd,
+        lunarMonth: byDate && lunar ? l.month : sm,
+        isLeapMonth: false,
+        start: event?.start && event.start < f.start ? event.start : f.start,
+        until: repeating && f.endMode === 'until' ? f.until : undefined,
+        count: repeating && f.endMode === 'count' ? Math.max(1, f.count) : undefined,
+        exceptions: event?.exceptions,
+        allDay: true,
+        reminders: [...f.reminders].sort((a, b) => a - b),
+        color: 'gold',
+      });
+      return;
+    }
     const title = f.title.trim();
     if (!title || timeError) return;
     const byLunar = byDate && lunar;
@@ -151,32 +206,39 @@ export function EventEditorModal({ event, day, single = false, onSave, onClose }
   function addReminder(minutes: number) {
     if (f.reminders.includes(minutes)) return;
     set({ reminders: [...f.reminders, minutes] });
-    try {
-      if ('Notification' in window && Notification.permission === 'default') void Notification.requestPermission();
-    } catch { /* not supported */ }
+    askNotifications();
   }
 
   return (
     <Sheet
-      title={event ? (single ? 'Sửa lần này' : 'Sửa sự kiện') : 'Sự kiện mới'}
-      icon={<CalendarHeart size={20} />}
+      title={builtin ? 'Nhắc ngày này' : event ? (single ? 'Sửa lần này' : 'Sửa sự kiện') : 'Sự kiện mới'}
+      icon={builtin ? <Bell size={20} /> : <CalendarHeart size={20} />}
       onClose={onClose}
       size="lg"
-      tall
+      tall={!builtin}
       footer={
         <div className="flex gap-2">
-          <button onClick={onClose} className="btn-ghost flex-1 py-3">Huỷ</button>
-          <button onClick={save} disabled={!f.title.trim() || timeError} className="btn-primary flex-[2] py-3">Lưu</button>
+          {builtin && event && onDelete
+            ? <button onClick={onDelete} className="btn-ghost flex-1 py-3 text-bad">Tắt nhắc</button>
+            : <button onClick={onClose} className="btn-ghost flex-1 py-3">Huỷ</button>}
+          <button onClick={save} disabled={builtin ? !f.reminders.length : !f.title.trim() || timeError} className="btn-primary flex-[2] py-3">Lưu</button>
         </div>
       }
     >
       <div className="flex flex-col gap-3">
+        {builtin ? (
+          <div className="px-1">
+            <p className="text-base font-bold text-fg">{builtin.title}</p>
+            <p className="text-xs text-fg-2">{sd}/{sm}/{sy} · {l.day}/{l.month}{l.leap ? ' nhuận' : ''} âm lịch</p>
+          </div>
+        ) : (
         <input
           type="text" value={f.title} onChange={e => set({ title: e.target.value })} placeholder="Tên sự kiện, vd: Giỗ ông nội"
           className="field bg-surface-2 text-base font-semibold" aria-label="Tên sự kiện" autoFocus={!event}
         />
+        )}
 
-        <Group>
+        {!builtin && <Group>
           <Toggle on={f.allDay} onChange={allDay => set({ allDay, reminders: [] })} label="Cả ngày" />
           <DatePickerField value={f.start} onChange={start => set({ start, leap: lunarOf(start).leap, weekdays: f.repeat === 'weekly' ? f.weekdays : [weekdayOf(start)], until: f.until < start ? start : f.until })} label="Ngày" />
           {!f.allDay && (
@@ -199,14 +261,14 @@ export function EventEditorModal({ event, day, single = false, onSave, onClose }
             </select>
           </label>
           {f.days > 1 && <p className="text-xs text-fg-2">Đến {(() => { const [y, m, d] = parts(addDays(f.start, f.days - 1)); return `${d}/${m}/${y}`; })()}</p>}
-        </Group>
+        </Group>}
 
         {!single && (
           <Group>
             <label className="flex items-center justify-between gap-3">
               <span className="text-sm font-semibold text-fg">Lặp lại</span>
               <select value={f.repeat} onChange={e => set({ repeat: e.target.value as EventRepeat })} className="field bg-surface font-semibold w-36" aria-label="Lặp lại">
-                {REPEATS.map(([v, t]) => <option key={v} value={v}>{t}</option>)}
+                {REPEATS.filter(([v]) => !builtin || builtinRepeats(builtin.ref).includes(v)).map(([v, t]) => <option key={v} value={v}>{t}</option>)}
               </select>
             </label>
             {f.repeat === 'weekly' && (
@@ -225,9 +287,9 @@ export function EventEditorModal({ event, day, single = false, onSave, onClose }
             )}
             {byDate && (
               <>
-                <Segmented label="Theo lịch" value={f.calendar} options={[['lunar', 'Âm lịch'], ['solar', 'Dương lịch']]} onChange={calendar => set({ calendar })} />
+                {!builtin && <Segmented label="Theo lịch" value={f.calendar} options={[['lunar', 'Âm lịch'], ['solar', 'Dương lịch']]} onChange={calendar => set({ calendar })} />}
                 <p className="text-xs text-fg-2">{ruleWords}</p>
-                {lunar && f.repeat === 'yearly' && l.leap && (
+                {!builtin && lunar && f.repeat === 'yearly' && l.leap && (
                   <label className="flex items-center gap-2.5 cursor-pointer">
                     <input type="checkbox" checked={f.leap} onChange={e => set({ leap: e.target.checked })} className="w-5 h-5 rounded accent-[var(--brand)]" />
                     <span className="text-sm text-fg">Chỉ tháng {l.month} nhuận <span className="text-xs text-fg-2">(bỏ chọn: tháng {l.month} thường)</span></span>
@@ -281,9 +343,12 @@ export function EventEditorModal({ event, day, single = false, onSave, onClose }
             </select>
           </label>
           <p className="text-xs text-fg-3">Trên web, nhắc chỉ hiện khi trang hoặc app đã cài đang mở.</p>
+          {f.reminders.length > 0 && notificationsBlocked() && (
+            <p className="text-xs font-semibold text-bad">Trình duyệt đang chặn thông báo của trang này: bật lại trong phần quyền của trang để nhận nhắc.</p>
+          )}
         </Group>
 
-        <Group>
+        {!builtin && <Group>
           <input type="text" value={f.location} onChange={e => set({ location: e.target.value })} placeholder="Địa điểm" className="field bg-surface" aria-label="Địa điểm" />
           <textarea value={f.notes} onChange={e => set({ notes: e.target.value })} placeholder="Ghi chú" rows={3} className="field bg-surface resize-none" aria-label="Ghi chú" />
           <div className="flex items-center justify-between">
@@ -295,7 +360,7 @@ export function EventEditorModal({ event, day, single = false, onSave, onClose }
               ))}
             </div>
           </div>
-        </Group>
+        </Group>}
       </div>
     </Sheet>
   );

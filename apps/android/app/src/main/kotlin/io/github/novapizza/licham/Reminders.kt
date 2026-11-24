@@ -63,7 +63,7 @@ object Reminders {
 
     /** Sets (or cancels) the alarm for the next reminder not posted yet. */
     fun schedule(context: Context) {
-        val events = AppState.readEvents(context)
+        val events = AppState.readRemindable(context)
         val last = AppState.prefs(context).getLong(LAST_POSTED, 0L)
         val now = LocalDateTime.now().withNano(0)
         val from = if (last > 0 && time(last + 1) > now) time(last + 1) else now
@@ -93,7 +93,7 @@ object Reminders {
         val prefs = AppState.prefs(context)
         val last = prefs.getLong(LAST_POSTED, 0L)
         val nowMs = System.currentTimeMillis()
-        val due = PersonalEvents.remindersBetween(AppState.readEvents(context), time(nowMs - LATE_MS), time(nowMs + 1_000))
+        val due = PersonalEvents.remindersBetween(AppState.readRemindable(context), time(nowMs - LATE_MS), time(nowMs + 1_000))
             .filter { ms(it.at) > last }
         if (due.isEmpty()) return
         ensureChannel(context)

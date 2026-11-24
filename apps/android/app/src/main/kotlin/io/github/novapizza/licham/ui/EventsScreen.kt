@@ -1,5 +1,7 @@
 package io.github.novapizza.licham.ui
 
+import androidx.compose.material.icons.filled.Notifications
+import io.github.novapizza.licham.core.BuiltinReminders
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -114,8 +116,17 @@ fun EventsScreen(state: AppState, wide: Boolean) {
             )
         }
     }
-    // A personal event opens its detail on that occurrence.
-    val open: (UpcomingEvent) -> Unit = { e -> e.eventId?.let { state.openDetail(it, e.solarDate) } }
+    // A personal event opens its detail on that occurrence; a built-in day its reminder form.
+    val open: (UpcomingEvent) -> Unit = { e ->
+        val id = e.eventId
+        if (id != null) state.openDetail(id, e.solarDate) else if (e.ref != null) state.openBuiltinReminder(e)
+    }
+    // Marks (user, 2026-11-24): "Cá nhân" on the user's own events, a bell on any event with a reminder.
+    val reminds: (UpcomingEvent) -> Boolean = { e ->
+        val id = e.eventId
+        if (id != null) state.eventById(id)?.reminders?.isNotEmpty() == true
+        else BuiltinReminders.reminds(state.builtinReminders, e.ref, e.solarDate)
+    }
     val highlight: @Composable () -> Unit = {
         if (next == null) EmptyEvents() else NextEvent(next, open)
     }
@@ -125,7 +136,7 @@ fun EventsScreen(state: AppState, wide: Boolean) {
             title(); highlight()
             // mt-6 / mb-6: 24 between the hero and each month group.
             Column(Modifier.padding(top = 8.dp), verticalArrangement = Arrangement.spacedBy(24.dp)) {
-                groups.forEach { (month, items) -> MonthGroup(month, items, open) }
+                groups.forEach { (month, items) -> MonthGroup(month, items, open, reminds) }
             }
             if (ended(count)) EndNote()
         }
@@ -133,7 +144,7 @@ fun EventsScreen(state: AppState, wide: Boolean) {
         // Items: title and next event (one item across both columns), then each month.
         FlowPanes(top = if (wide) 32.dp else 16.dp, bottom = 40.dp, gap = 24.dp, spanning = 1, scroll = scroll) {
             Column(verticalArrangement = Arrangement.spacedBy(if (wide) 24.dp else 16.dp)) { title(); highlight() }
-            groups.forEach { (month, items) -> MonthGroup(month, items, open) }
+            groups.forEach { (month, items) -> MonthGroup(month, items, open, reminds) }
         }
     }
 }
@@ -164,7 +175,7 @@ private fun NextEvent(e: UpcomingEvent, open: (UpcomingEvent) -> Unit) {
             .background(Brush.linearGradient(listOf(c.heroFrom, c.heroVia, c.heroTo)))
             // -right-12 -top-12 w-44, hero-accent/8
             .heroMoons(c.heroAccent.copy(alpha = 0.08f), Triple(-48f, -48f, 176f))
-            .then(if (e.eventId != null) Modifier.clickable { open(e) } else Modifier),
+            .then(if (e.eventId != null || e.ref != null) Modifier.clickable { open(e) } else Modifier),
     ) {
         Column(Modifier.padding(20.dp)) {
             Text("SỰ KIỆN TIẾP THEO", color = Color.White.copy(alpha = 0.65f), fontSize = 11.sp, lineHeight = 16.5.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.12.em)
@@ -193,7 +204,7 @@ private fun NextEvent(e: UpcomingEvent, open: (UpcomingEvent) -> Unit) {
 }
 
 @Composable
-private fun MonthGroup(month: String, items: List<UpcomingEvent>, open: (UpcomingEvent) -> Unit) {
+private fun MonthGroup(month: String, items: List<UpcomingEvent>, open: (UpcomingEvent) -> Unit, reminds: (UpcomingEvent) -> Boolean) {
     val c = LocalLichAmColors.current
     Column {
         SectionLabel(month, Modifier.padding(start = 4.dp, bottom = 8.dp))
@@ -202,7 +213,7 @@ private fun MonthGroup(month: String, items: List<UpcomingEvent>, open: (Upcomin
                 if (i > 0) Divider()
                 val personal = e.kind == EventKind.PERSONAL
                 Row(
-                    Modifier.fillMaxWidth().then(if (e.eventId != null) Modifier.clickable { open(e) } else Modifier)
+                    Modifier.fillMaxWidth().then(if (e.eventId != null || e.ref != null) Modifier.clickable { open(e) } else Modifier)
                         .alpha(if (e.daysUntil < 0) 0.55f else 1f).padding(horizontal = 16.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
@@ -229,10 +240,15 @@ private fun MonthGroup(month: String, items: List<UpcomingEvent>, open: (Upcomin
                             val kind = when (e.kind) {
                                 EventKind.OBSERVANCE, EventKind.OBSERVANCE_LUNAR -> "Kỷ niệm"
                                 EventKind.FESTIVAL -> "Lễ hội"
-                                EventKind.PERSONAL -> "Của bạn"
+                                // The events the user added (user, 2026-11-24; was "Của bạn", then a pencil).
+                                EventKind.PERSONAL -> "Cá nhân"
                                 EventKind.HOLIDAY -> null
                             }
                             if (kind != null) Text(" · $kind", color = c.fg3, fontSize = 12.sp, lineHeight = 16.sp)
+                            if (reminds(e)) {
+                                HSpace(4.dp)
+                                Icon(Icons.Filled.Notifications, "Có nhắc", Modifier.size(11.dp), tint = c.gold)
+                            }
                         }
                     }
                     val soon = e.daysUntil in 0..7

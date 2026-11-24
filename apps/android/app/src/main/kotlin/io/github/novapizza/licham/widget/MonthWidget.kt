@@ -45,6 +45,7 @@ import io.github.novapizza.licham.core.LunarEvent
 import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayInfo
 import io.github.novapizza.licham.core.Rating
+import io.github.novapizza.licham.core.SmallDate
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.Zodiac
 import io.github.novapizza.licham.core.isSunday
@@ -315,7 +316,12 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
             if (lunarDp != null && info != null) {
                 val l = info.lunar
                 val mark = l.day == 1 || l.day == 15
-                val lunar = if (l.day == 1) "${l.day}/${l.month}" else "${l.day}"
+                // Today is the widget's selected day: "16/10" there as on mồng 1 (user, 2026-11-24).
+                val small = SmallDate.lunar(l, isToday)
+                // "16/10" and its dots may be wider than a small cell (2×2: 24 dp cells): that one
+                // date then gets smaller type. Digits and "/" are about 0.55 of the size wide.
+                val dotsW = if (dayDots.isEmpty()) 0f else dotDp + (dotDp * 0.5f).clampTo(1f, 2f)
+                val smallDp = minOf(lunarDp, (cellW - 2f - dotsW) / (small.text.length * 0.55f))
                 // Two Texts stacked keep each one's font padding, and Glance has no line height or
                 // negative margin: the lines sat about 9 dp apart in a 4×2 widget (user, 2026-11-23).
                 // Pinned to the top and the bottom of a box that is just tall enough, they overlap
@@ -328,15 +334,26 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
                 Box(GlanceModifier.fillMaxWidth().height(pairH.dp)) {
                     Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { solarLine() }
                     Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                        WithDots(dayDots, dotDp, lunar.length * 0.58f * lunarDp, cellW - 2f) {
-                            Text(
-                                lunar,
-                                style = TextStyle(
-                                    color = look.color { (if (mark) it.lunar else it.fg3).copy(alpha = fade) },
-                                    fontSize = fixedSp(lunarDp), fontWeight = if (mark) FontWeight.Bold else FontWeight.Normal,
-                                ),
-                                maxLines = 1,
+                        WithDots(dayDots, dotDp, small.text.length * 0.55f * smallDp, cellW - 2f) {
+                            val style = TextStyle(
+                                color = look.color { (if (mark) it.lunar else it.fg3).copy(alpha = fade) },
+                                fontSize = fixedSp(smallDp), fontWeight = if (mark) FontWeight.Bold else FontWeight.Normal,
                             )
+                            if (small.month == null) {
+                                Text("${small.day}", style = style, maxLines = 1)
+                            } else {
+                                // Glance has no spans: the leap "n" is its own smaller Text. A row of bare
+                                // Texts lines them up by baseline whatever the alignment asked (a 0.7 "n"
+                                // sat on the digits' line, emulator 2026-11-24), so the "n" goes in a Box,
+                                // which has no baseline, and the row aligns tops: its top then meets the
+                                // digits' top, as on the Calendar page.
+                                Row(verticalAlignment = Alignment.Top) {
+                                    Text("${small.day}/${small.month}", style = style, maxLines = 1)
+                                    if (small.leap) Box {
+                                        Text("n", style = style.copy(fontSize = fixedSp(smallDp * 0.7f)), maxLines = 1)
+                                    }
+                                }
+                            }
                         }
                     }
                 }

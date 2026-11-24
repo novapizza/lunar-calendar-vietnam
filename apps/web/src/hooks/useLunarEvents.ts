@@ -58,3 +58,44 @@ export function useLunarEvents() {
 
   return { events, addEvent, deleteEvent, updateEvent };
 }
+
+const BUILTIN_KEY = 'builtinReminders';
+
+/**
+ * Reminders for built-in days (holidays, observances, mồng 1, rằm): events with a `ref`, one per
+ * ref, under their own key so that versions without this feature never list them as events.
+ */
+export function useBuiltinReminders() {
+  const [reminders, setReminders] = useState<LunarEvent[]>(() => {
+    try {
+      const raw = localStorage.getItem(BUILTIN_KEY);
+      return raw ? (JSON.parse(raw) as LunarEvent[]).filter(r => r && r.ref) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(BUILTIN_KEY, JSON.stringify(reminders));
+    } catch {
+      // Storage quota exceeded — silently ignore
+    }
+  }, [reminders]);
+
+  /** Saves the reminder of `draft.ref`, replacing the one kept for it. */
+  function saveReminder(draft: Omit<LunarEvent, 'id' | 'createdAt'>): void {
+    setReminders(prev => {
+      const old = prev.find(r => r.ref === draft.ref);
+      return old
+        ? prev.map(r => (r === old ? { ...draft, id: old.id, createdAt: old.createdAt } : r))
+        : [...prev, { ...draft, id: crypto.randomUUID(), createdAt: Date.now() }];
+    });
+  }
+
+  function removeReminder(ref: string): void {
+    setReminders(prev => prev.filter(r => r.ref !== ref));
+  }
+
+  return { reminders, saveReminder, removeReminder };
+}

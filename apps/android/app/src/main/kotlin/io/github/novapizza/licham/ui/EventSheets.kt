@@ -1,5 +1,11 @@
 package io.github.novapizza.licham.ui
 
+import kotlinx.coroutines.delay
+import android.provider.Settings
+import android.content.Intent
+import androidx.core.app.NotificationManagerCompat
+import androidx.compose.material.icons.outlined.NotificationsActive
+import io.github.novapizza.licham.core.BuiltinReminders
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
@@ -306,7 +312,9 @@ private fun hasLeap(year: Int, month: Int) = runCatching { LunarCalendar.monthsO
 /** The editor's fields; [original] is the event edited (null: a new one). */
 private class EventForm(target: EventEditTarget, val original: LunarEvent?) {
     val onlyThis = target.onlyThis
-    var title by mutableStateOf(original?.title ?: "")
+    /** Setting a built-in day's reminder: only the repeat, its end and the reminders are the form's. */
+    val builtin = target.builtin
+    var title by mutableStateOf(original?.title ?: builtin?.title ?: "")
     var allDay by mutableStateOf(original?.allDay ?: true)
     var date by mutableStateOf(if (original != null && !target.onlyThis) PersonalEvents.startOf(original) ?: target.day else target.day)
     var lunarEntry by mutableStateOf(original != null && !target.onlyThis && original.isLunarRule)
@@ -319,15 +327,16 @@ private class EventForm(target: EventEditTarget, val original: LunarEvent?) {
     var endH by mutableIntStateOf(hm(original?.endTime ?: "10:00").first)
     var endM by mutableIntStateOf(hm(original?.endTime ?: "10:00").second)
     var days by mutableIntStateOf(original?.span ?: 1)
-    var repeat by mutableStateOf(if (target.onlyThis) LunarEvent.NONE else original?.repeat ?: LunarEvent.NONE)
+    var repeat by mutableStateOf(if (target.onlyThis) LunarEvent.NONE else original?.repeat ?: builtin?.let { BuiltinReminders.repeats(it.ref).first() } ?: LunarEvent.NONE)
     var weekdays by mutableStateOf(original?.let { PersonalEvents.weekdaysOf(it).toSet() }?.ifEmpty { null } ?: setOf(target.day.weekdayIndex))
-    var calendar by mutableStateOf(original?.calendar ?: LunarEvent.LUNAR)
+    // A built-in day's reminder follows the day's own calendar (a one-off one is stored as solar).
+    var calendar by mutableStateOf(builtin?.calendar ?: original?.calendar ?: LunarEvent.LUNAR)
     var leapOnly by mutableStateOf(original?.isLeapMonth ?: true)
     /** 0 never, 1 until a day, 2 after a number of times. */
     var endMode by mutableIntStateOf(if (target.onlyThis) 0 else if (original?.until != null) 1 else if (original?.count != null) 2 else 0)
     var until by mutableStateOf(original?.let { PersonalEvents.untilOf(it) } ?: target.day.plusMonths(1))
     var count by mutableIntStateOf(original?.count ?: 10)
-    var reminders by mutableStateOf(original?.reminders?.distinct()?.sorted() ?: emptyList())
+    var reminders by mutableStateOf(original?.reminders?.distinct()?.sorted() ?: if (builtin != null) listOf(0) else emptyList())
     var location by mutableStateOf(original?.location ?: "")
     var notes by mutableStateOf(original?.notes ?: "")
     var color by mutableStateOf(original?.color ?: LunarEvent.GOLD)
@@ -338,6 +347,8 @@ private class EventForm(target: EventEditTarget, val original: LunarEvent?) {
         // A lunar rule keeps its day (30 stays 30 in a 29-day month).
         lDay = if (original != null && original.isLunarRule && !target.onlyThis) original.lunarDay else l.day
         if (original == null || original.repeat != LunarEvent.YEARLY || original.calendar != LunarEvent.LUNAR) leapOnly = true
+        // Built-in days are in regular months: their yearly reminder never keeps to a leap one.
+        if (builtin != null) leapOnly = false
     }
 
     /** The start day in the solar calendar; null when the lunar date entered does not exist. */
@@ -401,7 +412,14 @@ private class EventForm(target: EventEditTarget, val original: LunarEvent?) {
             notes = notes.trim().ifEmpty { null },
             location = location.trim().ifEmpty { null },
             color = color,
-        )
+        ).let { e ->
+            if (builtin == null) e
+            else e.copy(
+                // shared/design/events.md: a monthly reminder is named by the ref ("Mồng 1").
+                title = if (repeat == LunarEvent.MONTHLY) builtin.ref else builtin.title,
+                ref = builtin.ref, allDay = true, color = LunarEvent.GOLD, notes = null, location = null,
+            )
+        }
     }
 }
 
@@ -445,35 +463,70 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
         LaunchedEffect(Unit) { onClose() }
         return
     }
-    val original = target.id?.let { state.eventById(it) }
+    val builtin = target.builtin
+    val original = if (builtin != null) BuiltinReminders.of(state.builtinReminders, builtin.ref) else target.id?.let { state.eventById(it) }
     val f = remember(target) { EventForm(target, original) }
-    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
-    fun addReminder(m: Int) {
-        f.reminders = (f.reminders + m).distinct().sorted()
+    // Whether the app may post notifications now (permission on Android 13+, and the user's switch);
+    // checked again every second while the form is open, so a change in Settings shows on return.
+    fun notificationsOn() = NotificationManagerCompat.from(context).areNotificationsEnabled()
+    var notifyOn by remember { mutableStateOf(notificationsOn()) }
+    LaunchedEffect(Unit) { while (true) { notifyOn = notificationsOn(); delay(1_000) } }
+    val askNotifications = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { notifyOn = notificationsOn() }
+    fun askIfNeeded() {
         if (Build.VERSION.SDK_INT >= 33 && context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
+    }
+    fun addReminder(m: Int) {
+        f.reminders = (f.reminders + m).distinct().sorted()
+        askIfNeeded()
     }
     val start = f.start
     val error = f.error
     SheetFrame(
         when {
+            builtin != null -> "Nhắc ngày này"
             original == null -> "Sự kiện mới"
             target.onlyThis -> "Sửa lần này"
             else -> "Sửa sự kiện"
         },
-        onClose, icon = Icons.Outlined.EventNote,
-        subtitle = if (target.onlyThis) "Chỉ ngày ${target.day.day}/${target.day.month}/${target.day.year}, các lần khác giữ nguyên" else null,
+        onClose, icon = if (builtin != null) Icons.Outlined.NotificationsActive else Icons.Outlined.EventNote,
+        subtitle = when {
+            builtin != null -> LunarCalendar.solarToLunar(target.day).let { l -> "${builtin.title} · ${target.day.day}/${target.day.month}/${target.day.year} · ${l.day}/${l.month}${if (l.leap) " nhuận" else ""} âm" }
+            target.onlyThis -> "Chỉ ngày ${target.day.day}/${target.day.month}/${target.day.year}, các lần khác giữ nguyên"
+            else -> null
+        },
         footer = {
+            if (builtin != null) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (original != null) GhostButton("Tắt nhắc", { state.removeBuiltinReminder(builtin.ref); onClose() }, Modifier.weight(1f))
+                    PrimaryButton("Lưu", {
+                        val e = f.build() ?: return@PrimaryButton
+                        // The form starts with a reminder that no "Thêm nhắc" asked permission for.
+                        askIfNeeded()
+                        state.saveBuiltinReminder(e)
+                        onClose()
+                    }, Modifier.weight(2f), enabled = f.reminders.isNotEmpty() && error == null, tall = true)
+                }
+            } else {
             PrimaryButton("Lưu", {
                 val e = f.build() ?: return@PrimaryButton
+                if (e.reminders.isNotEmpty()) askIfNeeded()
                 if (target.onlyThis && original != null) state.saveOccurrence(original.id, target.day, e) else state.saveEvent(e)
                 onClose()
             }, Modifier.fillMaxWidth(), enabled = f.title.isNotBlank() && error == null, tall = true)
+            }
         },
-        keepHeight = true,
+        keepHeight = builtin == null,
     ) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+          if (builtin != null) {
+            Column {
+                FieldLabel("Lặp lại")
+                val offered = BuiltinReminders.repeats(builtin.ref)
+                SelectField(f.repeat, offered, { r -> REPEATS.first { it.first == r }.second }, { f.repeat = it })
+            }
+          } else {
             WebTextField(f.title, { f.title = it }, "Tên sự kiện, vd: Giỗ ông nội", singleLine = true)
 
             // Cả ngày
@@ -526,6 +579,7 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
                 val last = start.plusDays((f.days - 1).toLong())
                 Hint("Đến ${last.longLabel()}" + if (f.allDay) "" else ", ${hmText(f.endH, f.endM)}")
             }
+          }
 
             if (f.repeat == LunarEvent.WEEKLY) {
                 Column {
@@ -545,7 +599,7 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
 
             if (f.rule && start != null) {
                 Column {
-                    Segmented(f.calendar, listOf(LunarEvent.LUNAR to "Âm lịch", LunarEvent.SOLAR to "Dương lịch")) { f.calendar = it }
+                    if (builtin == null) Segmented(f.calendar, listOf(LunarEvent.LUNAR to "Âm lịch", LunarEvent.SOLAR to "Dương lịch")) { f.calendar = it }
                     val yearly = f.repeat == LunarEvent.YEARLY
                     if (f.calendar == LunarEvent.LUNAR) {
                         val (d, m, leap) = f.ruleLunar(start)
@@ -554,7 +608,7 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
                                 if (d == 30) ". Tháng thiếu (29 ngày): rơi vào ngày 29." else if (!yearly) ", cả tháng nhuận." else ".",
                             c.fg,
                         )
-                        if (yearly && leap) CheckLine(f.leapOnly, "Chỉ tháng nhuận") { f.leapOnly = it }
+                        if (yearly && leap && builtin == null) CheckLine(f.leapOnly, "Chỉ tháng nhuận") { f.leapOnly = it }
                     } else {
                         val d = start.day
                         Hint(
@@ -616,6 +670,21 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
                 }
             }
 
+            // Reminders without notifications are silent: say so, and open the app's notification settings.
+            if (f.reminders.isNotEmpty() && !notifyOn) {
+                Text(
+                    "Thông báo của app đang tắt nên nhắc sẽ không hiện. Bấm để bật.",
+                    color = c.bad, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.SemiBold,
+                    modifier = Modifier.clip(R12).clickable {
+                        context.startActivity(
+                            Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)
+                                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                        )
+                    }.padding(vertical = 4.dp),
+                )
+            }
+
+          if (builtin == null) {
             Column {
                 FieldLabel("Địa điểm")
                 WebTextField(f.location, { f.location = it }, "Thêm địa điểm", singleLine = true)
@@ -640,6 +709,7 @@ internal fun EventEditorSheet(state: AppState, onClose: () -> Unit) {
                     }
                 }
             }
+          }
 
             if (error != null && f.title.isNotBlank()) Text(error, color = c.bad, fontSize = 13.sp, lineHeight = 18.sp)
             Spacer(Modifier.height(4.dp))
