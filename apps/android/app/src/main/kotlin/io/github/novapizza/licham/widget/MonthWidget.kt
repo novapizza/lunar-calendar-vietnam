@@ -78,9 +78,26 @@ class MonthWidget : GlanceAppWidget() {
         val square = defaultLauncher(context) in SQUARE_2X2_LAUNCHERS
         val app = AppState(context.applicationContext)
         val marks = Marks(app.userChi, app.lunarEvents)
-        provideContent { Month(look, AppState.today(), square, marks) }
+        WidgetFontScale.sync(context)
+        provideContent { WidgetFontScale.Provide { Month(look, AppState.today(), square, marks) } }
     }
 }
+
+/**
+ * Height of a day cell's solar line in its two-line box, in solar sizes: sets the gap between the
+ * solar and the lunar day, about (PAIR_SOLAR - 1.07) × the solar size in px (emulator, 2026-11-24:
+ * 1.25 left 8-9 px under 34 px digits, too close; 1.45 left 19-20 px under 38 px digits, a little
+ * wide; the user asked for 15-16 px, and 1.37 left 13-15 px).
+ */
+private const val PAIR_SOLAR = 1.40f
+
+/**
+ * The solar day's type size as a share of the cell's width and height (before the small-cell boost);
+ * the lunar day is 0.62 of it. 0.42 / 0.44 until 2026-11-24, then about 10 % bigger (user: "tăng
+ * font size một chút").
+ */
+private const val DAY_OF_W = 0.46f
+private const val DAY_OF_H = 0.48f
 
 /** Launchers whose own 2×2 widgets are square in a taller cell: MIUI / HyperOS, POCO Launcher. */
 private val SQUARE_2X2_LAUNCHERS = setOf("com.miui.home", "com.mi.android.globallauncher")
@@ -145,22 +162,22 @@ private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean,
     // looked lost in their cells (user, 2026-11-23: +20 %, then "a little bigger" on a Xiaomi 2×2).
     // From 36 dp cells (about 4×4) the base sizes stand.
     val boost = (1.28f - (cellW - 22f) / (36f - 22f) * 0.28f).coerceIn(1f, 1.28f)
-    // The two lines' box (DayCell's pairH, 1.25 + 0.98 × 0.62 = 1.86 of the solar size) starts and
-    // ends in font padding nothing is drawn in (about 0.35 at the top, 0.17 at the bottom): up to
-    // 0.3 of it may spill into the gap between rows, so the cell must hold 1.56 of the solar size.
-    val fitH = 1.56f
+    // The two lines' box (DayCell's pairH, PAIR_SOLAR + 0.98 × 0.62 = 2.01 of the solar size) starts
+    // and ends in font padding nothing is drawn in (about 0.35 at the top, 0.17 at the bottom): up to
+    // 0.3 of it may spill into the gap between rows, so the cell must hold 1.71 of the solar size.
+    val fitH = PAIR_SOLAR + 0.98f * 0.62f - 0.3f
 
     // A widget wider than tall whose week rows would come out much lower than the cells' width asks
     // (under 3/4 of the height the width's type needs) shows only the weeks that fit, today's week
     // first, then the weeks after it, moved back near the month's end so the rows stay full (user,
     // 2026-11-23). The rest of the month is a tap away.
     val allRows = month.size / 7
-    val needH = cellW * 0.42f * boost / minOf(0.44f * boost, 1f / fitH)
+    val needH = cellW * DAY_OF_W * boost / minOf(DAY_OF_H * boost, 1f / fitH)
     val rows = if (w > h && gridH / allRows < 0.75f * needH) (gridH / needH).roundToInt().coerceIn(1, allRows) else allRows
     val first = minOf(month.indexOf(today).coerceAtLeast(0) / 7, allRows - rows)
     val grid = month.subList(first * 7, (first + rows) * 7)
     val cellH = gridH / rows
-    val solarDp = minOf(cellW * 0.42f * boost, cellH * 0.44f * boost, cellH / fitH)
+    val solarDp = minOf(cellW * DAY_OF_W * boost, cellH * DAY_OF_H * boost, cellH / fitH)
     val lunarDp = solarDp * 0.62f
     val showLunar = true
 
@@ -282,8 +299,9 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
                 // that padding and keep a gap of about 0.1 of the solar size, near the Calendar page's
                 // 2 dp. Set on the emulator's screenshots (4×2, solar digits 49 px tall): 1.03 / 0.95
                 // overlapped the lines by 8 px, 1.16 / 0.98 left 2 px; each 0.01 of the solar size
-                // moves the gap by about 0.7 px, so 1.25 leaves about 8 px.
-                val pairH = 1.25f * solarDp + 0.98f * lunarDp
+                // moves the gap by about 0.7 px, so 1.25 left about 8 px. Too close (user,
+                // 2026-11-24): see PAIR_SOLAR.
+                val pairH = PAIR_SOLAR * solarDp + 0.98f * lunarDp
                 Box(GlanceModifier.fillMaxWidth().height(pairH.dp)) {
                     Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { solarLine() }
                     Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
