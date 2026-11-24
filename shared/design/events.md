@@ -89,6 +89,28 @@ for lunar repeats; tapping opens the app on that day.
   next reminder shows it through the service worker's `showNotification`. Permission is asked when
   the user first adds a reminder; the form says "Trên web, nhắc chỉ hiện khi trang đang mở".
 
+## Reminders for built-in days
+
+Built-in days (solar and lunar holidays, observances, festivals, mồng 1, rằm) can get reminders
+too (decided with the user 2026-11-24), with the same repeat, end and reminder choices as the
+user's events:
+
+- **Ref**: a built-in day is known by its title, except every month's mồng 1 and rằm, which are
+  "Mồng 1" and "Ngày rằm" (their titles name the month).
+- **Stored** as events with a `ref` field under their own key `builtinReminders` (web:
+  localStorage; Android: SharedPreferences `licham`), at most one per ref, so that versions
+  without this feature never list them. They follow every rule of this document (occurrences,
+  reminders, notification text); they are never listed, exported or shown on the month grid.
+- **The form** ("Nhắc ngày này", the event editor's reminder mode): the day's title and date,
+  read only; Lặp lại with Hằng tháng (mồng 1 / rằm only, their default), Hằng năm (the others'
+  default) and Không lặp; the end; the reminders (all-day choices, "vào ngày, lúc 8:00" at first).
+  Lưu saves it: `title` = the ref for a monthly reminder, else the day's title; `calendar` = the
+  day's own (lunar or solar); `lunarDay` / `lunarMonth` from the tapped day; `start` = the tapped
+  day (an edit keeps an earlier start); `allDay`, gold, `isLeapMonth` false. With a reminder kept,
+  the footer's left button is "Tắt nhắc", which deletes it.
+- **Bell**: a built-in day's row shows the bell when its ref has a reminder with an occurrence on
+  that day.
+
 ## Screens (both apps)
 
 - **Event editor** (sheet "Sự kiện mới" / "Sửa sự kiện"): tiêu đề; "Cả ngày" switch; ngày bắt đầu
@@ -109,7 +131,10 @@ for lunar repeats; tapping opens the app on that day.
   the day's occurrences (colour dot, title, "Cả ngày" or "09:00 – 10:00") — tap opens the detail —
   and "+ Thêm" opening the editor on that day.
 - **Sự kiện tab**: occurrences in the list (first on their day), tile in the event's colour, the
-  time in the subtitle, "Của bạn"; tap opens the detail. Header button "Của bạn (n)" / "Thêm sự
+  time in the subtitle, then the kind "· Cá nhân" (2026-11-24, was "Của bạn": the user's own
+  events, which can be edited and deleted), and a small gold bell on any event whose occurrence
+  has a reminder, built-in days included; tap opens the detail. Tapping a
+  built-in day opens its reminder form (next section). Header button "Của bạn (n)" / "Thêm sự
   kiện" opens the sheet "Sự kiện của bạn": all events (title, rule in words), tap → detail,
   "+ Thêm" → editor.
 - **Month grid**: the dot beside the solar day takes the colour of the day's first event (gold for

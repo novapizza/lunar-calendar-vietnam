@@ -1,3 +1,4 @@
+import { SmallDate } from '../SmallDate';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { cn } from '../../lib/utils';
@@ -159,7 +160,6 @@ export function BirthDatePickerModal({ value, onClose, onSelect }: Props) {
             const date = iso(viewYear, viewMonth, d);
             const active = date === value;
             const lunar = LunarCalendar.fromSolar(d, viewMonth + 1, viewYear).lunarDate;
-            const lunarLabel = lunar.day === 1 ? `${lunar.day}/${Math.abs(lunar.month)}` : String(lunar.day);
             return (
               <button
                 key={d}
@@ -175,7 +175,7 @@ export function BirthDatePickerModal({ value, onClose, onSelect }: Props) {
               >
                 <span className="text-[15px] font-semibold">{d}</span>
                 <span className={cn('text-[10px] mt-1', active ? 'text-on-brand/80' : lunar.day === 1 ? 'text-lunar font-semibold' : 'text-fg-3')}>
-                  {lunarLabel}
+                  <SmallDate day={lunar.day} month={Math.abs(lunar.month)} leap={Boolean(lunar.leap)} withMonth={lunar.day === 1 || active} />
                 </span>
               </button>
             );

@@ -1,3 +1,4 @@
+import { SmallDate } from '../SmallDate';
 import { useState, useMemo } from 'react';
 import type { ReactNode } from 'react';
 import { format, addDays, isSameDay, isToday, startOfDay } from 'date-fns';
@@ -150,11 +151,11 @@ export function QuickDatePickerModal({ initialDate, onClose, onSelect }: Props) 
             const l = getLunarInfo(date);
             const lm = Math.abs(l.lunarMonth);
             const big = cal === 'solar' ? date.getDate() : i + 1;
-            const small = cal === 'solar'
-              ? (l.lunarDay === 1 ? `1/${lm}` : String(l.lunarDay))
-              : (date.getDate() === 1 ? `1/${date.getMonth() + 1}` : String(date.getDate()));
-            const markSmall = cal === 'solar' ? l.lunarDay === 1 || l.lunarDay === 15 : date.getDate() === 1;
             const active = isSameDay(date, selected);
+            const small = cal === 'solar'
+              ? <SmallDate day={l.lunarDay} month={lm} leap={l.isLeap} withMonth={l.lunarDay === 1 || active} />
+              : <SmallDate day={date.getDate()} month={date.getMonth() + 1} withMonth={date.getDate() === 1 || active} />;
+            const markSmall = cal === 'solar' ? l.lunarDay === 1 || l.lunarDay === 15 : date.getDate() === 1;
             return (
               <button
                 key={i}

@@ -81,6 +81,11 @@ export interface LunarEvent {
   location?: string;
   /** Absent: 'gold'. */
   color?: EventColor;
+  /**
+   * Only on a reminder for a built-in day (key `builtinReminders`, not `lunarEvents`): that day's
+   * ref (UpcomingEvent.ref). Such an event is never listed; it only fires reminders.
+   */
+  ref?: string;
   createdAt: number;
 }
 
@@ -92,6 +97,11 @@ export interface UpcomingEvent {
   source: 'lunar' | 'solar';
   /** Absent for holidays, mồng 1 and rằm. 'personal': one of the user's own events. */
   kind?: 'observance' | 'festival' | 'personal';
+  /**
+   * Built-in days: what a reminder for this day is keyed by: its title, or "Mồng 1" / "Ngày rằm"
+   * for every month's mồng 1 / rằm (shared/design/events.md, "Reminders for built-in days").
+   */
+  ref?: string;
   /** Personal events: the event, its colour and its time ("09:00 – 10:00"; absent when all day). */
   eventId?: string;
   color?: EventColor;

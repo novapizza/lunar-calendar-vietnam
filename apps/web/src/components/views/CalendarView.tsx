@@ -1,3 +1,4 @@
+import { SmallDate } from '../SmallDate';
 import { useMemo, useRef } from 'react';
 import {
   format, addMonths, subMonths,
@@ -248,6 +249,7 @@ export function CalendarView({
                 const sunday   = day.getDay() === 0;
                 const firstDay = lunar.lunarDay === 1;
                 const special  = firstDay || lunar.lunarDay === 15 || !!dayHoliday;
+                const withMonth = firstDay || selected;
                 return (
                   <button
                     key={day.getTime()}
@@ -289,14 +291,14 @@ export function CalendarView({
                         special ? 'text-lunar font-bold' : 'text-fg-3 font-medium',
                         // "1/11" + dot is too wide to hang the dot off a centred number:
                         // centre the whole group instead so both sides keep equal room.
-                        firstDay && 'inline-flex items-center',
+                        withMonth && 'inline-flex items-center',
                       )}
                     >
-                      {firstDay ? `${lunar.lunarDay}/${Math.abs(lunar.lunarMonth)}` : lunar.lunarDay}
+                      <SmallDate day={lunar.lunarDay} month={Math.abs(lunar.lunarMonth)} leap={lunar.isLeap} withMonth={withMonth} />
                       {(lunar.rating !== 'neutral' || clash) && (
                         // Two dots stack vertically so they stay inside a ~40px cell.
                         <span
-                          className={cn(firstDay ? 'ml-[2px]' : DOT_SLOT, 'flex flex-col gap-px')}
+                          className={cn(withMonth ? 'ml-[2px]' : DOT_SLOT, 'flex flex-col gap-px')}
                           aria-hidden="true"
                         >
                           {lunar.rating === 'good' && <span className={cn(DOT, 'bg-good')} />}

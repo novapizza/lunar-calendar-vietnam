@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { format } from 'date-fns';
 import { vi } from 'date-fns/locale';
-import { Moon, Sun, CalendarX2, CalendarHeart, Plus, Clock } from 'lucide-react';
+import { Moon, Sun, CalendarX2, CalendarHeart, Plus, Clock, Bell } from 'lucide-react';
+import { builtinReminds } from '../../services/builtinReminders';
 import { cn } from '../../lib/utils';
 import { getEventsOfMonth, LAST_EVENT_DAY } from '../../services/lunarService';
 import { LunarEvent, UpcomingEvent } from '../../types';
@@ -16,7 +17,8 @@ function countdown(days: number): string {
   return `${days} ngày nữa`;
 }
 
-const KIND_LABEL = { observance: 'Kỷ niệm', festival: 'Lễ hội', personal: 'Của bạn' } as const;
+/** "Cá nhân": the events the user added (user, 2026-11-24; was "Của bạn", then a pencil). */
+const KIND_LABEL = { observance: 'Kỷ niệm', festival: 'Lễ hội', personal: 'Cá nhân' } as const;
 
 /** Months loaded at least: this month and the next three, so three months from today or more. */
 const MIN_MONTHS = 4;
@@ -35,9 +37,19 @@ interface Props {
   onOpenPersonalEvents: () => void;
   /** Opens a personal event's detail (its occurrence on `day`). */
   onOpenEvent: (eventId: string, day: string) => void;
+  /** Reminders set on built-in days (a bell on their rows). */
+  builtinReminders: LunarEvent[];
+  /** Opens a built-in day's reminder form. */
+  onOpenBuiltin: (event: UpcomingEvent) => void;
 }
 
-export function EventsView({ personalEvents, onOpenPersonalEvents, onOpenEvent }: Props) {
+export function EventsView({ personalEvents, onOpenPersonalEvents, onOpenEvent, builtinReminders, onOpenBuiltin }: Props) {
+  // Marks (user, 2026-11-24): "Cá nhân" on the user's own events (they can be edited and deleted),
+  // a bell on any event with a reminder, built-in days included.
+  const remindsOf = (e: UpcomingEvent) => e.eventId
+    ? !!personalEvents.find(p => p.id === e.eventId)?.reminders?.length
+    : builtinReminds(builtinReminders, e.ref, isoOf(e.solarDate));
+  const open = (e: UpcomingEvent) => e.eventId ? onOpenEvent(e.eventId, isoOf(e.solarDate)) : e.ref && onOpenBuiltin(e);
   const today = useMemo(() => {
     const t = new Date();
     t.setHours(0, 0, 0, 0);
@@ -153,8 +165,10 @@ export function EventsView({ personalEvents, onOpenPersonalEvents, onOpenEvent }
                 {list.map(event => (
                   <li
                     key={`${event.eventId ?? event.title}-${event.solarDate.getTime()}`}
-                    {...(event.eventId ? { role: 'button', tabIndex: 0, onClick: () => onOpenEvent(event.eventId!, isoOf(event.solarDate)), onKeyDown: (k: React.KeyboardEvent) => k.key === 'Enter' && onOpenEvent(event.eventId!, isoOf(event.solarDate)) } : {})}
-                    className={cn('flex items-center gap-3 px-4 py-3', event.daysUntil < 0 && 'opacity-55', event.eventId && 'cursor-pointer hover:bg-surface-2')}
+                    role="button" tabIndex={0}
+                    onClick={() => open(event)}
+                    onKeyDown={k => k.key === 'Enter' && open(event)}
+                    className={cn('flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-surface-2', event.daysUntil < 0 && 'opacity-55')}
                   >
                     <div className={cn(
                       'w-12 h-12 shrink-0 rounded-2xl flex flex-col items-center justify-center',
@@ -165,13 +179,18 @@ export function EventsView({ personalEvents, onOpenPersonalEvents, onOpenEvent }
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-bold text-fg leading-snug">{event.title}</p>
-                      <p className="mt-0.5 flex items-center gap-1 text-xs text-fg-2">
-                        {event.time
-                          ? <><Clock size={11} className="text-gold" /> {event.time}</>
-                          : event.source === 'lunar'
-                            ? <><Moon size={11} className="text-gold fill-current" /> {event.lunarDay}/{event.lunarMonth} âm lịch</>
-                            : <><Sun size={11} className="text-gold" /> Dương lịch</>}
-                        {event.kind && <span className="text-fg-3">· {KIND_LABEL[event.kind]}</span>}
+                      {/* Each piece stays whole and wraps as one ("10/10 âm" / "lịch" split apart
+                          in a narrow row once "· Cá nhân" was added). */}
+                      <p className="mt-0.5 flex flex-wrap items-center gap-x-1 text-xs text-fg-2">
+                        <span className="inline-flex items-center gap-1 whitespace-nowrap">
+                          {event.time
+                            ? <><Clock size={11} className="text-gold" /> {event.time}</>
+                            : event.source === 'lunar'
+                              ? <><Moon size={11} className="text-gold fill-current" /> {event.lunarDay}/{event.lunarMonth} âm lịch</>
+                              : <><Sun size={11} className="text-gold" /> Dương lịch</>}
+                        </span>
+                        {event.kind && <span className="text-fg-3 whitespace-nowrap">· {KIND_LABEL[event.kind]}</span>}
+                        {remindsOf(event) && <Bell size={11} className="ml-0.5 text-gold fill-current" aria-label="Có nhắc" />}
                       </p>
                     </div>
                     <span className={cn(

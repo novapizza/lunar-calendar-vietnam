@@ -38,6 +38,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
+import io.github.novapizza.licham.core.SmallDate
 import io.github.novapizza.licham.core.LunarCalendar
 import io.github.novapizza.licham.core.SolarDate
 import io.github.novapizza.licham.core.daysInMonth
@@ -178,8 +179,8 @@ private fun DayCellPick(d: SolarDate, selected: Boolean, isToday: Boolean, enabl
         horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
     ) {
         Text("${d.day}", color = if (selected) c.onBrand else if (isToday) c.brand else c.fg, fontSize = 15.sp, lineHeight = 17.sp, fontWeight = FontWeight.SemiBold)
-        Text(
-            if (l.day == 1) "${l.day}/${l.month}${if (l.leap) "n" else ""}" else "${l.day}",
+        SmallDateText(
+            SmallDate.lunar(l, selected),
             color = when { selected -> c.onBrand.copy(alpha = 0.8f); l.day == 1 || l.day == 15 -> c.lunar; else -> c.fg3 },
             fontSize = 10.sp, lineHeight = 12.sp, fontWeight = if (l.day == 1 || l.day == 15) FontWeight.SemiBold else FontWeight.Normal,
         )

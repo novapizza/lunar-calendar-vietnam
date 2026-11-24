@@ -298,12 +298,16 @@ export function findBestDates(activityKey: string, monthsToScan = 3): Auspicious
  * The events on one solar day: a solar holiday, then a named lunar holiday or, failing that,
  * mồng 1 / rằm (not of tháng Giêng, which has its own holidays).
  */
+/** Refs of every month's mồng 1 / rằm, whose reminder may repeat monthly (UpcomingEvent.ref). */
+export const REF_MONG_1 = 'Mồng 1';
+export const REF_RAM = 'Ngày rằm';
+
 function eventsOn(date: Date, daysUntil: number): UpcomingEvent[] {
   const out: UpcomingEvent[] = [];
   const d = date.getDate();
   const m = date.getMonth() + 1;
   const solar = solarHoliday(d, m, date.getFullYear());
-  if (solar) out.push({ solarDate: new Date(date), title: solar, source: 'solar', daysUntil });
+  if (solar) out.push({ solarDate: new Date(date), title: solar, source: 'solar', daysUntil, ref: solar });
 
   const lunar = LunarCalendar.fromSolar(d, m, date.getFullYear());
   const ld = lunar.lunarDate.day;
@@ -313,9 +317,9 @@ function eventsOn(date: Date, daysUntil: number): UpcomingEvent[] {
   // A named lunar day (Tết Hạ nguyên on 15/10) stands for that month's mồng 1 / rằm.
   const lunarNamed = observances.some(o => o.source === 'lunar' && o.kind === 'observance');
   const title = named ?? (lm === 1 || lunarNamed ? undefined : ld === 1 ? `Mồng 1 tháng ${lm}` : ld === 15 ? `Ngày rằm tháng ${lm}` : undefined);
-  if (title) out.push({ solarDate: new Date(date), title, lunarDay: ld, lunarMonth: lm, source: 'lunar', daysUntil });
+  if (title) out.push({ solarDate: new Date(date), title, lunarDay: ld, lunarMonth: lm, source: 'lunar', daysUntil, ref: named ?? (ld === 1 ? REF_MONG_1 : REF_RAM) });
   for (const o of observances) {
-    out.push({ solarDate: new Date(date), title: o.title, kind: o.kind, source: o.source, daysUntil, ...(o.source === 'lunar' ? { lunarDay: ld, lunarMonth: lm } : {}) });
+    out.push({ solarDate: new Date(date), title: o.title, kind: o.kind, source: o.source, daysUntil, ref: o.title, ...(o.source === 'lunar' ? { lunarDay: ld, lunarMonth: lm } : {}) });
   }
   return out;
 }

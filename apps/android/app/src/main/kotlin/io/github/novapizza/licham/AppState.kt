@@ -5,6 +5,8 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import io.github.novapizza.licham.core.AccentPref
+import io.github.novapizza.licham.core.BuiltinReminders
+import io.github.novapizza.licham.core.UpcomingEvent
 import io.github.novapizza.licham.core.CalendarData
 import io.github.novapizza.licham.core.DayEvent
 import io.github.novapizza.licham.core.DayInfo
@@ -33,8 +35,14 @@ enum class ThemePref { SYSTEM, LIGHT, DARK }
 /** Popups ("sheets"), as in the web app. */
 enum class SheetKind { MONTH_PICKER, QUICK_DATE, AUSPICIOUS, LUNAR_EVENTS, PERSONAL_EVENTS, EVENT_EDITOR, EVENT_DETAIL, ABOUT, BIRTH_DATE }
 
-/** What the event editor opens on: an event ([id], null = a new one) and the day it was opened from; [onlyThis] = that occurrence alone. */
-data class EventEditTarget(val id: String?, val day: SolarDate, val onlyThis: Boolean = false)
+/**
+ * What the event editor opens on: an event ([id], null = a new one) and the day it was opened from;
+ * [onlyThis] = that occurrence alone; [builtin] = the reminder of a built-in day (its own form).
+ */
+data class EventEditTarget(val id: String?, val day: SolarDate, val onlyThis: Boolean = false, val builtin: BuiltinDay? = null)
+
+/** A built-in day (holiday, observance, mồng 1, rằm) whose reminder the editor sets. */
+data class BuiltinDay(val ref: String, val title: String, val calendar: String)
 
 /** The occurrence the event detail shows: the event and the occurrence's start day. */
 data class EventRef(val id: String, val start: SolarDate)
@@ -68,6 +76,9 @@ class AppState(context: Context) {
         private set
 
     var lunarEvents by mutableStateOf(readEvents(prefs))
+        private set
+    /** Reminders set on built-in days (shared/design/events.md): never listed, only reminded. */
+    var builtinReminders by mutableStateOf(readBuiltin(prefs))
         private set
     var enabledPresets by mutableStateOf(read("lunarPresets", { json.decodeFromString(SetSerializer(String.serializer()), it) }, emptySet()))
         private set
@@ -111,6 +122,32 @@ class AppState(context: Context) {
     fun openEditor(id: String?, day: SolarDate, onlyThis: Boolean = false) {
         editTarget = EventEditTarget(id, day, onlyThis)
         pushSheet(SheetKind.EVENT_EDITOR)
+    }
+
+    /** The reminder form of the built-in day [e] (Sự kiện tab), on that occurrence. */
+    fun openBuiltinReminder(e: UpcomingEvent) {
+        val ref = e.ref ?: return
+        editTarget = EventEditTarget(
+            BuiltinReminders.of(builtinReminders, ref)?.id, e.solarDate,
+            builtin = BuiltinDay(ref, e.title, if (e.lunar) LunarEvent.LUNAR else LunarEvent.SOLAR),
+        )
+        pushSheet(SheetKind.EVENT_EDITOR)
+    }
+
+    /** Saves the reminder of [r]'s ref, replacing the one kept for it. */
+    fun saveBuiltinReminder(r: LunarEvent) {
+        builtinReminders = builtinReminders.filterNot { it.ref == r.ref } + r
+        builtinChanged()
+    }
+
+    fun removeBuiltinReminder(ref: String) {
+        builtinReminders = builtinReminders.filterNot { it.ref == ref }
+        builtinChanged()
+    }
+
+    private fun builtinChanged() {
+        save("builtinReminders", json.encodeToString(ListSerializer(LunarEvent.serializer()), builtinReminders))
+        Reminders.reschedule(app)
     }
 
     fun openDetail(id: String, start: SolarDate) {
@@ -232,6 +269,13 @@ class AppState(context: Context) {
 
         /** The stored personal events, for the reminder receiver and the widgets. */
         fun readEvents(context: Context): List<LunarEvent> = readEvents(prefs(context))
+
+        private fun readBuiltin(prefs: android.content.SharedPreferences): List<LunarEvent> =
+            prefs.getString("builtinReminders", null)?.let { runCatching { JSON.decodeFromString(ListSerializer(LunarEvent.serializer()), it) }.getOrNull() }
+                ?.filter { it.ref != null } ?: emptyList()
+
+        /** Everything that fires reminders: the personal events and the built-in days' reminders. */
+        fun readRemindable(context: Context): List<LunarEvent> = readEvents(prefs(context)) + readBuiltin(prefs(context))
 
         fun today(): SolarDate = LocalDate.now().toSolar()
         /** Names from shared/data so labels stay identical across apps. */

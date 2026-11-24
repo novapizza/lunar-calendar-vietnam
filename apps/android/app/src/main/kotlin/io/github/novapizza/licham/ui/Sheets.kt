@@ -83,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.SheetKind
 import io.github.novapizza.licham.Tab
+import io.github.novapizza.licham.core.SmallDate
 import io.github.novapizza.licham.core.Auspicious
 import io.github.novapizza.licham.core.AuspiciousDate
 import io.github.novapizza.licham.core.CalendarData
@@ -401,17 +402,17 @@ private fun QuickDateSheet(state: AppState, onClose: () -> Unit) {
                             val l = info?.lunar
                             val big = if (lunarCal && l != null) l.day else d.day
                             val small = when {
-                                l == null -> ""
-                                !lunarCal -> if (l.day == 1) "1/${l.month}" else "${l.day}"
-                                else -> if (d.day == 1) "1/${d.month}" else "${d.day}"
+                                l == null -> null
+                                !lunarCal -> SmallDate.lunar(l, active)
+                                else -> SmallDate.solar(d, active)
                             }
                             val mark = l != null && if (lunarCal) d.day == 1 else l.day == 1 || l.day == 15
                             val dayFs = cappedSp(15f)
                             val smallFs = cappedSp(10f)
                             Text("$big", color = if (active) c.onBrand else if (d.isSunday) c.lunar else c.fg, fontSize = dayFs, lineHeight = dayFs, fontWeight = FontWeight.SemiBold, modifier = Modifier.leadingNone(dayFs))
-                            Text(
+                            if (small != null) SmallDateText(
                                 small, color = if (active) c.onBrand.copy(alpha = 0.8f) else if (mark) c.lunar else c.fg3,
-                                fontSize = smallFs, lineHeight = smallFs, fontWeight = if (!active && mark) FontWeight.SemiBold else FontWeight.Normal,
+                                fontSize = smallFs, fontWeight = if (!active && mark) FontWeight.SemiBold else FontWeight.Normal,
                                 modifier = Modifier.padding(top = 4.dp).leadingNone(smallFs),
                             )
                         }
@@ -781,10 +782,10 @@ private fun BirthDateSheet(state: AppState, onClose: () -> Unit) {
                             Text("${d.day}", color = if (active) c.onBrand else c.fg, fontSize = dayFs, lineHeight = dayFs, fontWeight = FontWeight.SemiBold, modifier = Modifier.leadingNone(dayFs))
                             if (info != null) {
                                 val l = info.lunar
-                                Text(
-                                    if (l.day == 1) "${l.day}/${l.month}" else "${l.day}",
+                                SmallDateText(
+                                    SmallDate.lunar(l, active),
                                     color = if (active) c.onBrand.copy(alpha = 0.8f) else if (l.day == 1) c.lunar else c.fg3,
-                                    fontSize = cappedSp(10f), lineHeight = cappedSp(10f), fontWeight = if (!active && l.day == 1) FontWeight.SemiBold else FontWeight.Normal,
+                                    fontSize = cappedSp(10f), fontWeight = if (!active && l.day == 1) FontWeight.SemiBold else FontWeight.Normal,
                                     modifier = Modifier.padding(top = 4.dp).leadingNone(cappedSp(10f)),
                                 )
                             }

@@ -7,7 +7,8 @@ import { useState, useMemo, useEffect } from 'react';
 import { isSameDay } from 'date-fns';
 import { CHI_NAMES } from './constants/calendar';
 import { useClock } from './hooks/useClock';
-import { useLunarEvents } from './hooks/useLunarEvents';
+import { useLunarEvents, useBuiltinReminders } from './hooks/useLunarEvents';
+import { builtinReminderOf } from './services/builtinReminders';
 import { useLunarPresets } from './hooks/useLunarPresets';
 import { useTheme } from './hooks/useTheme';
 import { useAccent } from './hooks/useAccent';
@@ -25,7 +26,7 @@ import { AuspiciousDateModal } from './components/modals/AuspiciousDateModal';
 import { AboutModal } from './components/modals/AboutModal';
 import { LunarEventModal } from './components/modals/LunarEventModal';
 import { PersonalEventsModal } from './components/modals/PersonalEventsModal';
-import { EventEditorModal, EventDraft } from './components/modals/EventEditorModal';
+import { EventEditorModal, EventDraft, BuiltinDay } from './components/modals/EventEditorModal';
 import { EventDetailModal, ChangeScope } from './components/modals/EventDetailModal';
 import { DayEvent, isoOf, nextOccurrence, personalEventsOn } from './services/personalEvents';
 import { useEventReminders } from './hooks/useEventReminders';
@@ -74,8 +75,12 @@ export default function App() {
   const { pref: accentPref, setPref: setAccentPref, palette } = useAccent(userMenh);
   const { now, currentTraditionalHour } = useClock();
   const { events: lunarEvents, addEvent, deleteEvent, updateEvent } = useLunarEvents();
+  const { reminders: builtinReminders, saveReminder, removeReminder } = useBuiltinReminders();
   const { enabled: enabledPresets, toggle: togglePreset, expandedPresets } = useLunarPresets();
-  useEventReminders(lunarEvents);
+  const remindable = useMemo(() => [...lunarEvents, ...builtinReminders], [lunarEvents, builtinReminders]);
+  useEventReminders(remindable);
+  /** The reminder form of a built-in day (Sự kiện tab), opened on its occurrence `day`. */
+  const [builtinEditor, setBuiltinEditor] = useState<{ day: string } & BuiltinDay | null>(null);
 
   // -------------------------------------------------------------------------
   // Derived data
@@ -110,7 +115,7 @@ export default function App() {
   );
 
   const anyModalOpen =
-    isQuickPickerOpen || isMonthPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen || isPersonalEventsOpen || isBirthPickerOpen || !!editor || !!detail;
+    isQuickPickerOpen || isMonthPickerOpen || isAuspiciousPickerOpen || isAboutOpen || isLunarEventModalOpen || isPersonalEventsOpen || isBirthPickerOpen || !!editor || !!detail || !!builtinEditor;
 
   // While a modal is open, Escape closes it.
   useEffect(() => {
@@ -122,6 +127,7 @@ export default function App() {
       setIsAuspiciousPickerOpen(false);
       setIsAboutOpen(false);
       setIsLunarEventModalOpen(false);
+      setBuiltinEditor(null);
       // The topmost sheet only: an event editor or detail sits on the list it came from.
       if (editor || detail) { setEditor(null); setDetail(null); return; }
       setIsPersonalEventsOpen(false);
@@ -278,6 +284,8 @@ export default function App() {
             personalEvents={lunarEvents}
             onOpenPersonalEvents={() => setIsPersonalEventsOpen(true)}
             onOpenEvent={(eventId, day) => setDetail({ eventId, start: day })}
+            builtinReminders={builtinReminders}
+            onOpenBuiltin={e => e.ref && setBuiltinEditor({ ref: e.ref, title: e.title, calendar: e.source, day: isoOf(e.solarDate) })}
           />
         )}
 
@@ -388,6 +396,18 @@ export default function App() {
           single={editor.single}
           onSave={saveEvent}
           onClose={() => setEditor(null)}
+        />
+      )}
+
+      {builtinEditor && (
+        <EventEditorModal
+          key={`${builtinEditor.ref}-${builtinEditor.day}`}
+          event={builtinReminderOf(builtinReminders, builtinEditor.ref) ?? null}
+          day={builtinEditor.day}
+          builtin={builtinEditor}
+          onSave={draft => { saveReminder(draft); setBuiltinEditor(null); }}
+          onDelete={() => { removeReminder(builtinEditor.ref); setBuiltinEditor(null); }}
+          onClose={() => setBuiltinEditor(null)}
         />
       )}
 

@@ -82,6 +82,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.SheetKind
+import io.github.novapizza.licham.core.SmallDate
 import io.github.novapizza.licham.core.LunarEvent
 import io.github.novapizza.licham.core.PersonalEvents
 import io.github.novapizza.licham.core.CalendarData
@@ -437,23 +438,35 @@ private fun DayCell(cell: Cell, modifier: Modifier, selected: Boolean, today: Bo
             if (info != null) {
                 val firstDay = info.lunar.day == 1
                 val special = firstDay || info.lunar.day == 15 || info.holiday != null
-                Box {
-                    Text(
-                        if (firstDay) "${info.lunar.day}/${info.lunar.month}" else "${info.lunar.day}",
+                val small = SmallDate.lunar(info.lunar, selected)
+                val hasDots = info.rating != Rating.NEUTRAL || cell.clash
+                val lunarText = @Composable {
+                    SmallDateText(
+                        small,
                         color = if (special) c.lunar else c.fg3,
-                        fontSize = lunarFs, lineHeight = lunarFs,
+                        fontSize = lunarFs,
                         fontWeight = if (special) FontWeight.Bold else FontWeight.Medium,
                         modifier = Modifier.leadingNone(lunarFs),
                     )
-                    if (info.rating != Rating.NEUTRAL || cell.clash) {
-                        Column(
-                            Modifier.align(Alignment.CenterEnd).offset(x = 7.dp),
-                            verticalArrangement = Arrangement.spacedBy(1.dp),
-                        ) {
-                            if (info.rating == Rating.GOOD) Dot(c.good)
-                            if (info.rating == Rating.BAD) Dot(c.bad.copy(alpha = 0.7f))
-                            if (cell.clash) Dot(c.clash)
-                        }
+                }
+                val dots = @Composable { modifier: Modifier ->
+                    Column(modifier, verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                        if (info.rating == Rating.GOOD) Dot(c.good)
+                        if (info.rating == Rating.BAD) Dot(c.bad.copy(alpha = 0.7f))
+                        if (cell.clash) Dot(c.clash)
+                    }
+                }
+                if (small.month != null && hasDots) {
+                    // "17/6ⁿ" is too wide to hang the dots off a centred number: they ran into the
+                    // cell's edge (emulator, 2026-11-24). Centre text and dots together, as the web does.
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        lunarText()
+                        dots(Modifier)
+                    }
+                } else {
+                    Box {
+                        lunarText()
+                        if (hasDots) dots(Modifier.align(Alignment.CenterEnd).offset(x = 7.dp))
                     }
                 }
                 val cellName = info.holiday ?: cell.personal
