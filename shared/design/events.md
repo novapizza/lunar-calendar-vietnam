@@ -84,10 +84,16 @@ for lunar repeats; tapping opens the app on that day.
   `setAndAllowWhileIdle`) for the earliest reminder still to come; when it fires, post every
   reminder due in the last 15 minutes not yet posted, then schedule the next. Rescheduled when
   events change, at app start, after boot, time and time zone changes. Notification channel
-  "Nhắc sự kiện"; POST_NOTIFICATIONS asked when the user first adds a reminder (Android 13+).
+  "Nhắc sự kiện". When the app may not post notifications (2026-11-24, a popup instead of a line
+  of text): opening the editor with reminders, or adding one, shows the system's POST_NOTIFICATIONS
+  request (Android 13+); when the system no longer asks (denied twice: the answer comes back within
+  400 ms) or notifications are off in Settings, a dialog "Bật thông báo để nhận nhắc" offers "Mở
+  cài đặt" (the app's notification settings) or "Để sau". Lưu asks the system again, no dialog.
 - **Web**: only while the page or the installed PWA is open (no push server): a timer for the
   next reminder shows it through the service worker's `showNotification`. Permission is asked when
-  the user first adds a reminder; the form says "Trên web, nhắc chỉ hiện khi trang đang mở".
+  the editor opens with reminders, when one is added and on save; a browser never asks again once
+  blocked, so then a line under the reminders says so. The form says "Trên web, nhắc chỉ hiện khi
+  trang đang mở".
 
 ## Reminders for built-in days
 
