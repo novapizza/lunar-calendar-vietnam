@@ -94,10 +94,21 @@ private const val PAIR_SOLAR = 1.40f
 /**
  * The solar day's type size as a share of the cell's width and height (before the small-cell boost);
  * the lunar day is 0.62 of it. 0.42 / 0.44 until 2026-11-24, then about 10 % bigger (user: "tăng
- * font size một chút").
+ * font size một chút"). The height share then 0.48 → 0.55: on a Xiaomi 4×3 the month's 6 weeks got
+ * 37 px digits against 47 px on 4×4 while the rows still had room ("quá nhỏ về font size"); the
+ * cell must still hold the two lines (1 / fitH, about 0.58).
  */
 private const val DAY_OF_W = 0.46f
-private const val DAY_OF_H = 0.48f
+private const val DAY_OF_H = 0.55f
+
+/** The whole month shows when this many rows less than all of them fit at the width's type. */
+private const val FULL_MONTH_SLACK = 0.15f
+
+/** Fewest weeks shown, rather than two far apart (user, 2026-11-24: 4×2 "quá to về khoảng cách"). */
+private const val MIN_ROWS = 3
+
+/** MIN_ROWS holds from this many rows fitting at the width's type; below it, landscape-like widgets. */
+private const val MIN_ROWS_FROM = 1.7f
 
 /** Launchers whose own 2×2 widgets are square in a taller cell: MIUI / HyperOS, POCO Launcher. */
 private val SQUARE_2X2_LAUNCHERS = setOf("com.miui.home", "com.mi.android.globallauncher")
@@ -167,14 +178,26 @@ private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean,
     // 0.3 of it may spill into the gap between rows, so the cell must hold 1.71 of the solar size.
     val fitH = PAIR_SOLAR + 0.98f * 0.62f - 0.3f
 
-    // A widget wider than tall whose week rows would come out much lower than the cells' width asks
-    // (under 3/4 of the height the width's type needs) shows only the weeks that fit, today's week
-    // first, then the weeks after it, moved back near the month's end so the rows stay full (user,
-    // 2026-11-23). The rest of the month is a tap away.
+    // How many weeks: [fit] is how many rows hold the type the cells' width asks for. The whole month
+    // when it nearly fits (FULL_MONTH_SLACK); else only the weeks that fit at that type, today's week
+    // first, then the weeks after it, moved back near the month's end so the rows stay full; at
+    // least MIN_ROWS, smaller type then. The rest of the month is a tap away. Set on a Xiaomi
+    // (HyperOS, 2026-11-24, solar digits on the user's screenshots with DAY_OF_H 0.48): 4×4 showed
+    // 6 weeks at 46-48 px, fine; 4×3 6 weeks at 37 px, too small; 4×2 2 weeks at 49 px (the
+    // width's type), rows too far apart. Estimated from those digits, with DAY_OF_H 0.55 [fit] is
+    // about 6.6 on 4×4 (6 weeks), 5.2 on 4×3 (5 weeks at the width's type) and 2.8 on 4×2 (3 weeks,
+    // digits about 45 px); the slack keeps 4×3 below the whole month.
     val allRows = month.size / 7
     val needH = cellW * DAY_OF_W * boost / minOf(DAY_OF_H * boost, 1f / fitH)
-    val rows = if (w > h && gridH / allRows < 0.75f * needH) (gridH / needH).roundToInt().coerceIn(1, allRows) else allRows
-    val first = minOf(month.indexOf(today).coerceAtLeast(0) / 7, allRows - rows)
+    val fit = gridH / needH
+    // A widget far lower than wide (a 4×2 in landscape fits about 1.3 rows, emulator 2026-11-24)
+    // keeps the weeks that fit at the width's type, as before, rather than MIN_ROWS tiny ones.
+    val rows = when {
+        fit >= allRows - FULL_MONTH_SLACK -> allRows
+        fit >= MIN_ROWS_FROM -> fit.toInt().coerceIn(minOf(MIN_ROWS, allRows), allRows)
+        else -> fit.roundToInt().coerceIn(1, allRows)
+    }
+    val first =minOf(month.indexOf(today).coerceAtLeast(0) / 7, allRows - rows)
     val grid = month.subList(first * 7, (first + rows) * 7)
     val cellH = gridH / rows
     val solarDp = minOf(cellW * DAY_OF_W * boost, cellH * DAY_OF_H * boost, cellH / fitH)
