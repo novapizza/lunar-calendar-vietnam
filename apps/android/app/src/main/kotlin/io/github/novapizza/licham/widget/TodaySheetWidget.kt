@@ -60,7 +60,8 @@ class TodaySheetWidget : GlanceAppWidget() {
         val look = WidgetLook.of(context)
         val today = AppState.today()
         val own = PersonalEvents.on(AppState(context.applicationContext).lunarEvents, today).firstOrNull()?.title
-        provideContent { Sheet(look, today, own) }
+        WidgetFontScale.sync(context)
+        provideContent { WidgetFontScale.Provide { Sheet(look, today, own) } }
     }
 }
 

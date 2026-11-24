@@ -117,6 +117,11 @@
                 <action android:name="android.intent.action.DATE_CHANGED" />
             </intent-filter>
         </receiver>
+        <!-- Redraws the widgets when the phone's font size changes (a job on the font_scale setting). -->
+        <service
+            android:name=".widget.FontScaleJob"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="false" />
         <!-- Event reminders: the alarm, and setting it again after a reboot, an update, a clock or
              time zone change, or when exact alarms get allowed. -->
         <receiver

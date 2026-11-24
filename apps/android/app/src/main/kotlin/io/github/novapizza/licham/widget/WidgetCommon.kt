@@ -12,7 +12,13 @@ import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.Shader
 import android.net.Uri
+import android.provider.Settings
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
@@ -64,7 +70,37 @@ internal class WidgetLook(private val light: LichAmColors, private val dark: Lic
 
 /** Font size in sp that stays [dp] dp whatever the phone's font scale: widget text is sized to its box. */
 @Composable
-internal fun fixedSp(dp: Float): TextUnit = (dp / LocalContext.current.resources.configuration.fontScale).sp
+internal fun fixedSp(dp: Float): TextUnit = (dp / LocalWidgetFontScale.current).sp
+
+/** The font scale [fixedSp] divides by; set at each widget's root by [WidgetFontScale.Provide]. */
+internal val LocalWidgetFontScale = compositionLocalOf { 1f }
+
+/**
+ * The phone's font scale for the widgets, read from the setting (not the process's configuration,
+ * which a process woken by [FontScaleJob] might not have updated yet) and held as state, so a new
+ * value also recomposes Glance sessions still running. Not shown to be needed: font size changes
+ * a few seconds apart were redrawn late on the emulator (2026-11-24), but JobScheduler had stopped
+ * the app's jobs then (WITHIN_QUOTA: at most 20 jobs a minute, and every widget update is a
+ * WorkManager job per widget), which explains the delay on its own.
+ */
+internal object WidgetFontScale {
+    private val scale = MutableStateFlow<Float?>(null)
+
+    /** Reads the setting again (before the widgets are redrawn). */
+    fun sync(context: Context) {
+        scale.value = runCatching { Settings.System.getFloat(context.contentResolver, Settings.System.FONT_SCALE) }
+            .getOrElse { context.resources.configuration.fontScale }
+    }
+
+    /** [content] with [LocalWidgetFontScale] following the setting. */
+    @Composable
+    fun Provide(content: @Composable () -> Unit) {
+        val context = LocalContext.current
+        if (scale.value == null) sync(context)
+        val value by scale.collectAsState()
+        CompositionLocalProvider(LocalWidgetFontScale provides (value ?: 1f), content = content)
+    }
+}
 
 internal fun Float.clampTo(min: Float, max: Float) = coerceIn(min, max)
 
@@ -102,13 +138,15 @@ object WidgetLinks {
 
 /**
  * Widgets show "today": they are redrawn within ten minutes after midnight (a windowed alarm,
- * which waits for the phone to wake while it dozes), when the clock or time zone changes, and
- * when the app goes to the background (a new palette or theme).
+ * which waits for the phone to wake while it dozes), when the clock or time zone changes, when
+ * the app goes to the background (a new palette or theme) and when the font size changes
+ * ([FontScaleJob]).
  */
 object WidgetClock {
     private const val ACTION_TICK = "io.github.novapizza.licham.WIDGET_TICK"
 
     fun schedule(context: Context) {
+        FontScaleJob.schedule(context)
         val next = LocalDate.now().plusDays(1).atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli() + 5_000
         // A plain inexact alarm got a one-hour window (dumpsys alarm, 2026-11-22: "window=+1h"); a set
         // window keeps the redraw within minutes of midnight without the exact-alarm permission.
@@ -121,6 +159,7 @@ object WidgetClock {
     )
 
     suspend fun updateAll(context: Context) {
+        WidgetFontScale.sync(context)
         TodaySheetWidget().updateAll(context)
         MonthWidget().updateAll(context)
     }
