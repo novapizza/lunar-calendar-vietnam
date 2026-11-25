@@ -1,0 +1,75 @@
+{
+  "$comment": "Keys are \"day-month\". lunar/solar: holidays (days off and the main traditional days; red on the sheet). Lunar holiday keys ignore the leap flag. solarSince: a solar holiday counts only from that year (24/11 by Nghị quyết 28/2026/QH16; 27/7 by the Bộ luật Lao động amendment of 21/11/2026, in force 1/3/2027). observances: commemorative and lesser traditional days; festivals: temple festivals (main day). Neither is red, both skip leap months. Sources and checks: see the commit that added them.",
+  "lunar": {
+    "1-1": "Tết Nguyên Đán",
+    "2-1": "Tết Nguyên Đán",
+    "3-1": "Tết Nguyên Đán",
+    "15-1": "Rằm Tháng Giêng",
+    "10-3": "Giỗ Tổ Hùng Vương",
+    "15-4": "Lễ Phật Đản",
+    "5-5": "Tết Đoan Ngọ",
+    "15-7": "Lễ Vu Lan",
+    "15-8": "Tết Trung Thu",
+    "23-12": "Tết Táo Quân"
+  },
+  "solar": {
+    "1-1": "Tết Dương Lịch",
+    "30-4": "Giải phóng Miền Nam",
+    "1-5": "Quốc tế Lao động",
+    "27-7": "Ngày Thương binh – Liệt sĩ",
+    "2-9": "Quốc khánh",
+    "24-11": "Ngày Văn hóa Việt Nam"
+  },
+  "solarSince": {
+    "27-7": 2027,
+    "24-11": 2026
+  },
+  "observances": {
+    "solar": {
+      "9-1": "Ngày Học sinh, Sinh viên Việt Nam",
+      "3-2": "Ngày thành lập Đảng",
+      "27-2": "Ngày Thầy thuốc Việt Nam",
+      "8-3": "Ngày Quốc tế Phụ nữ",
+      "26-3": "Ngày thành lập Đoàn TNCS Hồ Chí Minh",
+      "21-4": "Ngày Sách Việt Nam",
+      "7-5": "Chiến thắng Điện Biên Phủ",
+      "15-5": "Ngày thành lập Đội TNTP Hồ Chí Minh",
+      "19-5": "Ngày sinh Chủ tịch Hồ Chí Minh",
+      "1-6": "Ngày Quốc tế Thiếu nhi",
+      "21-6": "Ngày Báo chí Cách mạng Việt Nam",
+      "28-6": "Ngày Gia đình Việt Nam",
+      "27-7": "Ngày Thương binh – Liệt sĩ",
+      "28-7": "Ngày thành lập Công đoàn Việt Nam",
+      "19-8": "Cách mạng tháng Tám",
+      "10-10": "Ngày Giải phóng Thủ đô",
+      "13-10": "Ngày Doanh nhân Việt Nam",
+      "20-10": "Ngày Phụ nữ Việt Nam",
+      "9-11": "Ngày Pháp luật Việt Nam",
+      "20-11": "Ngày Nhà giáo Việt Nam",
+      "22-12": "Ngày thành lập Quân đội Nhân dân",
+      "24-12": "Lễ Giáng sinh"
+    },
+    "lunar": {
+      "3-3": "Tết Hàn thực",
+      "7-7": "Lễ Thất tịch",
+      "15-10": "Tết Hạ nguyên"
+    }
+  },
+  "festivals": {
+    "lunar": {
+      "6-1": "Khai hội Chùa Hương",
+      "10-1": "Khai hội Yên Tử",
+      "12-1": "Lễ hội đền Bà Chúa Kho",
+      "13-1": "Hội Lim",
+      "18-1": "Lễ hội Núi Bà Đen",
+      "21-2": "Lễ hội đền Sòng Sơn",
+      "3-3": "Lễ hội Phủ Dầy",
+      "9-4": "Hội Gióng",
+      "23-4": "Lễ hội Bà Chúa Xứ Núi Sam",
+      "17-7": "Giỗ Ông Hoàng Bảy (đền Bảo Hà)",
+      "20-8": "Giỗ Đức Thánh Trần (đền Kiếp Bạc)",
+      "20-9": "Lễ hội đền Bắc Lệ",
+      "10-10": "Lễ hội đền Ông Hoàng Mười"
+    }
+  }
+}

@@ -5,8 +5,8 @@
   "description": "Data, design tokens and test vectors shared by the web, iOS and Android apps.",
   "type": "module",
   "scripts": {
-    "gen": "node scripts/gen-tokens.mjs && node scripts/gen-test-vectors.mjs",
-    "check": "node scripts/gen-tokens.mjs --check && node scripts/gen-test-vectors.mjs --check"
+    "gen": "node scripts/gen-tokens.mjs && node scripts/gen-test-vectors.mjs && node scripts/gen-ios-data.mjs",
+    "check": "node scripts/gen-tokens.mjs --check && node scripts/gen-test-vectors.mjs --check && node scripts/gen-ios-data.mjs --check"
   },
   "dependencies": {
     "@dqcai/vn-lunar": "^1.0.1"

@@ -1,0 +1,205 @@
+{
+  "$comment": "Built-in lunar event groups the user can switch on (exported to .ics). Not leap months.",
+  "presets": [
+    {
+      "id": "tet",
+      "label": "Tết Nguyên Đán",
+      "description": "Mùng 1, 2, 3 tháng Giêng",
+      "emoji": "🎆",
+      "events": [
+        {
+          "id": "preset-tet-1",
+          "title": "Mùng 1 Tết Nguyên Đán",
+          "lunarDay": 1,
+          "lunarMonth": 1
+        },
+        {
+          "id": "preset-tet-2",
+          "title": "Mùng 2 Tết Nguyên Đán",
+          "lunarDay": 2,
+          "lunarMonth": 1
+        },
+        {
+          "id": "preset-tet-3",
+          "title": "Mùng 3 Tết Nguyên Đán",
+          "lunarDay": 3,
+          "lunarMonth": 1
+        }
+      ]
+    },
+    {
+      "id": "gio-to",
+      "label": "Giỗ tổ Hùng Vương",
+      "description": "Ngày 10 tháng 3 âm lịch",
+      "emoji": "🏛️",
+      "events": [
+        {
+          "id": "preset-gioto",
+          "title": "Giỗ tổ Hùng Vương",
+          "lunarDay": 10,
+          "lunarMonth": 3
+        }
+      ]
+    },
+    {
+      "id": "mong1",
+      "label": "Mồng 1 hàng tháng",
+      "description": "Ngày 1 của cả 12 tháng âm",
+      "emoji": "🌑",
+      "events": [
+        {
+          "id": "preset-mong1-1",
+          "title": "Mồng 1 tháng 1",
+          "lunarDay": 1,
+          "lunarMonth": 1
+        },
+        {
+          "id": "preset-mong1-2",
+          "title": "Mồng 1 tháng 2",
+          "lunarDay": 1,
+          "lunarMonth": 2
+        },
+        {
+          "id": "preset-mong1-3",
+          "title": "Mồng 1 tháng 3",
+          "lunarDay": 1,
+          "lunarMonth": 3
+        },
+        {
+          "id": "preset-mong1-4",
+          "title": "Mồng 1 tháng 4",
+          "lunarDay": 1,
+          "lunarMonth": 4
+        },
+        {
+          "id": "preset-mong1-5",
+          "title": "Mồng 1 tháng 5",
+          "lunarDay": 1,
+          "lunarMonth": 5
+        },
+        {
+          "id": "preset-mong1-6",
+          "title": "Mồng 1 tháng 6",
+          "lunarDay": 1,
+          "lunarMonth": 6
+        },
+        {
+          "id": "preset-mong1-7",
+          "title": "Mồng 1 tháng 7",
+          "lunarDay": 1,
+          "lunarMonth": 7
+        },
+        {
+          "id": "preset-mong1-8",
+          "title": "Mồng 1 tháng 8",
+          "lunarDay": 1,
+          "lunarMonth": 8
+        },
+        {
+          "id": "preset-mong1-9",
+          "title": "Mồng 1 tháng 9",
+          "lunarDay": 1,
+          "lunarMonth": 9
+        },
+        {
+          "id": "preset-mong1-10",
+          "title": "Mồng 1 tháng 10",
+          "lunarDay": 1,
+          "lunarMonth": 10
+        },
+        {
+          "id": "preset-mong1-11",
+          "title": "Mồng 1 tháng 11",
+          "lunarDay": 1,
+          "lunarMonth": 11
+        },
+        {
+          "id": "preset-mong1-12",
+          "title": "Mồng 1 tháng 12",
+          "lunarDay": 1,
+          "lunarMonth": 12
+        }
+      ]
+    },
+    {
+      "id": "ngay-ram",
+      "label": "Ngày rằm hàng tháng",
+      "description": "Ngày 15 của cả 12 tháng âm",
+      "emoji": "🌕",
+      "events": [
+        {
+          "id": "preset-ram-1",
+          "title": "Rằm tháng 1",
+          "lunarDay": 15,
+          "lunarMonth": 1
+        },
+        {
+          "id": "preset-ram-2",
+          "title": "Rằm tháng 2",
+          "lunarDay": 15,
+          "lunarMonth": 2
+        },
+        {
+          "id": "preset-ram-3",
+          "title": "Rằm tháng 3",
+          "lunarDay": 15,
+          "lunarMonth": 3
+        },
+        {
+          "id": "preset-ram-4",
+          "title": "Rằm tháng 4",
+          "lunarDay": 15,
+          "lunarMonth": 4
+        },
+        {
+          "id": "preset-ram-5",
+          "title": "Rằm tháng 5",
+          "lunarDay": 15,
+          "lunarMonth": 5
+        },
+        {
+          "id": "preset-ram-6",
+          "title": "Rằm tháng 6",
+          "lunarDay": 15,
+          "lunarMonth": 6
+        },
+        {
+          "id": "preset-ram-7",
+          "title": "Rằm tháng 7",
+          "lunarDay": 15,
+          "lunarMonth": 7
+        },
+        {
+          "id": "preset-ram-8",
+          "title": "Rằm tháng 8",
+          "lunarDay": 15,
+          "lunarMonth": 8
+        },
+        {
+          "id": "preset-ram-9",
+          "title": "Rằm tháng 9",
+          "lunarDay": 15,
+          "lunarMonth": 9
+        },
+        {
+          "id": "preset-ram-10",
+          "title": "Rằm tháng 10",
+          "lunarDay": 15,
+          "lunarMonth": 10
+        },
+        {
+          "id": "preset-ram-11",
+          "title": "Rằm tháng 11",
+          "lunarDay": 15,
+          "lunarMonth": 11
+        },
+        {
+          "id": "preset-ram-12",
+          "title": "Rằm tháng 12",
+          "lunarDay": 15,
+          "lunarMonth": 12
+        }
+      ]
+    }
+  ]
+}
