@@ -24,7 +24,18 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:windowSoftInputMode="adjustResize" />
+            android:windowSoftInputMode="adjustResize">
+            <!-- com.coding4pizza.lunar://open: the website's "Mở app" button on Android
+                 (apps/web/src/lib/androidApp.ts, an intent URL naming this package; Google Play when
+                 the app is missing). A private scheme, the package name so no other app shares it;
+                 not https, so the site's own links keep opening in the browser. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.coding4pizza.lunar" android:host="open" />
+            </intent-filter>
+        </activity>
 
         <!-- The launcher entries, one per palette with its icon: exactly one is enabled, the one of the
              app's main colour (LauncherIcon, when the app leaves the screen). Hỏa, the default, at install. -->
