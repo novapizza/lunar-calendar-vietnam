@@ -6,7 +6,19 @@ user 2026-11-25). Built on a Mac with Xcode; not published yet.
 | Folder | What | Status |
 |---|---|---|
 | `LunarCore/` | Swift package: lunar calendar from Hồ Ngọc Đức's tables, can chi, trực, rating, giờ hoàng đạo, holidays, mệnh, personal events (occurrences, reminders, .ics), ported from `apps/android/core`. Pure Swift + Foundation. | 2026-11-27: `swift test` 29/29 pass on macOS (Swift 6.3.1, Intel); builds for iOS Simulator 26.5 with Xcode 26.6 |
-| app, widgets | XcodeGen project, SwiftUI screens, WidgetKit | not started |
+| `project.yml`, `LichAm/`, `LichAmWidget/` | XcodeGen project; the app's frame: theme from `tokens.json` (light/dark, 5 palettes), Be Vietnam Pro and Playfair Display (bundled from `apps/android/app/src/main/res/font`), icon, bottom tab bar, storage in the App Group with Android's keys, deep links `com.coding4pizza.lunar://open?tab=…&d=…`; placeholder screens; one small widget | 2026-11-27: runs on the iPhone 17 Pro simulator (iOS 26.5); screens and widgets are next |
+| `scripts/gen-icons.mjs` | draws the app icon and the tab bar's logo mark from `shared/design/icon.svg` (sharp, on any machine with the repo's `node_modules`); the PNGs are committed | |
+
+## Build and run (on the Mac)
+
+```
+brew install xcodegen          # once
+cd apps/ios
+xcodegen generate              # after changing project.yml or adding files
+open LichAm.xcodeproj          # or: xcodebuild -project LichAm.xcodeproj -scheme LichAm -destination 'platform=iOS Simulator,name=iPhone 17 Pro' build
+```
+
+The Xcode project, Info.plists and entitlements are generated from `project.yml` and not committed.
 
 ## Shared data
 
