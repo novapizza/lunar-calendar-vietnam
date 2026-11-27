@@ -1,4 +1,6 @@
 import SwiftUI
+import UIKit
+import CoreText
 import LunarCore
 
 /// The app's colours, read from shared/design/tokens.json (the same values as the web and Android):
@@ -66,6 +68,18 @@ enum AppFont {
     /// Playfair Display (a variable font, 400–900): the weight picks the instance.
     static func serif(_ size: CGFloat, _ weight: Font.Weight = .semibold) -> Font {
         .custom("PlayfairDisplay-Regular", size: size, relativeTo: .body).weight(weight)
+    }
+
+    /// Playfair Display figures at a fixed size (taken from the sheet's width, not Dynamic Type),
+    /// lining (Playfair's default figures are old-style: the 7 hangs below the line; Android sets
+    /// "lnum" for the same reason), at [weight] on the font's wght axis (400–900).
+    static func serifFigures(_ size: CGFloat, weight: CGFloat = 700) -> Font {
+        let descriptor = UIFontDescriptor(name: "PlayfairDisplay-Regular", size: size).addingAttributes([
+            .featureSettings: [[UIFontDescriptor.FeatureKey.type: kNumberCaseType,
+                                UIFontDescriptor.FeatureKey.selector: kUpperCaseNumbersSelector]],
+            UIFontDescriptor.AttributeName(rawValue: kCTFontVariationAttribute as String): [0x7767_6874: weight], // 'wght'
+        ])
+        return Font(UIFont(descriptor: descriptor, size: size))
     }
 
     static func serifItalic(_ size: CGFloat) -> Font {

@@ -32,6 +32,11 @@ enum Store {
         (decode([LunarEvent].self, d.string(forKey: "builtinReminders")) ?? []).filter { $0.ref != nil }
     }
 
+    static let keys = ["lunarEvents", "builtinReminders", "lunarPresets", "userBirthDate", "accent", "theme", "userNotes"]
+
+    /// Removes everything the app stored (UI tests only).
+    static func reset(_ d: UserDefaults = defaults) { keys.forEach(d.removeObject(forKey:)) }
+
     static func decode<T: Decodable>(_ type: T.Type, _ json: String?) -> T? {
         guard let data = json?.data(using: .utf8) else { return nil }
         return try? JSONDecoder().decode(type, from: data)
@@ -192,6 +197,12 @@ final class AppState {
     func updateTheme(_ p: ThemePref) {
         themePref = p
         save("theme", p.rawValue)
+    }
+
+    /// The binding's theme button: Theo máy → Sáng → Tối → Theo máy.
+    func cycleTheme() {
+        let all = ThemePref.allCases
+        updateTheme(all[(all.firstIndex(of: themePref)! + 1) % all.count])
     }
 
     private func save(_ key: String, _ value: String?) {

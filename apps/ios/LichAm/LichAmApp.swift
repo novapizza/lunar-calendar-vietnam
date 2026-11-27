@@ -3,7 +3,13 @@ import LunarCore
 
 @main
 struct LichAmApp: App {
-    @State private var state = AppState()
+    @State private var state: AppState
+
+    init() {
+        // UI tests start from a fresh store (LichAmUITests passes -ui-reset).
+        if CommandLine.arguments.contains("-ui-reset") { Store.reset() }
+        _state = State(initialValue: AppState())
+    }
 
     var body: some Scene {
         WindowGroup {

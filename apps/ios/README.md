@@ -6,7 +6,10 @@ user 2026-11-25). Built on a Mac with Xcode; not published yet.
 | Folder | What | Status |
 |---|---|---|
 | `LunarCore/` | Swift package: lunar calendar from Hồ Ngọc Đức's tables, can chi, trực, rating, giờ hoàng đạo, holidays, mệnh, personal events (occurrences, reminders, .ics), ported from `apps/android/core`. Pure Swift + Foundation. | 2026-11-27: `swift test` 29/29 pass on macOS (Swift 6.3.1, Intel); builds for iOS Simulator 26.5 with Xcode 26.6 |
-| `project.yml`, `LichAm/`, `LichAmWidget/` | XcodeGen project; the app's frame: theme from `tokens.json` (light/dark, 5 palettes), Be Vietnam Pro and Playfair Display (bundled from `apps/android/app/src/main/res/font`), icon, bottom tab bar, storage in the App Group with Android's keys, deep links `com.coding4pizza.lunar://open?tab=…&d=…`; placeholder screens; one small widget | 2026-11-27: runs on the iPhone 17 Pro simulator (iOS 26.5); screens and widgets are next |
+| `project.yml`, `LichAm/`, `LichAmWidget/` | XcodeGen project; the app's frame: theme from `tokens.json` (light/dark, 5 palettes), Be Vietnam Pro and Playfair Display (bundled from `apps/android/app/src/main/res/font`), icon, bottom tab bar, storage in the App Group with Android's keys, deep links `com.coding4pizza.lunar://open?tab=…&d=…`; one small widget | 2026-11-27: runs on the iPhone 17 Pro simulator (iOS 26.5) |
+| `LichAm/TodayScreen.swift`, `TearOffSheet.swift`, `Components.swift` | Hôm nay: the tear-off sheet (lacquer, gold foil, rings, moon, can chi; turned with UIPageViewController's page curl, arrows, back to today, theme button), assessment and tuổi, the day's events, việc nên làm, giờ hoàng đạo | 2026-11-27: UI tests pass |
+| `LichAmUITests/` | XCUITest on a simulator: arrows, swipe to turn, vertical drag scrolls, cards on screen, theme cycles and is kept after a restart, link opens the Calendar | 6/6 pass 2026-11-27 |
+| Lịch, Sự kiện, Tiện ích | placeholders | next steps |
 | `scripts/gen-icons.mjs` | draws the app icon and the tab bar's logo mark from `shared/design/icon.svg` (sharp, on any machine with the repo's `node_modules`); the PNGs are committed | |
 
 ## Build and run (on the Mac)
@@ -19,6 +22,16 @@ open LichAm.xcodeproj          # or: xcodebuild -project LichAm.xcodeproj -schem
 ```
 
 The Xcode project, Info.plists and entitlements are generated from `project.yml` and not committed.
+
+UI tests (taps and swipes; screenshots kept in the result bundle):
+
+```
+xcodebuild test -project LichAm.xcodeproj -scheme LichAm \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' -resultBundlePath /tmp/ui.xcresult
+xcrun xcresulttool export attachments --path /tmp/ui.xcresult --output-path /tmp/ui-shots
+```
+
+Check a screen on screen, not with `exists` alone: XCUITest finds views that are scrolled away.
 
 ## Shared data
 

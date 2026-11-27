@@ -30,6 +30,8 @@ struct AppScaffold: View {
                 }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+            // Scrolled content stops under the status bar (as Android's statusBarsPadding), not behind it.
+            .clipped()
             BottomBar()
         }
         .background(c.bg.ignoresSafeArea())

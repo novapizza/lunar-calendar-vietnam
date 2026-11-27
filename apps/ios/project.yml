@@ -70,6 +70,19 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.coding4pizza.lunar
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
         TARGETED_DEVICE_FAMILY: "1,2"
+  # Taps and swipes on a simulator: xcodebuild test -scheme LichAm -destination 'platform=iOS Simulator,…'.
+  LichAmUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LichAmUITests
+    dependencies:
+      - target: LichAm
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coding4pizza.lunar.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: LichAm
   LichAmWidget:
     type: app-extension
     platform: iOS
@@ -96,3 +109,15 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.coding4pizza.lunar.widget
         TARGETED_DEVICE_FAMILY: "1,2"
+schemes:
+  LichAm:
+    build:
+      targets:
+        LichAm: all
+        LichAmUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - LichAmUITests
