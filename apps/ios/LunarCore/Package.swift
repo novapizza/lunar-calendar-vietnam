@@ -15,7 +15,10 @@ let package = Package(
             name: "LunarCore",
             // Copies of shared/data/*.json and shared/design/tokens.json, written by `npm run gen`
             // (shared/scripts/gen-ios-data.mjs); `npm run check` fails when they drift.
-            resources: [.copy("Resources")]
+            // .process puts the JSON files at the bundle's root. With .copy("Resources")
+            // (a Resources/ folder inside the bundle) the iOS Simulator build failed in
+            // codesign: "bundle format unrecognized" (Xcode 26.6, 2026-11-27).
+            resources: [.process("Resources")]
         ),
         .testTarget(name: "LunarCoreTests", dependencies: ["LunarCore"]),
     ]

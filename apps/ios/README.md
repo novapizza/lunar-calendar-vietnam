@@ -5,7 +5,7 @@ user 2026-11-25). Built on a Mac with Xcode; not published yet.
 
 | Folder | What | Status |
 |---|---|---|
-| `LunarCore/` | Swift package: lunar calendar from Hồ Ngọc Đức's tables, can chi, trực, rating, giờ hoàng đạo, holidays, mệnh, personal events (occurrences, reminders, .ics), ported from `apps/android/core`. Pure Swift + Foundation. | written 2026-11-25, not yet built |
+| `LunarCore/` | Swift package: lunar calendar from Hồ Ngọc Đức's tables, can chi, trực, rating, giờ hoàng đạo, holidays, mệnh, personal events (occurrences, reminders, .ics), ported from `apps/android/core`. Pure Swift + Foundation. | 2026-11-27: `swift test` 29/29 pass on macOS (Swift 6.3.1, Intel); builds for iOS Simulator 26.5 with Xcode 26.6 |
 | app, widgets | XcodeGen project, SwiftUI screens, WidgetKit | not started |
 
 ## Shared data

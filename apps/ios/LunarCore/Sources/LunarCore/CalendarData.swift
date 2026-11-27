@@ -184,7 +184,7 @@ public struct TokensJson: Decodable, Sendable {
 /// The shared data, loaded once from the package's resources.
 public enum CalendarData {
     static func load<T: Decodable>(_ name: String) -> T {
-        guard let url = Bundle.module.url(forResource: name, withExtension: "json", subdirectory: "Resources") else {
+        guard let url = Bundle.module.url(forResource: name, withExtension: "json") else {
             fatalError("\(name).json is missing from LunarCore's resources (run `npm run gen`)")
         }
         do {
