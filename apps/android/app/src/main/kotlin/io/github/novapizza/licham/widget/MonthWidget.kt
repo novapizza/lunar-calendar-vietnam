@@ -247,7 +247,7 @@ private fun Month(look: WidgetLook, today: SolarDate, squareInTallCell: Boolean,
         }
         grid.chunked(7).forEach { week ->
             Row(GlanceModifier.fillMaxWidth().defaultWeight()) {
-                week.forEach { d -> DayCell(look, d, today, marks, GlanceModifier.defaultWeight().fillMaxHeight(), cellW, solarDp, if (showLunar) lunarDp else null) }
+                week.forEach { d -> DayCell(look, d, today, marks, GlanceModifier.defaultWeight().fillMaxHeight(), cellW, cellH, solarDp, if (showLunar) lunarDp else null) }
             }
         }
     }
@@ -279,10 +279,18 @@ private fun todayEvents(today: SolarDate, personal: List<LunarEvent>): Pair<Stri
 }
 
 @Composable
-private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Marks, modifier: GlanceModifier, cellW: Float, solarDp: Float, lunarDp: Float?) {
+private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Marks, modifier: GlanceModifier, cellW: Float, cellH: Float, solarDp0: Float, lunarDp0: Float?) {
     val context = LocalContext.current
     val info = DayInfo.orNull(d)
     val isToday = d == today
+    // Today's ring (2 dp inside the cell's 1 dp padding) leaves less height than the other cells
+    // have, and the two lines' box is clipped there: in a 2×2 the lunar "20/10" was cut off and sat
+    // lower than on the other days (emulator, 2026-11-28). Both lines shrink to the ring's inside.
+    val inside = cellH - 2f - 4f
+    val pair0 = PAIR_SOLAR * solarDp0 + 0.98f * (lunarDp0 ?: 0f)
+    val shrink = if (isToday && lunarDp0 != null && pair0 > inside) (inside / pair0).coerceAtLeast(0.6f) else 1f
+    val solarDp = solarDp0 * shrink
+    val lunarDp = lunarDp0?.let { it * shrink }
     val inMonth = d.month == today.month
     val red = d.isSunday || info?.holiday != null
     // Other months' days fade, as on the Calendar page.
@@ -317,7 +325,9 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
                 // "16/10" and its dots may be wider than a small cell (2×2: 24 dp cells): that one
                 // date then gets smaller type. Digits and "/" are about 0.55 of the size wide.
                 val dotsW = if (dayDots.isEmpty()) 0f else dotDp + (dotDp * 0.5f).clampTo(1f, 2f)
-                val smallDp = minOf(lunarDp, (cellW - 2f - dotsW) / (small.text.length * 0.55f))
+                // Inside today's ring 4 dp less: its dot was cut off by the ring (2×2, 2026-11-28).
+                val room = cellW - 2f - if (isToday) 4f else 0f
+                val smallDp = minOf(lunarDp, (room - dotsW) / (small.text.length * 0.55f))
                 // Two Texts stacked keep each one's font padding, and Glance has no line height or
                 // negative margin: the lines sat about 9 dp apart in a 4×2 widget (user, 2026-11-23).
                 // Pinned to the top and the bottom of a box that is just tall enough, they overlap
@@ -330,7 +340,7 @@ private fun DayCell(look: WidgetLook, d: SolarDate, today: SolarDate, marks: Mar
                 Box(GlanceModifier.fillMaxWidth().height(pairH.dp)) {
                     Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) { solarLine() }
                     Box(GlanceModifier.fillMaxSize(), contentAlignment = Alignment.BottomCenter) {
-                        WithDots(dayDots, dotDp, small.text.length * 0.55f * smallDp, cellW - 2f) {
+                        WithDots(dayDots, dotDp, small.text.length * 0.55f * smallDp, room) {
                             val style = TextStyle(
                                 color = look.color { (if (mark) it.lunar else it.fg3).copy(alpha = fade) },
                                 fontSize = fixedSp(smallDp), fontWeight = if (mark) FontWeight.Bold else FontWeight.Normal,
