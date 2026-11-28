@@ -1,8 +1,8 @@
 import SwiftUI
 import LunarCore
 
-// Placeholders of the Sự kiện and Tiện ích tabs. Each reads LunarCore already; steps 6 to 8 of the
-// iOS plan replace them with the real screens (Hôm nay: TodayScreen.swift, Lịch: CalendarScreen.swift).
+// Placeholder of the Tiện ích tab; step 8 of the iOS plan replaces it with the real screen (Hôm nay:
+// TodayScreen.swift, Lịch: CalendarScreen.swift, Sự kiện: EventsScreen.swift).
 
 private struct ScreenTitle: View {
     let title: String
@@ -17,17 +17,6 @@ private struct ScreenTitle: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 16)
         .padding(.top, 12)
-    }
-}
-
-struct EventsScreen: View {
-    @Environment(AppState.self) private var state
-
-    var body: some View {
-        VStack {
-            ScreenTitle(title: "Sự kiện", subtitle: "\(state.lunarEvents.count) sự kiện của bạn (bước 6)")
-            Spacer()
-        }
     }
 }
 

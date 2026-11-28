@@ -36,6 +36,15 @@ struct AppScaffold: View {
         }
         .background(c.bg.ignoresSafeArea())
         .foregroundStyle(c.fg)
+        // The event sheets (list, detail, editor) in one system sheet; swiping it down closes them all.
+        .sheet(isPresented: Binding(get: { state.sheet != nil }, set: { if !$0 { state.closeAllSheets() } })) {
+            AppSheets()
+                .environment(state)
+                .environment(\.colors, c)
+                .presentationDragIndicator(.visible)
+                .presentationBackground(c.surface)
+                .presentationCornerRadius(28)
+        }
     }
 }
 
@@ -50,6 +59,7 @@ private struct BottomBar: View {
                 ForEach(nav, id: \.tab) { item in
                     TabButton(item: item, active: state.tab == item.tab) { state.selectTab(item.tab) }
                         .frame(maxWidth: .infinity)
+                        .accessibilityIdentifier("tab-\(item.tab.rawValue.lowercased())")
                 }
                 Button { state.selectTab(.tools) } label: {
                     Logo(active: state.tab == .tools, size: 36)

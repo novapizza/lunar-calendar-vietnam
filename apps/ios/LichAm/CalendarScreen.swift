@@ -417,7 +417,7 @@ private struct SelectedDayPanel: View {
             }
             .padding(.top, 12)
         }
-        DayEventsCard(day: d)
+        DayEventsCard(day: d, compact: true)
         Activities(info: info)
         GioHoangDaoCard(info: info, hourChi: d == today(now) ? DayFacts.chiOfHour(Calendar.current.component(.hour, from: now)) : nil)
     }

@@ -5,6 +5,31 @@ import LunarCore
 enum Tab: String, CaseIterable { case today = "TODAY", calendar = "CALENDAR", events = "EVENTS", tools = "TOOLS" }
 enum ThemePref: String, CaseIterable { case system = "SYSTEM", light = "LIGHT", dark = "DARK" }
 
+/// Popups ("sheets"), as Android's SheetKind; the others come with Tiện ích.
+enum SheetKind: String, Identifiable { case personalEvents, eventEditor, eventDetail; var id: String { rawValue } }
+
+/// What the event editor opens on: an event ([id], nil = a new one) and the day it was opened from;
+/// [onlyThis] = that occurrence alone; [builtin] = the reminder of a built-in day (its own form).
+struct EventEditTarget: Hashable {
+    let id: String?
+    let day: SolarDate
+    var onlyThis = false
+    var builtin: BuiltinDay? = nil
+}
+
+/// A built-in day (holiday, observance, mồng 1, rằm) whose reminder the editor sets.
+struct BuiltinDay: Hashable {
+    let ref: String
+    let title: String
+    let calendar: String
+}
+
+/// The occurrence the event detail shows: the event and the occurrence's start day.
+struct EventRef: Hashable {
+    let id: String
+    let start: SolarDate
+}
+
 /// Where the app keeps its data: the App Group's defaults, so the widgets read the same events.
 enum Store {
     static let appGroup = "group.com.coding4pizza.lunar"
@@ -63,6 +88,11 @@ final class AppState {
     @ObservationIgnored private let defaults: UserDefaults
 
     var tab: Tab = .today
+    /// The sheet shown; the ones under it come back when it closes (Android's sheet stack).
+    private(set) var sheet: SheetKind?
+    @ObservationIgnored private var sheetStack: [SheetKind] = []
+    private(set) var editTarget: EventEditTarget?
+    private(set) var detailRef: EventRef?
     private(set) var selectedDate: SolarDate
     /// First day of the month shown in the month calendar.
     private(set) var shownMonth: SolarDate
@@ -130,17 +160,59 @@ final class AppState {
         if let d = items.first(where: { $0.name == "d" })?.value.flatMap(SolarDate.parse) { selectDate(d) }
     }
 
+    // MARK: sheets
+
+    /// Shows [kind] over the sheet open now, which comes back when [kind] closes.
+    func pushSheet(_ kind: SheetKind) {
+        if let s = sheet, s != kind { sheetStack.append(s) }
+        sheet = kind
+    }
+
+    /// Closes the sheet shown: the one under it comes back.
+    func closeSheet() { sheet = sheetStack.popLast() }
+
+    func closeAllSheets() {
+        sheetStack = []
+        sheet = nil
+    }
+
+    /// The event editor: a new event on [day] ([id] nil), the series [id], or its occurrence on [day] alone.
+    func openEditor(_ id: String?, _ day: SolarDate, onlyThis: Bool = false) {
+        editTarget = EventEditTarget(id: id, day: day, onlyThis: onlyThis)
+        pushSheet(.eventEditor)
+    }
+
+    /// The reminder form of the built-in day [e] (Sự kiện tab), on that occurrence.
+    func openBuiltinReminder(_ e: UpcomingEvent) {
+        guard let ref = e.ref else { return }
+        editTarget = EventEditTarget(id: BuiltinReminders.of(builtinReminders, ref)?.id, day: e.solarDate,
+                                     builtin: BuiltinDay(ref: ref, title: e.title, calendar: e.lunar ? LunarEvent.lunar : LunarEvent.solar))
+        pushSheet(.eventEditor)
+    }
+
+    func openDetail(_ id: String, _ start: SolarDate) {
+        detailRef = EventRef(id: id, start: start)
+        pushSheet(.eventDetail)
+    }
+
     // MARK: personal events
 
     /// Adds [e] or replaces the event with its id.
     func saveEvent(_ e: LunarEvent) {
         if let i = lunarEvents.firstIndex(where: { $0.id == e.id }) { lunarEvents[i] = e } else { lunarEvents.append(e) }
+        // The detail open under the editor follows the edited series to an occurrence it still has.
+        if let ref = detailRef, ref.id == e.id {
+            let day = PersonalEvents.occurrencesCovering(e, ref.start, ref.start).first
+                ?? PersonalEvents.nextOccurrence(e, ref.start) ?? PersonalEvents.startOf(e) ?? ref.start
+            detailRef = EventRef(id: e.id, start: day)
+        }
         eventsChanged()
     }
 
     /// "Chỉ lần này" on an edit: the occurrence on [day] leaves the series and [copy] takes its place.
     func saveOccurrence(seriesId: String, day: SolarDate, copy: LunarEvent) {
         lunarEvents = lunarEvents.map { $0.id == seriesId ? withException($0, day) : $0 } + [copy]
+        detailRef = EventRef(id: copy.id, start: PersonalEvents.startOf(copy) ?? day)
         eventsChanged()
     }
 
