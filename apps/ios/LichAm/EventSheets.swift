@@ -42,6 +42,16 @@ struct AppSheets: View {
 
     var body: some View {
         switch state.sheet {
+        case .quickDate:
+            QuickDateSheet(start: state.selectedDate)
+        case .auspicious:
+            AuspiciousSheet()
+        case .lunarEvents:
+            LunarEventsSheet()
+        case .about:
+            AboutSheet()
+        case .birthDate:
+            BirthDateSheet(value: state.birthDate)
         case .personalEvents:
             PersonalEventsSheet()
         case .eventDetail:

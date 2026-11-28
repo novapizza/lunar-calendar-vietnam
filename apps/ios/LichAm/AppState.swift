@@ -5,8 +5,11 @@ import LunarCore
 enum Tab: String, CaseIterable { case today = "TODAY", calendar = "CALENDAR", events = "EVENTS", tools = "TOOLS" }
 enum ThemePref: String, CaseIterable { case system = "SYSTEM", light = "LIGHT", dark = "DARK" }
 
-/// Popups ("sheets"), as Android's SheetKind; the others come with Tiện ích.
-enum SheetKind: String, Identifiable { case personalEvents, eventEditor, eventDetail; var id: String { rawValue } }
+/// Popups ("sheets"), as Android's SheetKind (the month picker is the Calendar's own sheet).
+enum SheetKind: String, Identifiable {
+    case quickDate, auspicious, lunarEvents, personalEvents, eventEditor, eventDetail, about, birthDate
+    var id: String { rawValue }
+}
 
 /// What the event editor opens on: an event ([id], nil = a new one) and the day it was opened from;
 /// [onlyThis] = that occurrence alone; [builtin] = the reminder of a built-in day (its own form).

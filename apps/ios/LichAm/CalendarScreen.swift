@@ -18,7 +18,7 @@ private struct Cell: Identifiable {
 /// zodiac clash), then the selected day's panel. Wide (iPad): grid left, panel right.
 ///
 /// Not yet as on Android: the month folding up to two week rows under a sticky header as the page
-/// scrolls (WeekFold), and the chips "Tìm ngày tốt", "Đổi ngày", "Xuất lịch" (Tiện ích, step 8).
+/// scrolls (WeekFold).
 struct CalendarScreen: View {
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
@@ -108,14 +108,9 @@ private struct CalendarHeader: View {
                     if !wide && !showingThisMonth {
                         Chip(text: "Hôm nay", icon: "arrow.uturn.backward", textColor: c.brand) { state.selectDate(t) }
                     }
-                    // The three sheets come with Tiện ích (step 8).
-                    Group {
-                        Chip(text: "Tìm ngày tốt", icon: "magnifyingglass") {}
-                        Chip(text: "Đổi ngày", icon: "calendar") {}
-                        Chip(text: "Xuất lịch", icon: "square.and.arrow.down") {}
-                    }
-                    .disabled(true)
-                    .opacity(0.5)
+                    Chip(text: "Tìm ngày tốt", icon: "magnifyingglass") { state.pushSheet(.auspicious) }
+                    Chip(text: "Đổi ngày", icon: "calendar") { state.pushSheet(.quickDate) }
+                    Chip(text: "Xuất lịch", icon: "square.and.arrow.down") { state.pushSheet(.lunarEvents) }
                 }
                 .padding(.horizontal, 16).padding(.vertical, 4)
             }
@@ -527,8 +522,9 @@ private struct MonthYearPicker: View {
     }
 }
 
-/// "‹ title ▾ ›" heading of the month/year picker.
-private struct NavHeading: View {
+/// "‹ title ▾ ›" heading of the month/year, Đổi ngày and birth date pickers; no ▾ when the title
+/// does nothing ([onTitle] nil).
+struct NavHeading: View {
     let title: String
     let canPrev: Bool
     let canNext: Bool
@@ -536,26 +532,32 @@ private struct NavHeading: View {
     let nextLabel: String
     let onPrev: () -> Void
     let onNext: () -> Void
-    let onTitle: () -> Void
+    let onTitle: (() -> Void)?
     @Environment(\.colors) private var c
 
     var body: some View {
         HStack(spacing: 4) {
             IconBtn(icon: "chevron.left", label: prevLabel) { if canPrev { onPrev() } }.opacity(canPrev ? 1 : 0.3)
-            Button(action: onTitle) {
+                .accessibilityIdentifier("nav-prev")
+            Button { onTitle?() } label: {
                 HStack(spacing: 4) {
-                    Text(title).font(AppFont.sans(18, .heavy)).tracking(-0.18).lineLimit(1)
-                    Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(c.fg3)
+                    Text(title).font(AppFont.sans(18, .heavy)).tracking(-0.18).lineLimit(1).foregroundStyle(c.fg)
+                    if onTitle != nil {
+                        Image(systemName: "chevron.down").font(.system(size: 13, weight: .semibold)).foregroundStyle(c.fg3)
+                    }
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 6).contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(onTitle == nil)
             IconBtn(icon: "chevron.right", label: nextLabel) { if canNext { onNext() } }.opacity(canNext ? 1 : 0.3)
+                .accessibilityIdentifier("nav-next")
         }
     }
 }
 
-private struct GridCell: View {
+/// A month or year of a picker grid: brand when chosen, a brand ring on the current one.
+struct GridCell: View {
     let text: String
     let active: Bool
     let current: Bool
@@ -564,7 +566,7 @@ private struct GridCell: View {
 
     var body: some View {
         Button(action: action) {
-            Text(text).font(AppFont.sans(15, .semibold))
+            Text(text).font(AppFont.sans(15, .semibold)).multilineTextAlignment(.center)
                 .foregroundStyle(active ? c.onBrand : current ? c.brand : c.fg)
                 .frame(maxWidth: .infinity, minHeight: 56)
                 .background(RoundedRectangle(cornerRadius: 16).fill(active ? c.brand : c.surface2))
