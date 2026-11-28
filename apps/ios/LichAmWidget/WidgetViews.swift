@@ -212,9 +212,6 @@ struct MonthWidgetView: View {
     var body: some View {
         let month = monthGrid(today.year, today.month)
         let allRows = month.count / 7
-        let rows = family == .systemLarge || family == .systemExtraLarge ? allRows : min(3, allRows)
-        let first = min(max(0, (month.firstIndex(of: today) ?? 0) / 7), allRows - rows)
-        let grid = Array(month[first * 7 ..< (first + rows) * 7])
         let small = family == .systemSmall
         GeometryReader { g in
             let pad: CGFloat = small ? 10 : 14
@@ -223,10 +220,21 @@ struct MonthWidgetView: View {
             let headerH = titleSize * 1.5
             let weekH = weekSize * 1.7
             let cellW = (g.size.width - 2 * pad) / 7
-            let cellH = (g.size.height - 2 * pad - headerH - weekH) / CGFloat(rows)
-            // The solar day from the cell's box; the lunar day 0.62 of it; both must fit the cell's height.
-            // Small is held by its width: its days take more of the cell's.
-            let solar = min(cellW * (small ? 0.56 : 0.46), cellH * 0.5, cellH / 1.75)
+            let gridH = g.size.height - 2 * pad - headerH - weekH
+            // Rows and type as Android's MonthWidget: small cells get type up to 28 % bigger; a cell
+            // must hold 1.71 of the solar size (the two lines' ink is about 1.55 of it); the whole
+            // month when it nearly fits, else the weeks that fit from today's (at least 3). Small
+            // shows the whole month, as Android's 2×2 (3 weeks there left the rows far apart and
+            // today's ring a tall rectangle, user 2026-11-28).
+            let boost = min(max(1.28 - (cellW - 22) / 14 * 0.28, 1), 1.28)
+            let fitH: CGFloat = 1.71
+            let fit = gridH / (cellW * 0.46 * boost / min(0.55 * boost, 1 / fitH))
+            let rows = small || fit >= CGFloat(allRows) - 0.15 ? allRows
+                : fit >= 1.7 ? min(max(Int(fit), min(3, allRows)), allRows) : min(max(Int(fit.rounded()), 1), allRows)
+            let first = min(max(0, (month.firstIndex(of: today) ?? 0) / 7), allRows - rows)
+            let grid = Array(month[first * 7 ..< (first + rows) * 7])
+            let cellH = gridH / CGFloat(rows)
+            let solar = min(cellW * 0.46 * boost, cellH * 0.55 * boost, cellH / fitH)
             VStack(spacing: 0) {
                 header(titleSize, small: small).frame(height: headerH)
                 HStack(spacing: 0) {
@@ -239,7 +247,7 @@ struct MonthWidgetView: View {
                 ForEach(0..<rows, id: \.self) { r in
                     HStack(spacing: 0) {
                         ForEach(grid[r * 7 ..< r * 7 + 7], id: \.self) { d in
-                            let cell = DayCellView(day: d, today: today, userChi: userChi, personal: personal, solarSize: solar)
+                            let cell = DayCellView(day: d, today: today, userChi: userChi, personal: personal, solarSize: solar, cellWidth: cellW, cellHeight: cellH)
                                 .frame(width: cellW, height: cellH)
                             if small { cell } else { Link(destination: widgetLink("calendar", d)) { cell } }
                         }
@@ -285,11 +293,16 @@ private struct DayCellView: View {
     let userChi: String?
     let personal: [LunarEvent]
     let solarSize: CGFloat
+    let cellWidth: CGFloat
+    let cellHeight: CGFloat
     @Environment(\.colors) private var c
 
     var body: some View {
         let info = DayInfo.orNil(day)
         let isToday = day == today
+        // Today's ring (1 pt padding, 1.5 pt stroke) leaves less height than the other cells have:
+        // its two lines (ink about 1.55 of the solar size) shrink to fit inside it, as on Android.
+        let solarSize = isToday ? self.solarSize * min(1, max(0.6, (cellHeight - 7) / (self.solarSize * 1.55))) : self.solarSize
         let inMonth = day.month == today.month
         let red = day.isSunday || info?.holiday != nil
         let fade = inMonth ? 1.0 : 0.35
@@ -299,7 +312,10 @@ private struct DayCellView: View {
         if info?.rating == .good { dayDots.append(c.good) }
         if info?.rating == .bad { dayDots.append(c.bad.opacity(0.7)) }
         if let info, Zodiac.clashes(userChi, info) { dayDots.append(c.clash) }
-        return VStack(spacing: solarSize * 0.12) {
+        // The lines' font boxes overlap: the gap between the digits is then about 0.44 of the solar
+        // digits' height, as on Android (measured on both widgets 2026-11-28: Android 23 px under 52 px
+        // digits; iOS with spacing 0.12 left 33 px under 43 px).
+        return VStack(spacing: -solarSize * 0.11) {
             withDots(eventColor.map { [$0] } ?? [], dot) {
                 Text(verbatim: "\(day.day)")
                     .font(.custom(isToday ? "BeVietnamPro-Bold" : "BeVietnamPro-Medium", fixedSize: solarSize))
@@ -308,10 +324,22 @@ private struct DayCellView: View {
             if let l = info?.lunar {
                 let mark = l.day == 1 || l.day == 15
                 let s = SmallDate.lunar(l, selected: isToday)
-                let size = solarSize * 0.62
-                withDots(dayDots, dot) {
+                // "20/10" with its dots (and the gap that keeps it centred) may be wider than the cell:
+                // smaller type then, so the dots stay inside today's ring (as Android's DayCell).
+                // Be Vietnam Pro's digits are 0.66 of the size wide, "/" 0.5: about 0.63 a letter.
+                // Centred, the dots need their width on both sides; a narrow cell (small widget,
+                // about 21 pt) drops the left one and the date sits a little left, as Android's
+                // WithDots. Today's ring takes 2.5 pt a side and keeps a little air inside.
+                let text = s.month.map { "\(s.day)/\($0)" } ?? "\(s.day)"
+                let natural = solarSize * 0.62
+                let room = cellWidth - (isToday ? 8 : 2)
+                let textW = CGFloat(text.count) * 0.63
+                let side = dayDots.isEmpty ? 0 : dot * 1.4
+                let centred = natural * textW + 2 * side <= room
+                let size = max(min(natural, (room - (centred ? 2 : 1) * side) / textW), natural * 0.6)
+                withDots(dayDots, dot, centred: centred) {
                     HStack(alignment: .top, spacing: 0) {
-                        Text(verbatim: s.month.map { "\(s.day)/\($0)" } ?? "\(s.day)")
+                        Text(verbatim: text)
                         if s.month != nil && s.leap { Text("n").font(.custom(mark ? "BeVietnamPro-Bold" : "BeVietnamPro-Regular", fixedSize: size * 0.7)) }
                     }
                     .font(.custom(mark ? "BeVietnamPro-Bold" : "BeVietnamPro-Regular", fixedSize: size))
@@ -331,10 +359,11 @@ private struct DayCellView: View {
         }
     }
 
-    /// [text] with [dots] stacked just after it; the text stays centred.
-    private func withDots<T: View>(_ dots: [Color], _ size: CGFloat, @ViewBuilder _ text: () -> T) -> some View {
+    /// [text] with [dots] stacked just after it; the text stays centred unless [centred] is false
+    /// (no room for the balancing gap before it).
+    private func withDots<T: View>(_ dots: [Color], _ size: CGFloat, centred: Bool = true, @ViewBuilder _ text: () -> T) -> some View {
         HStack(spacing: size * 0.4) {
-            if !dots.isEmpty { Color.clear.frame(width: size, height: 1) }
+            if !dots.isEmpty && centred { Color.clear.frame(width: size, height: 1) }
             text()
             if !dots.isEmpty {
                 VStack(spacing: 1) { ForEach(Array(dots.enumerated()), id: \.offset) { _, col in Circle().fill(col).frame(width: size, height: size) } }
