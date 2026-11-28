@@ -76,7 +76,7 @@ class MonthWidget : GlanceAppWidget() {
 
     override suspend fun provideGlance(context: Context, id: GlanceId) {
         val look = WidgetLook.of(context)
-        val square = defaultLauncher(context) in SQUARE_2X2_LAUNCHERS
+        val square = squareCardsInTallCells(context)
         val app = AppState(context.applicationContext)
         val marks = Marks(app.userChi, app.lunarEvents)
         WidgetFontScale.sync(context)
@@ -113,6 +113,12 @@ private const val MIN_ROWS_FROM = 1.7f
 
 /** Launchers whose own 2×2 widgets are square in a taller cell: MIUI / HyperOS, POCO Launcher. */
 private val SQUARE_2X2_LAUNCHERS = setOf("com.miui.home", "com.mi.android.globallauncher")
+
+/**
+ * Whether the default launcher draws its 2×2 widgets as squares low in a taller cell (Xiaomi's):
+ * this widget's and Tờ lịch's small card then do the same, to line up with them.
+ */
+internal fun squareCardsInTallCells(context: Context): Boolean = defaultLauncher(context) in SQUARE_2X2_LAUNCHERS
 
 /** The default home app's package (needs the HOME <queries> entry in the manifest); null when none is set. */
 private fun defaultLauncher(context: Context): String? =

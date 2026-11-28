@@ -3,6 +3,7 @@ package io.github.novapizza.licham.widget
 import android.appwidget.AppWidgetManager
 import android.content.Context
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.unit.dp
 import androidx.glance.GlanceId
 import androidx.glance.GlanceModifier
 import androidx.glance.Image
@@ -15,8 +16,10 @@ import androidx.glance.appwidget.GlanceAppWidgetReceiver
 import androidx.glance.appwidget.SizeMode
 import androidx.glance.appwidget.action.actionStartActivity
 import androidx.glance.appwidget.provideContent
+import androidx.glance.layout.Box
 import androidx.glance.layout.ContentScale
 import androidx.glance.layout.fillMaxSize
+import androidx.glance.layout.padding
 import io.github.novapizza.licham.AppState
 import io.github.novapizza.licham.Tab
 import io.github.novapizza.licham.core.PersonalEvents
@@ -38,8 +41,9 @@ class TodaySheetWidget : GlanceAppWidget() {
         val look = WidgetLook.of(context)
         val today = AppState.today()
         val own = PersonalEvents.on(AppState(context.applicationContext).lunarEvents, today).firstOrNull()?.title
+        val square = squareCardsInTallCells(context)
         WidgetFontScale.sync(context)
-        provideContent { WidgetFontScale.Provide { Sheet(look, today, own) } }
+        provideContent { WidgetFontScale.Provide { Sheet(look, today, own, square) } }
     }
 }
 
@@ -53,12 +57,20 @@ class TodaySheetWidgetReceiver : GlanceAppWidgetReceiver() {
 }
 
 @Composable
-private fun Sheet(look: WidgetLook, d: SolarDate, own: String?) {
+private fun Sheet(look: WidgetLook, d: SolarDate, own: String?, squareInTallCell: Boolean) {
     val context = LocalContext.current
     val size = LocalSize.current
     val info = DayInfo.of(d)
     val w = size.width.value
-    val h = size.height.value
+    val cellH = size.height.value
+    // On Xiaomi's launcher (only there, as MonthWidget), a cell up to 1.3× taller than wide gets a
+    // square card low in the cell, as MonthWidget's and HyperOS's own widgets: filling a 2×2 cell the
+    // sheet stood 54 px taller than the month widget beside it (user's Xiaomi screenshot, 2026-11-28:
+    // cells 377 × 431 px, the month a 377 px square 44 px below the cell's top). Same rule and split
+    // as MonthWidget: any size within 1.3×, 5/6 of the spare height above.
+    val square = squareInTallCell && cellH > w && cellH <= w * 1.3f
+    val h = if (square) w else cellH
+    val spare = cellH - h
     val density = context.resources.displayMetrics.density
     val wPx = (w * density).toInt()
     val hPx = (h * density).toInt()
@@ -71,12 +83,14 @@ private fun Sheet(look: WidgetLook, d: SolarDate, own: String?) {
         // Upright and tall enough: the app's sheet itself.
         else -> painter.paint(d, info, wPx, hPx, nameOf(info, own))
     }
-    Image(
-        ImageProvider(bitmap),
-        contentDescription = "${d.weekdayName()}, ${d.day}/${d.month}/${d.year}, âm lịch ${info.lunar.day}/${info.lunar.month}",
-        modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(WidgetLinks.open(context, Tab.TODAY))),
-        contentScale = ContentScale.Fit,
-    )
+    Box(GlanceModifier.fillMaxSize().padding(top = (spare * 5f / 6f).dp, bottom = (spare / 6f).dp)) {
+        Image(
+            ImageProvider(bitmap),
+            contentDescription = "${d.weekdayName()}, ${d.day}/${d.month}/${d.year}, âm lịch ${info.lunar.day}/${info.lunar.month}",
+            modifier = GlanceModifier.fillMaxSize().clickable(actionStartActivity(WidgetLinks.open(context, Tab.TODAY))),
+            contentScale = ContentScale.Fit,
+        )
+    }
 }
 
 /** Below this height (dp) an upright widget draws the small sheet: 2×2 on a Pixel is about 186×213dp. */
