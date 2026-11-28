@@ -22,6 +22,8 @@ targets:
     platform: iOS
     sources:
       - path: LichAm
+      # The widgets' views, also drawn by the debug gallery (-ui-widgets) for screenshots.
+      - path: LichAmWidget/WidgetViews.swift
       # The fonts of the Android app (Be Vietnam Pro, Playfair Display; OFL, licences in
       # apps/android/licenses), bundled from there so the two apps share one copy.
       - path: ../android/app/src/main/res/font
@@ -88,6 +90,10 @@ targets:
     platform: iOS
     sources:
       - path: LichAmWidget
+      # The app's colours (tokens.json) and fonts, so the widgets look like the app.
+      - path: LichAm/Theme.swift
+      - path: ../android/app/src/main/res/font
+        buildPhase: resources
     dependencies:
       - package: LunarCore
       - sdk: WidgetKit.framework
@@ -98,6 +104,14 @@ targets:
         CFBundleDisplayName: Lịch Âm
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIAppFonts:
+          - be_vietnam_pro_regular.ttf
+          - be_vietnam_pro_medium.ttf
+          - be_vietnam_pro_semibold.ttf
+          - be_vietnam_pro_bold.ttf
+          - be_vietnam_pro_extrabold.ttf
+          - playfair_display.ttf
+          - playfair_display_italic.ttf
         NSExtension:
           NSExtensionPointIdentifier: com.apple.widgetkit-extension
     entitlements:

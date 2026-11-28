@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import WidgetKit
 import LunarCore
 
 enum Tab: String, CaseIterable { case today = "TODAY", calendar = "CALENDAR", events = "EVENTS", tools = "TOOLS" }
@@ -286,7 +287,10 @@ final class AppState {
         updateTheme(all[(all.firstIndex(of: themePref)! + 1) % all.count])
     }
 
+    /// Stores [value] under [key] and redraws the widgets, which read the events, birth date, accent
+    /// and theme from the same defaults.
     private func save(_ key: String, _ value: String?) {
         if let value { defaults.set(value, forKey: key) } else { defaults.removeObject(forKey: key) }
+        WidgetCenter.shared.reloadAllTimelines()
     }
 }

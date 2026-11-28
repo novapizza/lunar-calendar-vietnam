@@ -42,9 +42,22 @@ private struct Root: View {
         }
     }
 
+    @ViewBuilder private var content: some View {
+        #if DEBUG
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "-ui-widgets") {
+            WidgetGallery(kind: i + 1 < args.count ? args[i + 1] : "sheet")
+        } else {
+            AppScaffold()
+        }
+        #else
+        AppScaffold()
+        #endif
+    }
+
     var body: some View {
         let dark = (scheme ?? systemScheme) == .dark
-        AppScaffold()
+        content
             .environment(\.colors, LichAmColors(state.palette, dark: dark))
             .preferredColorScheme(scheme)
             .dynamicTypeSize(...maxDynamicType)
