@@ -14,8 +14,14 @@ packages:
 settings:
   base:
     SWIFT_VERSION: "5.0"
+    # The App Store version. The build number is set by scripts/release.sh (the commit count).
     MARKETING_VERSION: "0.1.0"
     CURRENT_PROJECT_VERSION: "1"
+    # Signing for devices, TestFlight and the App Store: automatic, with the Apple Developer team.
+    # The team id is not secret (it is in every signed app): once the team exists, put it here so
+    # Xcode's own Archive works too; until then scripts/release.sh takes it as TEAM_ID.
+    CODE_SIGN_STYLE: Automatic
+    # DEVELOPMENT_TEAM: ABCDE12345
 targets:
   LichAm:
     type: application

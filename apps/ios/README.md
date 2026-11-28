@@ -15,6 +15,9 @@ user 2026-11-25). Built on a Mac with Xcode; not published yet.
 | `LichAm/ToolsScreen.swift`, `ToolsSheets.swift` | Tiện ích (Android's ToolsScreen and ui/Sheets.kt): Đổi ngày âm – dương (the two dates side by side, year → month → day grids in either calendar, "Xem ngày" opens it), Tìm ngày tốt (cưới hỏi, khởi công, khai trương in the next two months), Xuất lịch (built-in groups, your events, 1–30 years; the .ics is saved where the user picks, with the system's file sheet), Ngày sinh (year → month → day; tuổi and mệnh), Màu chủ đạo, Giao diện, Thông tin ứng dụng, the privacy policy (browser). iPad (≥ 600 pt): two columns | 2026-11-28: UI tests pass; the saved file held 15 VEVENTs for Tết over 5 years |
 | `LichAmWidget/` | Widgets (Android's widget/), each small, medium and large, drawn with the app's colours (palette of the mệnh or the chosen accent; light or dark as Giao diện says) and fonts (`Theme.swift` and the font files are built into the extension too). Tờ lịch hôm nay: the sheet's lacquer and gold foil; small = day, weekday, lunar date; medium = the day left, the lunar date in its ring and the day's name right (holiday, else your event, else a commemorative day or festival, else mồng 1 / rằm); large = the app's sheet with the can chi. Lịch tháng: the Calendar's grid (lunar days, good / bad / clash / event dots, today ringed, Sundays and holidays red, other months faded), today's names in the header; large shows every week, medium and small three weeks from today's; in medium and large a tap on a day opens it in Lịch. Redrawn at midnight and whenever the app saves. Debug builds draw them in the app with `-ui-widgets sheet` or `-ui-widgets month` (screenshots; `-ui-open …&d=` sets the day) | 2026-11-28: SpringBoard's widget gallery shows both in three sizes, drawn by the extension (UI test). Not tested on the home screen: the iOS 26.5 simulator's SpringBoard crashes in `-[SBHRippleSimulation clear]` when a widget is dropped in, so a tap on a day was not tried |
 | `scripts/gen-icons.mjs` | draws the app icon and the tab bar's logo mark from `shared/design/icon.svg` (sharp, on any machine with the repo's `node_modules`); the PNGs are committed | |
+| `LichAm/PrivacyInfo.xcprivacy`, `LichAmWidget/PrivacyInfo.xcprivacy` | privacy manifests: no tracking, no data collected; UserDefaults with reasons 1C8F.1 (the App Group store) and CA92.1 (the app's own, the fallback) | 2026-11-28: `plutil -lint` OK; both are in the Release archive (`MODE=check scripts/release.sh`) |
+| `scripts/release.sh` | archive and upload to App Store Connect (TestFlight), see Release below | 2026-11-28: `MODE=check` (unsigned Release archive) builds, version 0.1.0 build 133. Signed archive and upload not tried: no Apple Developer team yet |
+| `scripts/appstore-screenshots.sh` | App Store screenshots on iPhone 6.9″ and iPad 13″ simulators | 2026-11-28: 7 scenes on iPhone 17 Pro Max (1320 × 2868) and iPad Pro 13-inch (M5) (2064 × 2752) |
 
 ## Compared with Android
 
@@ -49,6 +52,50 @@ xcrun xcresulttool export attachments --path /tmp/ui.xcresult --output-path /tmp
 Check a screen on screen, not with `exists` alone: XCUITest finds views that are scrolled away.
 Tests that need a fixed day launch with `-ui-open com.coding4pizza.lunar://open?tab=calendar&d=YYYY-MM-DD`
 (the app opens that link at start; `simctl openurl` asks "Open in Lịch Âm?" first).
+
+## Release (App Store)
+
+Once, outside the repository (the account holder):
+
+1. Join the Apple Developer Program. An individual account sells under the person's name; an
+   organisation needs a D-U-N-S number.
+2. Sign in to Xcode with that Apple ID (Xcode → Settings → Accounts). With automatic signing,
+   the first signed archive registers the App IDs `com.coding4pizza.lunar` and
+   `com.coding4pizza.lunar.widget` and the App Group `group.com.coding4pizza.lunar`.
+3. In App Store Connect, create the app (bundle id `com.coding4pizza.lunar`, primary language
+   Vietnamese). Its name must not be taken on the App Store.
+4. Put the team id in `project.yml` (`DEVELOPMENT_TEAM`, commented out under `settings`).
+
+Each release, on the Mac:
+
+```
+apps/ios/scripts/release.sh                  # or TEAM_ID=ABCDE12345 apps/ios/scripts/release.sh
+apps/ios/scripts/appstore-screenshots.sh     # when the screens changed
+```
+
+`release.sh` regenerates the project, archives Release with the commit count as the build
+number, and uploads; the build shows in TestFlight once Apple has processed it. `MODE=export`
+writes the .ipa instead, `MODE=check` archives without signing. For CI, an App Store Connect API
+key (`ASC_KEY_PATH`, `ASC_KEY_ID`, `ASC_ISSUER_ID`) replaces the Xcode account.
+
+`appstore-screenshots.sh` writes `apps/ios/build/appstore-screenshots/{iphone,ipad}/`: Hôm nay,
+Lịch, Sự kiện, Tiện ích, Hôm nay dark, and the two widgets (debug gallery), on Mồng 1 Tết Đinh
+Mùi (6/2/2027), status bar 9:41.
+
+The App Store page, filled in App Store Connect:
+
+| Field | Value |
+|---|---|
+| Category | Lifestyle (`LSApplicationCategoryType`) |
+| Price | Free |
+| Privacy policy URL | https://lunar.coding4pizza.com/privacy (the page Tiện ích opens) |
+| App Privacy | Data Not Collected: no network code and no analytics in the app; data stays on the device (App Group store) |
+| Export compliance | answered by `ITSAppUsesNonExemptEncryption: false` in the Info.plist |
+| Screenshots | iPhone 6.9″ and iPad 13″ from the script above |
+| Age rating | the questionnaire; none of its content applies |
+
+Before sending it for review, install the TestFlight build on a real iPhone: the App Group, the
+widgets on the home screen and the reminders have only run on the simulator.
 
 ## Shared data
 
