@@ -164,6 +164,28 @@ struct IconBtn: View {
     }
 }
 
+/// `.chip`: rounded-full px-3.5 py-2, text-sm semibold, surface, shadow-card; icon 15 in brand.
+struct Chip: View {
+    let text: String
+    var icon: String? = nil
+    var textColor: Color? = nil
+    let action: () -> Void
+    @Environment(\.colors) private var c
+
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 6) {
+                if let icon { Image(systemName: icon).font(.system(size: 13, weight: .semibold)).foregroundStyle(c.brand) }
+                Text(text).font(AppFont.sans(14, .semibold)).foregroundStyle(textColor ?? c.fg).lineLimit(1)
+            }
+            .padding(.horizontal, 14).padding(.vertical, 8)
+            .background(Capsule().fill(c.surface))
+            .webShadow(c.shadowTint)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 /// `.btn-soft` small: px-3 py-1.5 text-xs semibold, brand on brand-soft.
 struct SoftButton: View {
     let text: String

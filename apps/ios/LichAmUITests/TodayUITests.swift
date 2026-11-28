@@ -112,7 +112,9 @@ final class TodayUITests: XCTestCase {
     func testLinkOpensTheCalendar() {
         XCTAssertTrue(sheetDay.waitForExistence(timeout: 5))
         app.open(URL(string: "com.coding4pizza.lunar://open?tab=calendar&d=2027-02-17")!)
-        XCTAssertTrue(app.staticTexts["Tháng 2 năm 2027"].waitForExistence(timeout: 5))
+        let header = app.buttons["Chọn tháng, năm"]
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        XCTAssertEqual(header.value as? String, "Tháng 2 năm 2027")
         shot("6-link-calendar")
     }
 }

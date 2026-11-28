@@ -8,7 +8,12 @@ struct LichAmApp: App {
     init() {
         // UI tests start from a fresh store (LichAmUITests passes -ui-reset).
         if CommandLine.arguments.contains("-ui-reset") { Store.reset() }
-        _state = State(initialValue: AppState())
+        let state = AppState()
+        // Screenshots and tests may start on a link: -ui-open com.coding4pizza.lunar://open?tab=calendar&d=…
+        // (simctl openurl asks "Open in Lịch Âm?" first).
+        let args = CommandLine.arguments
+        if let i = args.firstIndex(of: "-ui-open"), i + 1 < args.count, let url = URL(string: args[i + 1]) { state.open(url) }
+        _state = State(initialValue: state)
     }
 
     var body: some Scene {
