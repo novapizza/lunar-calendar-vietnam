@@ -62,6 +62,133 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
         return bmp
     }
 
+    /**
+     * The small sheet (about 2×2, iOS's systemSmall): the month line, the day, the weekday and the
+     * lunar date, on the lacquer card inside the double gold frame. [density]: px per dp.
+     */
+    fun paintSmall(d: SolarDate, info: DayInfo, widthPx: Int, heightPx: Int, density: Float): Bitmap =
+        card(widthPx, heightPx, density, SMALL_W, SMALL_H) { cv, w, h ->
+            val cx = w / 2f
+            val leap = if (info.lunar.leap) " nhuận" else ""
+            val month = sansLine(8f)
+            val num = 64f * 1.02f
+            val wd = sansLine(9f) + 9f * 0.5f
+            val lunar = serifLine(12f)
+            var y = (h - (month + 2f + num + 2f + wd + 2f + 3f + lunar)) / 2f
+            text(cv, "THÁNG ${d.month} · TUẦN ${d.weekOfYear}", cx, y, month, 8f, sansSemi, argb(accent), spacing = 0.3f, maxWidth = w - 32f)
+            y += month + 2f
+            foilText(cv, "${d.day}", cx, y, num, 64f, spacing = -0.02f, drop = 1.5f)
+            y += num + 2f
+            weekday(cv, d, info, cx, y, 9f)
+            y += wd + 2f + 3f
+            text(cv, "${info.lunar.day} tháng ${LUNAR_MONTH_NAMES[info.lunar.month - 1]}$leap", cx, y, lunar, 12f, playfairItalic, argb(Color.White, 0.75f), maxWidth = w - 32f, wght = 400)
+        }
+
+    /**
+     * The medium sheet (about 4×2, iOS's systemMedium): the solar day on the left (month line, day,
+     * weekday), the lunar date in its gold ring on the right with the day's [name] under it.
+     */
+    fun paintMedium(d: SolarDate, info: DayInfo, widthPx: Int, heightPx: Int, density: Float, name: String?): Bitmap =
+        card(widthPx, heightPx, density, MEDIUM_W, MEDIUM_H) { cv, w, h ->
+            val colW = (w - 36f - 8f) / 2f
+            val leftX = 18f + colW / 2f
+            val rightX = w - 18f - colW / 2f
+            val month = sansLine(9f)
+            val num = 76f * 1.02f
+            val wd = sansLine(10f) + 10f * 0.5f
+            var y = (h - (month + 4f + num + 4f + wd)) / 2f
+            text(cv, "THÁNG ${d.month} · TUẦN ${d.weekOfYear}", leftX, y, month, 9f, sansSemi, argb(accent), spacing = 0.3f, maxWidth = colW)
+            y += month + 4f
+            foilText(cv, "${d.day}", leftX, y, num, 76f, spacing = -0.02f, drop = 1.5f)
+            y += num + 4f
+            weekday(cv, d, info, leftX, y, 10f)
+
+            val ring = 92f
+            val nameH = serifLine(12f)
+            var top = (h - (ring + if (name != null) 6f + nameH else 0f)) / 2f
+            lunarRing(cv, info, rightX, top, ring)
+            top += ring + 6f
+            if (name != null) text(cv, name, rightX, top, nameH, 12f, playfairItalic, argb(accent), maxWidth = colW, wght = 400)
+        }
+
+    /**
+     * A bitmap of [widthPx]×[heightPx]: the lacquer card with its double frame in dp, then [content]
+     * laid out in the iOS widget's points, scaled to fit a [baseW]×[baseH] box into the widget and
+     * given the scaled box's own size (w, h), so a longer side only spreads the parts.
+     */
+    private inline fun card(widthPx: Int, heightPx: Int, density: Float, baseW: Float, baseH: Float, content: (Canvas, Float, Float) -> Unit): Bitmap {
+        val bmp = Bitmap.createBitmap(widthPx, heightPx, Bitmap.Config.ARGB_8888)
+        val cv = Canvas(bmp)
+        cv.scale(density, density)
+        val w = widthPx / density
+        val h = heightPx / density
+        val box = RectF(0f, 0f, w, h)
+        val path = Path().apply { addRoundRect(box, 20f, 20f, Path.Direction.CW) }
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG)
+        fill.color = OPAQUE
+        fill.shader = LinearGradient(0f, 0f, w, h, intArrayOf(argb(c.heroFrom), argb(c.heroVia), argb(c.heroTo)), null, Shader.TileMode.CLAMP)
+        cv.drawPath(path, fill)
+        cv.save()
+        cv.clipPath(path)
+        // iOS SheetPaper: a soft light at 50% 25%, a faint moon at the top right (a circle in a
+        // 0.7w × h frame moved by (0.55w, -0.2w)).
+        fill.shader = RadialGradient(w / 2f, h * 0.25f, maxOf(w, h) * 0.8f, intArrayOf(argb(Color.White, 0.10f), argb(Color.White, 0f)), floatArrayOf(0f, 0.6f), Shader.TileMode.CLAMP)
+        cv.drawRect(box, fill)
+        fill.shader = null
+        fill.color = argb(accent, 0.06f)
+        cv.drawCircle(w * 0.9f, h * 0.5f - w * 0.2f, minOf(w * 0.35f, h * 0.5f), fill)
+        cv.restore()
+        // The double gold hairline frame (iOS: 6pt in at 45 %, 9pt in at 25 %).
+        val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.STROKE; strokeWidth = 1f }
+        stroke.color = argb(accent, 0.45f)
+        cv.drawRoundRect(RectF(6.5f, 6.5f, w - 6.5f, h - 6.5f), 15f, 15f, stroke)
+        stroke.color = argb(accent, 0.25f)
+        cv.drawRoundRect(RectF(9.5f, 9.5f, w - 9.5f, h - 9.5f), 12f, 12f, stroke)
+        val k = minOf(w / baseW, h / baseH)
+        cv.scale(k, k)
+        content(cv, w / k, h / k)
+        return bmp
+    }
+
+    private fun sansLine(size: Float) = size * 1.265f
+    private fun serifLine(size: Float) = size * 1.333f
+
+    /** The weekday in capitals, centred on [cx] from [top]; Sundays and holidays get the gold seal. */
+    private fun weekday(cv: Canvas, d: SolarDate, info: DayInfo, cx: Float, top: Float, size: Float) {
+        val red = d.isSunday || info.holiday != null
+        val wd = d.weekdayName().uppercase()
+        val rowH = sansLine(size) + size * 0.5f
+        if (red) {
+            val pillW = textPaint(size, sansSemi, 0.3f).measureText(wd) - size * 0.3f + size * 1.8f
+            val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = argb(accent) }
+            cv.drawRoundRect(RectF(cx - pillW / 2, top, cx + pillW / 2, top + rowH), rowH / 2, rowH / 2, fill)
+        }
+        text(cv, wd, cx, top, rowH, size, sansSemi, if (red) argb(c.heroAccentInk) else argb(Color.White), spacing = 0.3f)
+    }
+
+    /** iOS LunarRing: "ÂM LỊCH" (or "NHUẬN"), the lunar day in foil, "tháng …", in a [size] gold ring. */
+    private fun lunarRing(cv: Canvas, info: DayInfo, cx: Float, top: Float, size: Float) {
+        val r = size / 2f
+        val cy = top + r
+        val p = Paint(Paint.ANTI_ALIAS_FLAG)
+        p.color = argb(Color.Black, 0.12f); cv.drawCircle(cx, cy, r, p)
+        p.style = Paint.Style.STROKE; p.strokeWidth = 1f
+        p.color = argb(accent, 0.28f); cv.drawCircle(cx, cy, r - size * 0.05f, p)
+        p.color = argb(accent, 0.55f); cv.drawCircle(cx, cy, r - 0.5f, p)
+        val month = LUNAR_MONTH_NAMES[info.lunar.month - 1]
+        val labelSize = size * 0.085f
+        val monthSize = size * if (month.length > 5) 0.1f else 0.115f
+        val label = sansLine(labelSize)
+        val day = size * 0.41f
+        val tail = serifLine(monthSize)
+        var y = cy - (label + day + 1f + tail) / 2f
+        text(cv, if (info.lunar.leap) "NHUẬN" else "ÂM LỊCH", cx, y, label, labelSize, sansSemi, argb(accent, 0.85f), spacing = 0.28f)
+        y += label
+        foilText(cv, "${info.lunar.day}", cx, y, day, size * 0.4f, drop = 1.5f)
+        y += day + 1f
+        text(cv, "tháng $month", cx, y, tail, monthSize, playfairItalic, argb(Color.White, 0.7f), maxWidth = size * 0.8f, wght = 400)
+    }
+
     private fun argb(color: Color, alpha: Float = 1f) = color.copy(alpha = color.alpha * alpha).toArgb()
 
     private fun drawSheet(cv: Canvas, d: SolarDate, info: DayInfo, W: Float, row: LunarRow, extra: Float, name: String?) {
@@ -285,13 +412,13 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
     }
 
     /** Gold-foil print (TearOffSheet foil()): light-to-deep accent gradient, a 2dp drop beneath. */
-    private fun foilText(cv: Canvas, s: String, cx: Float, top: Float, lineH: Float, size: Float, spacing: Float = 0f) {
+    private fun foilText(cv: Canvas, s: String, cx: Float, top: Float, lineH: Float, size: Float, spacing: Float = 0f, drop: Float = 2f) {
         val p = textPaint(size, playfair, spacing, wght = 700)
         val fm = p.fontMetrics
         val base = top + lineH / 2f - (fm.ascent + fm.descent) / 2f
         val x = cx + size * spacing / 2f
         p.color = argb(Color.Black, 0.22f)
-        cv.drawText(s, x, base + 2f, p)
+        cv.drawText(s, x, base + drop, p)
         // Over the line's box (ascent to descent, no font padding), as Compose spreads the app's foil brush.
         p.color = OPAQUE
         p.shader = LinearGradient(
@@ -323,5 +450,14 @@ internal class SheetPainter(context: Context, private val c: LichAmColors) {
         const val NUMBER = 151f
         /** A stacked can chi label's line (7.5sp type). */
         const val STACK_LABEL = 11f
+        /**
+         * The small and medium layouts use the iOS widgets' point sizes for a 170pt high box and are
+         * scaled to the widget's height, or to its width when that is under these (where the month
+         * line and the columns still fit; iOS's own boxes are 170 and 364pt wide).
+         */
+        const val SMALL_W = 150f
+        const val SMALL_H = 170f
+        const val MEDIUM_W = 300f
+        const val MEDIUM_H = 170f
     }
 }

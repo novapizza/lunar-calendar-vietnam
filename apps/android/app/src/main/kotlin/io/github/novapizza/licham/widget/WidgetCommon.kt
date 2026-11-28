@@ -6,11 +6,6 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
-import android.graphics.LinearGradient
-import android.graphics.Paint
-import android.graphics.Shader
 import android.net.Uri
 import android.provider.Settings
 import androidx.compose.runtime.Composable
@@ -103,23 +98,6 @@ internal object WidgetFontScale {
 }
 
 internal fun Float.clampTo(min: Float, max: Float) = coerceIn(min, max)
-
-/** Light from the top left, shade to the bottom right, over a solid colour: the sheet's lacquer gradient. */
-internal object Shade {
-    val bitmap: Bitmap by lazy {
-        val w = 48
-        val h = 72
-        Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888).also { b ->
-            val paint = Paint().apply {
-                shader = LinearGradient(
-                    0f, 0f, w.toFloat(), h.toFloat(),
-                    intArrayOf(0x24FFFFFF, 0x00000000, 0x55000000), floatArrayOf(0f, 0.45f, 1f), Shader.TileMode.CLAMP,
-                )
-            }
-            Canvas(b).drawRect(0f, 0f, w.toFloat(), h.toFloat(), paint)
-        }
-    }
-}
 
 /** Opening the app from a widget: the tab, and for the Calendar the day to select. */
 object WidgetLinks {
