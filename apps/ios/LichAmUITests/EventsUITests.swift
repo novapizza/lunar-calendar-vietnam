@@ -103,6 +103,8 @@ final class EventsUITests: XCTestCase {
         XCTAssertTrue(next.waitForExistence(timeout: 5))
         next.tap()
         XCTAssertTrue(text("Nhắc ngày này").waitForExistence(timeout: 3))
+        // The form opens with a reminder, so iOS may ask about notifications.
+        allowNotificationsIfAsked()
         XCTAssertFalse(app.buttons["Tắt nhắc"].exists, "no reminder yet")
         shot("e6-builtin-reminder")
         app.buttons["Lưu"].tap()

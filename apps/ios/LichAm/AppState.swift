@@ -237,17 +237,23 @@ final class AppState {
     func saveBuiltinReminder(_ r: LunarEvent) {
         builtinReminders = builtinReminders.filter { $0.ref != r.ref } + [r]
         save("builtinReminders", Store.encode(builtinReminders))
+        scheduleReminders()
     }
 
     func removeBuiltinReminder(_ ref: String) {
         builtinReminders.removeAll { $0.ref == ref }
         save("builtinReminders", Store.encode(builtinReminders))
+        scheduleReminders()
     }
 
     private func eventsChanged() {
         save("lunarEvents", Store.encode(lunarEvents))
-        // Reminders are scheduled from step 7 of the iOS plan.
+        scheduleReminders()
     }
+
+    /// Registers the next reminders of everything that reminds: the personal events and the built-in
+    /// days' reminders (Android's readRemindable).
+    func scheduleReminders() { Reminders.schedule(lunarEvents + builtinReminders) }
 
     func togglePreset(_ id: String) {
         if enabledPresets.contains(id) { enabledPresets.remove(id) } else { enabledPresets.insert(id) }

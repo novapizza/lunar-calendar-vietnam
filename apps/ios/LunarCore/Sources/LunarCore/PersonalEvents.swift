@@ -268,6 +268,21 @@ public enum PersonalEvents {
         return stableSorted(out) { $0.at < $1.at }
     }
 
+    /// The first [limit] reminders firing at or after [from], looking up to three years ahead in growing
+    /// windows (Android's Reminders.next, which wants only the first). iOS registers them all at once.
+    public static func nextReminders(_ events: [LunarEvent], from: LocalDateTime, limit: Int) -> [ReminderFire] {
+        guard limit > 0, events.contains(where: { !$0.reminders.isEmpty }) else { return [] }
+        var out: [ReminderFire] = []
+        var lo = from
+        for days in [2, 30, 365, 3 * 365] {
+            let hi = from.plusMinutes(days * 1440)
+            out += remindersBetween(events, lo, hi)
+            if out.count >= limit { break }
+            lo = hi
+        }
+        return Array(out.prefix(limit))
+    }
+
     /// The notification text of an occurrence: "Hôm nay · 09:00 – 10:00", "Ngày mai · Cả ngày",
     /// "Thứ Năm 26/11 · Cả ngày", plus " · 10/10 âm" for lunar repeats.
     public static func reminderText(_ e: LunarEvent, _ start: SolarDate, _ today: SolarDate) -> String {

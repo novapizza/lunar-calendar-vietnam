@@ -418,6 +418,7 @@ struct EventEditorSheet: View {
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
     @State private var f: EventForm
+    @State private var notificationsOff = false
 
     init(target: EventEditTarget, original: LunarEvent?) {
         self.target = target
@@ -446,6 +447,23 @@ struct EventEditorSheet: View {
         }
         .presentationDetents([.large])
         .interactiveDismissDisabled(f.titleOk && target.builtin == nil)
+        .modifier(NotificationsOffAlert(shown: $notificationsOff))
+        // Notifications for reminders (shared/design/events.md): asked when the form opens with
+        // reminders and when one is added; when they are off, the alert offers Settings.
+        .onAppear { if !f.reminders.isEmpty { askNotifications(alert: true) } }
+    }
+
+    /// Asks iOS the first time (and registers the reminders once allowed); [alert]: offer Settings when
+    /// they are off. Lưu asks without the alert, as the sheet closes.
+    private func askNotifications(alert: Bool) {
+        let state = state
+        Task { @MainActor in
+            switch await Reminders.ask() {
+            case .justAllowed: state.scheduleReminders()
+            case .off: if alert { notificationsOff = true }
+            case .allowed, .refused: break
+            }
+        }
     }
 
     @ViewBuilder private var footer: some View {
@@ -455,6 +473,7 @@ struct EventEditorSheet: View {
                 PrimaryButton(text: "Lưu", enabled: !f.reminders.isEmpty && f.error == nil, tall: true) {
                     guard let e = f.build() else { return }
                     state.saveBuiltinReminder(e)
+                    askNotifications(alert: false)
                     state.closeSheet()
                 }
                 .layoutPriority(1)
@@ -463,6 +482,7 @@ struct EventEditorSheet: View {
             PrimaryButton(text: "Lưu", enabled: f.titleOk && f.error == nil, tall: true) {
                 guard let e = f.build() else { return }
                 if target.onlyThis, let original { state.saveOccurrence(seriesId: original.id, day: target.day, copy: e) } else { state.saveEvent(e) }
+                if !e.reminders.isEmpty { askNotifications(alert: false) }
                 state.closeSheet()
             }
         }
@@ -635,7 +655,10 @@ struct EventEditorSheet: View {
                 if !options.isEmpty {
                     Menu {
                         ForEach(options, id: \.minutes) { o in
-                            Button(o.label) { f.reminders = Array(Set(f.reminders + [o.minutes])).sorted() }
+                            Button(o.label) {
+                                f.reminders = Array(Set(f.reminders + [o.minutes])).sorted()
+                                askNotifications(alert: true)
+                            }
                         }
                     } label: {
                         HStack(spacing: 4) {

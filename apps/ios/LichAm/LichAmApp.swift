@@ -3,6 +3,7 @@ import LunarCore
 
 @main
 struct LichAmApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
     @State private var state: AppState
 
     init() {
@@ -22,6 +23,7 @@ struct LichAmApp: App {
                 .environment(state)
                 // Widgets and notifications open com.coding4pizza.lunar://open?tab=…&d=YYYY-MM-DD.
                 .onOpenURL { state.open($0) }
+                .onAppear { appDelegate.connect { state.open($0) } }
         }
     }
 }
@@ -30,6 +32,7 @@ struct LichAmApp: App {
 private struct Root: View {
     @Environment(AppState.self) private var state
     @Environment(\.colorScheme) private var systemScheme
+    @Environment(\.scenePhase) private var phase
 
     private var scheme: ColorScheme? {
         switch state.themePref {
@@ -46,5 +49,11 @@ private struct Root: View {
             .preferredColorScheme(scheme)
             .dynamicTypeSize(...maxDynamicType)
             .font(AppFont.sans(16))
+            // Reminders: registered again at start and back from the background (the 64 registered
+            // ones run out, the time passed), and on a clock or time zone change.
+            .onChange(of: phase, initial: true) { _, p in if p == .active { state.scheduleReminders() } }
+            .onReceive(NotificationCenter.default.publisher(for: UIApplication.significantTimeChangeNotification)) { _ in
+                state.scheduleReminders()
+            }
     }
 }

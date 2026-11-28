@@ -26,6 +26,15 @@ final class BuiltinRemindersTests: XCTestCase {
         XCTAssertEqual(fires.map(\.at), [LocalDateTime(2026, 12, 9, 8, 0), LocalDateTime(2027, 1, 8, 8, 0), LocalDateTime(2027, 2, 6, 8, 0)])
         XCTAssertTrue(BuiltinReminders.reminds([r], BuiltinReminders.mong1, SolarDate(2027, 1, 8)))
         XCTAssertFalse(BuiltinReminders.reminds([r], BuiltinReminders.mong1, SolarDate(2026, 11, 9)))
+        // iOS registers the next ones at once: in order, across the growing windows, up to the limit.
+        let next = PersonalEvents.nextReminders([r], from: LocalDateTime(2026, 12, 9, 8, 0), limit: 14)
+        XCTAssertEqual(next.count, 14)
+        XCTAssertEqual(next.first?.at, LocalDateTime(2026, 12, 9, 8, 0), "a reminder at [from] counts")
+        XCTAssertEqual(next.map(\.at), next.map(\.at).sorted())
+        XCTAssertEqual(Set(next.map(\.at)).count, 14, "no reminder twice where the windows meet")
+        XCTAssertEqual(PersonalEvents.nextReminders([r], from: LocalDateTime(2026, 12, 9, 8, 1), limit: 1).first?.at,
+                       LocalDateTime(2027, 1, 8, 8, 0))
+        XCTAssertTrue(PersonalEvents.nextReminders([r], from: LocalDateTime(2026, 12, 9, 8, 0), limit: 0).isEmpty)
         XCTAssertFalse(BuiltinReminders.reminds([r], BuiltinReminders.ram, SolarDate(2026, 12, 23)))
     }
 }
