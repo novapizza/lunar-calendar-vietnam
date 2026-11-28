@@ -16,6 +16,17 @@ user 2026-11-25). Built on a Mac with Xcode; not published yet.
 | `LichAmWidget/` | Widgets (Android's widget/), each small, medium and large, drawn with the app's colours (palette of the mệnh or the chosen accent; light or dark as Giao diện says) and fonts (`Theme.swift` and the font files are built into the extension too). Tờ lịch hôm nay: the sheet's lacquer and gold foil; small = day, weekday, lunar date; medium = the day left, the lunar date in its ring and the day's name right (holiday, else your event, else a commemorative day or festival, else mồng 1 / rằm); large = the app's sheet with the can chi. Lịch tháng: the Calendar's grid (lunar days, good / bad / clash / event dots, today ringed, Sundays and holidays red, other months faded), today's names in the header; large shows every week, medium and small three weeks from today's; in medium and large a tap on a day opens it in Lịch. Redrawn at midnight and whenever the app saves. Debug builds draw them in the app with `-ui-widgets sheet` or `-ui-widgets month` (screenshots; `-ui-open …&d=` sets the day) | 2026-11-28: SpringBoard's widget gallery shows both in three sizes, drawn by the extension (UI test). Not tested on the home screen: the iOS 26.5 simulator's SpringBoard crashes in `-[SBHRippleSimulation clear]` when a widget is dropped in, so a tap on a day was not tried |
 | `scripts/gen-icons.mjs` | draws the app icon and the tab bar's logo mark from `shared/design/icon.svg` (sharp, on any machine with the repo's `node_modules`); the PNGs are committed | |
 
+## Compared with Android
+
+2026-11-28, iPhone 17 Pro simulator (iOS 26.5) beside the Pixel 10 Pro emulator (Android app
+0.1.13-test), both light, no birth date, no events: Hôm nay (28/11/2026), Lịch (28/11/2026 and
+28/2/2026, Tết month), Sự kiện, Tiện ích. Same content on every screen: can chi, Trực and rating,
+the grid's lunar days, red days and dots, the selected day's panel (holidays, festivals), the next
+event and its count of days, the lists. Fixed after the comparison: the weekday under an event's
+date tile and over the date picker's days is "Th2" (`calendar.weekDaysShort`), as on Android, not
+the repeat rule's "T2". Left as is: icons are SF Symbols where Android has Material icons (theme
+button, tab bar, chips, tool rows).
+
 ## Build and run (on the Mac)
 
 ```

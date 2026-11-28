@@ -189,7 +189,7 @@ private struct MonthGroup: View {
         return HStack(spacing: 12) {
             VStack(spacing: 2) {
                 Text("\(e.solarDate.day)").font(AppFont.sans(18, .heavy)).foregroundStyle(fg).frame(height: 18)
-                Text(PersonalEvents.weekdayShort[e.solarDate.weekdayIndex]).font(AppFont.sans(10, .semibold)).foregroundStyle(fg)
+                Text(CalendarData.calendar.weekDaysShort[e.solarDate.weekdayIndex]).font(AppFont.sans(10, .semibold)).foregroundStyle(fg)
             }
             .frame(width: 48, height: 48)
             .background(RoundedRectangle(cornerRadius: 16).fill(bg))

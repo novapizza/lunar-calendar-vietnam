@@ -321,7 +321,7 @@ struct DatePickerField: View {
         let rows = stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<Swift.min($0 + 7, cells.count)]) }
         return VStack(spacing: 2) {
             HStack(spacing: 0) {
-                ForEach(PersonalEvents.weekdayShort, id: \.self) { w in
+                ForEach(CalendarData.calendar.weekDaysShort, id: \.self) { w in
                     Text(w).font(AppFont.sans(11, .semibold)).foregroundStyle(w == "CN" ? c.lunar : c.fg3).frame(maxWidth: .infinity)
                 }
             }
