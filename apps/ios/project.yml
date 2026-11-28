@@ -1,0 +1,143 @@
+# The Xcode project of the iOS app, for XcodeGen (brew install xcodegen):
+#   cd apps/ios && xcodegen generate
+# LichAm.xcodeproj, the Info.plists and the .entitlements are generated from this file and not
+# committed: edit them here.
+name: LichAm
+options:
+  bundleIdPrefix: com.coding4pizza
+  deploymentTarget:
+    iOS: "17.0"
+  createIntermediateGroups: true
+packages:
+  LunarCore:
+    path: LunarCore
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    # The App Store version. The build number is set by scripts/release.sh (the commit count).
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+    # Signing for devices, TestFlight and the App Store: automatic, with the Apple Developer team.
+    # The team id is not secret (it is in every signed app): once the team exists, put it here so
+    # Xcode's own Archive works too; until then scripts/release.sh takes it as TEAM_ID.
+    CODE_SIGN_STYLE: Automatic
+    # DEVELOPMENT_TEAM: ABCDE12345
+targets:
+  LichAm:
+    type: application
+    platform: iOS
+    sources:
+      - path: LichAm
+      # The widgets' views, also drawn by the debug gallery (-ui-widgets) for screenshots.
+      - path: LichAmWidget/WidgetViews.swift
+      # The fonts of the Android app (Be Vietnam Pro, Playfair Display; OFL, licences in
+      # apps/android/licenses), bundled from there so the two apps share one copy.
+      - path: ../android/app/src/main/res/font
+        buildPhase: resources
+    dependencies:
+      - package: LunarCore
+      - target: LichAmWidget
+    info:
+      path: LichAm/Info.plist
+      properties:
+        CFBundleDisplayName: Lịch Âm
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        LSApplicationCategoryType: public.app-category.lifestyle
+        ITSAppUsesNonExemptEncryption: false
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        UIAppFonts:
+          - be_vietnam_pro_regular.ttf
+          - be_vietnam_pro_medium.ttf
+          - be_vietnam_pro_semibold.ttf
+          - be_vietnam_pro_bold.ttf
+          - be_vietnam_pro_extrabold.ttf
+          - playfair_display.ttf
+          - playfair_display_italic.ttf
+        # Phones stay portrait; iPads rotate (the web and Android policy).
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+        UISupportedInterfaceOrientations~ipad:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationPortraitUpsideDown
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        # Links that open the app: com.coding4pizza.lunar://open?tab=…&d=YYYY-MM-DD (as on Android).
+        CFBundleURLTypes:
+          - CFBundleURLName: com.coding4pizza.lunar
+            CFBundleURLSchemes:
+              - com.coding4pizza.lunar
+    entitlements:
+      path: LichAm/LichAm.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.coding4pizza.lunar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coding4pizza.lunar
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        TARGETED_DEVICE_FAMILY: "1,2"
+  # Taps and swipes on a simulator: xcodebuild test -scheme LichAm -destination 'platform=iOS Simulator,…'.
+  LichAmUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: LichAmUITests
+    dependencies:
+      - target: LichAm
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coding4pizza.lunar.uitests
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: LichAm
+  LichAmWidget:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: LichAmWidget
+      # The app's colours (tokens.json) and fonts, so the widgets look like the app.
+      - path: LichAm/Theme.swift
+      - path: ../android/app/src/main/res/font
+        buildPhase: resources
+    dependencies:
+      - package: LunarCore
+      - sdk: WidgetKit.framework
+      - sdk: SwiftUI.framework
+    info:
+      path: LichAmWidget/Info.plist
+      properties:
+        CFBundleDisplayName: Lịch Âm
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        UIAppFonts:
+          - be_vietnam_pro_regular.ttf
+          - be_vietnam_pro_medium.ttf
+          - be_vietnam_pro_semibold.ttf
+          - be_vietnam_pro_bold.ttf
+          - be_vietnam_pro_extrabold.ttf
+          - playfair_display.ttf
+          - playfair_display_italic.ttf
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: LichAmWidget/LichAmWidget.entitlements
+      properties:
+        com.apple.security.application-groups:
+          - group.com.coding4pizza.lunar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.coding4pizza.lunar.widget
+        TARGETED_DEVICE_FAMILY: "1,2"
+schemes:
+  LichAm:
+    build:
+      targets:
+        LichAm: all
+        LichAmUITests: [test]
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets:
+        - LichAmUITests

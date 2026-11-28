@@ -7,10 +7,4 @@
     <color name="ic_launcher_background_thuy">#1D4F82</color>
     <color name="ic_launcher_background_moc">#2A6040</color>
     <color name="ic_launcher_background_tho">#764C14</color>
-    <!-- Widgets: hero-accent / hero-accent-ink of shared/design/tokens.json (light; dark in values-night). -->
-    <color name="widget_gold">#F7D58C</color>
-    <color name="widget_gold_ink">#4A2C00</color>
-    <color name="widget_gold_frame">#73F7D58C</color>
-    <color name="widget_gold_frame_inner">#40F7D58C</color>
-    <color name="widget_gold_ring">#8CF7D58C</color>
 </resources>
