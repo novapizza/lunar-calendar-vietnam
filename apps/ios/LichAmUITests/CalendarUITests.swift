@@ -119,7 +119,8 @@ final class CalendarUITests: XCTestCase {
     }
 
     /// A vertical drag that starts on the grid scrolls the page (only sideways swipes turn the month).
-    func testDragOnTheGridScrolls() {
+    func testDragOnTheGridScrolls() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "one column only: on iPad the grid and the panel sit side by side")
         launch(on: "2026-11-28")
         XCTAssertTrue(selectedDay.waitForExistence(timeout: 5))
         let before = selectedDay.frame.minY
@@ -134,7 +135,8 @@ final class CalendarUITests: XCTestCase {
 
     /// WeekFold: scrolled down, the header stays at the top and the month folds to two weeks under
     /// it, the selected day's (23–29/11) and the next; a kept day still takes a tap.
-    func testMonthFoldsToTwoWeeksAsThePageScrolls() {
+    func testMonthFoldsToTwoWeeksAsThePageScrolls() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "one column only: no WeekFold beside the panel on iPad")
         launch(on: "2026-11-28")
         XCTAssertTrue(header.waitForExistence(timeout: 5))
         let headerTop = header.frame.minY

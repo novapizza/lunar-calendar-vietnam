@@ -23,12 +23,12 @@ struct CalendarScreen: View {
     @Environment(\.colors) private var c
     @State private var picking = false
     @State private var fold = WeekFold()
+    @Environment(\.wideLayout) private var wide
 
     var body: some View {
         TimelineView(.everyMinute) { context in
             let now = context.date
             GeometryReader { geo in
-                let wide = geo.size.width >= 720
                 ScrollView {
                     if wide {
                         HStack(alignment: .top, spacing: 24) {

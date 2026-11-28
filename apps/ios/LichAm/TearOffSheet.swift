@@ -19,6 +19,8 @@ private let ringStops: [Gradient.Stop] = [
 /// Android draws its curl itself (SheetPeel); the plan chose the system curl on iOS.
 struct TearOffSheet: View {
     let now: Date
+    /// The pane's height in two-pane layouts: the sheet must fit it (Android's SheetFit).
+    var maxHeight: CGFloat? = nil
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
 
@@ -26,14 +28,18 @@ struct TearOffSheet: View {
         let d = state.selectedDate
         GeometryReader { geo in
             let width = geo.size.width
+            // Only the number's line changes the sheet's height: everything else (rest) was the
+            // last height less the number's box (1.05 × its size), so the number may be at most
+            // (pane height − rest) / 1.05.
+            let maxNumber = maxHeight.map { max(64, ($0 - restHeight) / 1.05) } ?? .infinity
             VStack(spacing: 0) {
                 SheetBinding(day: d)
                 // A copy of the paper sizes the page curl (every day has the same height); the
                 // curl draws the real sheets over it.
-                SheetPage(day: d, now: now, width: width, onPrev: {}, onNext: {})
+                SheetPage(day: d, now: now, width: width, maxNumber: maxNumber, onPrev: {}, onNext: {})
                     .hidden()
                     .overlay {
-                        PageCurl(day: d, now: now, width: width, colors: c, personal: state.lunarEvents,
+                        PageCurl(day: d, now: now, width: width, maxNumber: maxNumber, colors: c, personal: state.lunarEvents,
                                  select: { state.selectDate($0) })
                     }
             }
@@ -45,12 +51,23 @@ struct TearOffSheet: View {
             .background(GeometryReader { inner in Color.clear.preference(key: SheetHeight.self, value: inner.size.height) })
         }
         .frame(height: sheetHeight)
-        .onPreferenceChange(SheetHeight.self) { sheetHeight = $0 }
+        .onPreferenceChange(SheetHeight.self) { h in
+            sheetHeight = h
+            let number = sheetNumber(width: sheetWidth, maxNumber: .infinity)
+            let shown = maxHeight == nil ? number : min(number, max(64, (maxHeight! - restHeight) / 1.05))
+            restHeight = h - shown * 1.05
+        }
+        .onGeometryChange(for: CGFloat.self) { $0.size.width } action: { sheetWidth = $0 }
         .webShadow(c.shadowTint, float: true)
     }
 
     @State private var sheetHeight: CGFloat = 520
+    @State private var sheetWidth: CGFloat = 0
+    @State private var restHeight: CGFloat = 0
 }
+
+/// The solar day's size: 44% of the sheet's width (the web's 44cqw), 80–184, at most [maxNumber].
+func sheetNumber(width: CGFloat, maxNumber: CGFloat) -> CGFloat { min(min(max(width * 0.44, 80), 184), maxNumber) }
 
 private struct SheetHeight: PreferenceKey {
     static let defaultValue: CGFloat = 0
@@ -110,6 +127,7 @@ struct SheetPage: View {
     let day: SolarDate
     let now: Date
     let width: CGFloat
+    var maxNumber: CGFloat = .infinity
     var personal: [LunarEvent] = []
     let onPrev: () -> Void
     let onNext: () -> Void
@@ -119,8 +137,7 @@ struct SheetPage: View {
         let info = DayInfo.of(day)
         let accent = c.heroAccent
         let red = day.isSunday || info.holiday != nil
-        // Solar day: 44% of the sheet's width (the web's 44cqw), 80–184.
-        let number = min(max(width * 0.44, 80), 184)
+        let number = sheetNumber(width: width, maxNumber: maxNumber)
         let canChi = [("NĂM", info.canChiYear), ("THÁNG", info.canChiMonth), ("NGÀY", info.canChiDay)]
         let hour = Calendar.current.component(.hour, from: now)
         let minute = Calendar.current.component(.minute, from: now)
@@ -343,6 +360,7 @@ private struct PageCurl: UIViewControllerRepresentable {
     let day: SolarDate
     let now: Date
     let width: CGFloat
+    var maxNumber: CGFloat = .infinity
     let colors: LichAmColors
     let personal: [LunarEvent]
     let select: (SolarDate) -> Void
@@ -401,7 +419,7 @@ private struct PageCurl: UIViewControllerRepresentable {
         func content(_ d: SolarDate) -> AnyView {
             let p = parent
             return AnyView(
-                SheetPage(day: d, now: p.now, width: p.width, personal: p.personal,
+                SheetPage(day: d, now: p.now, width: p.width, maxNumber: p.maxNumber, personal: p.personal,
                           onPrev: { p.select(d.plusDays(-1)) }, onNext: { p.select(d.plusDays(1)) })
                     .environment(\.colors, p.colors)
                     .frame(maxHeight: .infinity, alignment: .top)

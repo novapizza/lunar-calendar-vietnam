@@ -69,7 +69,8 @@ final class TodayUITests: XCTestCase {
     }
 
     /// The cards scroll into view (exists alone is not enough: XCUITest finds views off screen).
-    func testCardsScrollIntoView() {
+    func testCardsScrollIntoView() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "one column only: on iPad the cards sit beside the sheet (TabletUITests)")
         XCTAssertTrue(sheetDay.waitForExistence(timeout: 5))
         let moved = scrollUp(from: 0.82)
         XCTAssertGreaterThan(moved, 100, "dragging on the cards did not scroll")
@@ -86,7 +87,8 @@ final class TodayUITests: XCTestCase {
     }
 
     /// A vertical drag that starts on the sheet scrolls the page too (only sideways drags curl it).
-    func testDragOnTheSheetScrolls() {
+    func testDragOnTheSheetScrolls() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "one column only: on iPad the sheet stays put (TabletUITests)")
         XCTAssertTrue(sheetDay.waitForExistence(timeout: 5))
         let moved = scrollUp(from: 0.5)
         shot("7-drag-on-sheet")

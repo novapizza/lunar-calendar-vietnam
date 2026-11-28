@@ -5,14 +5,15 @@ import LunarCore
 let privacyURL = URL(string: "https://lunar.coding4pizza.com/privacy")!
 
 /// Tiện ích (Android's ToolsScreen): the tools (converter, finder, export), then the settings (birth
-/// date, colour, theme), the app's information and the privacy policy. iPad (≥ 720 pt): two columns.
+/// date, colour, theme), the app's information and the privacy policy. iPad (wide layout): two columns.
 struct ToolsScreen: View {
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
+    @Environment(\.wideLayout) private var wideLayout
 
     var body: some View {
         GeometryReader { geo in
-            let wide = geo.size.width >= 720
+            let wide = wideLayout
             ScrollView {
                 Group {
                     if wide {

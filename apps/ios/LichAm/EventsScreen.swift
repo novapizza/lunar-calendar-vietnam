@@ -21,6 +21,7 @@ private let minMonths = 4
 struct EventsScreen: View {
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
+    @Environment(\.wideLayout) private var wideLayout
     @State private var count = minMonths
 
     var body: some View {
@@ -32,7 +33,7 @@ struct EventsScreen: View {
         let nextIndex = events.firstIndex { $0.daysUntil >= 0 }
         let groups = Self.groups(events.enumerated().filter { $0.offset != nextIndex }.map(\.element))
         GeometryReader { geo in
-            let wide = geo.size.width >= 720
+            let wide = wideLayout
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
                     title(wide: wide, personalCount: personal.count)

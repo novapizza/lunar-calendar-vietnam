@@ -13,15 +13,22 @@ private let nav = [
     NavItem(tab: .events, label: "Sự kiện", icon: "sparkles", iconOn: "sparkles"),
 ]
 
-/// The bottom tab bar of Android's AppScaffold: three labelled tabs plus the logo, which opens
-/// Tiện ích. (The tablet rail comes with the iPad layout.)
+extension EnvironmentValues {
+    /// The window is 600 pt wide or more (Android's 600 dp): the rail instead of the tab bar, and the
+    /// screens' two-pane layouts and tablet type scale.
+    @Entry var wideLayout = false
+}
+
+/// Android's AppScaffold: a bottom tab bar on phones (three labelled tabs plus the logo, which opens
+/// Tiện ích), a slim left rail on windows from 600 pt (iPad), as the web app.
 struct AppScaffold: View {
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
 
     var body: some View {
-        VStack(spacing: 0) {
-            Group {
+        GeometryReader { geo in
+            let wide = geo.size.width >= 600
+            let screen = Group {
                 switch state.tab {
                 case .today: TodayScreen()
                 case .calendar: CalendarScreen()
@@ -29,10 +36,22 @@ struct AppScaffold: View {
                 case .tools: ToolsScreen()
                 }
             }
+            .environment(\.wideLayout, wide)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             // Scrolled content stops under the status bar (as Android's statusBarsPadding), not behind it.
             .clipped()
-            BottomBar()
+            if wide {
+                HStack(spacing: 0) {
+                    Rail()
+                    Rectangle().fill(c.line).frame(width: 1).ignoresSafeArea()
+                    screen
+                }
+            } else {
+                VStack(spacing: 0) {
+                    screen
+                    BottomBar()
+                }
+            }
         }
         .background(c.bg.ignoresSafeArea())
         .foregroundStyle(c.fg)
@@ -71,6 +90,32 @@ private struct BottomBar: View {
             }
         }
         .background(c.surface.ignoresSafeArea(edges: .bottom))
+    }
+}
+
+/// The rail (88 pt): the logo (Tiện ích) on top, then the three tabs.
+private struct Rail: View {
+    @Environment(AppState.self) private var state
+    @Environment(\.colors) private var c
+
+    var body: some View {
+        VStack(spacing: 8) {
+            Button { state.selectTab(.tools) } label: {
+                Logo(active: state.tab == .tools, size: 40).contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Tiện ích và cài đặt")
+            Spacer().frame(height: 16)
+            ForEach(nav, id: \.tab) { item in
+                TabButton(item: item, active: state.tab == item.tab) { state.selectTab(item.tab) }
+                    .padding(.horizontal, 8)
+                    .accessibilityIdentifier("tab-\(item.tab.rawValue.lowercased())")
+            }
+            Spacer()
+        }
+        .padding(.top, 20)
+        .frame(width: 88)
+        .background(c.surface.ignoresSafeArea())
     }
 }
 

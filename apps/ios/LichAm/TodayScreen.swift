@@ -2,27 +2,53 @@ import SwiftUI
 import LunarCore
 
 /// Hôm nay (Android's TodayScreen, the web's views/TodayView.tsx): the selected day as a tear-off
-/// calendar sheet, then its assessment, events, activities and giờ hoàng đạo. One column on phones.
+/// calendar sheet, then its assessment, events, activities and giờ hoàng đạo. One column on phones;
+/// wide (iPad), two panes as Android's TwoPanes(1.15, 1): the sheet stays put, fitted to the pane's
+/// height, and only the day's cards scroll.
 struct TodayScreen: View {
     @Environment(AppState.self) private var state
+    @Environment(\.wideLayout) private var wide
 
     var body: some View {
         // The clock for "Giờ …" and the hour now, on the minute.
         TimelineView(.everyMinute) { context in
             let now = context.date
-            let info = state.selectedInfo
-            let viewingToday = state.selectedDate == today(now)
-            ScrollView {
-                VStack(spacing: 16) {
-                    TearOffSheet(now: now)
-                    Assessment(info: info)
-                    DayEventsCard(day: state.selectedDate)
-                    Activities(info: info)
-                    GioHoangDaoCard(info: info, hourChi: viewingToday ? DayFacts.chiOfHour(Calendar.current.component(.hour, from: now)) : nil)
+            if wide {
+                GeometryReader { geo in
+                    HStack(alignment: .top, spacing: 24) {
+                        VStack(spacing: 0) {
+                            TearOffSheet(now: now, maxHeight: geo.size.height - 32 - 16)
+                            Spacer(minLength: 0)
+                        }
+                        .padding(.top, 32)
+                        .frame(width: (geo.size.width - 48 - 24) * 1.15 / 2.15)
+                        ScrollView {
+                            VStack(spacing: 16) { dayCards(now) }
+                                .padding(EdgeInsets(top: 32, leading: 0, bottom: 40, trailing: 0))
+                        }
+                        .scrollClipDisabled()
+                    }
+                    .padding(.horizontal, 24)
                 }
-                .padding(EdgeInsets(top: 16, leading: 16, bottom: 40, trailing: 16))
+            } else {
+                ScrollView {
+                    VStack(spacing: 16) {
+                        TearOffSheet(now: now)
+                        dayCards(now)
+                    }
+                    .padding(EdgeInsets(top: 16, leading: 16, bottom: 40, trailing: 16))
+                }
             }
         }
+    }
+
+    @ViewBuilder private func dayCards(_ now: Date) -> some View {
+        let info = state.selectedInfo
+        let viewingToday = state.selectedDate == today(now)
+        Assessment(info: info)
+        DayEventsCard(day: state.selectedDate)
+        Activities(info: info)
+        GioHoangDaoCard(info: info, hourChi: viewingToday ? DayFacts.chiOfHour(Calendar.current.component(.hour, from: now)) : nil)
     }
 }
 
