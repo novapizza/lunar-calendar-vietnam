@@ -127,7 +127,6 @@ struct PersonalEventsSheet: View {
                    onClose: { state.closeSheet() }) {
             PersonalEventsList(emptyText: "Thêm giỗ, sinh nhật, lịch hẹn… Sự kiện hiện trong lịch, danh sách sự kiện và có thể nhắc trước.")
         }
-        .presentationDetents([.medium, .large])
     }
 }
 
@@ -230,7 +229,6 @@ struct EventDetailSheet: View {
                 if let n = e.notes, !n.trimmingCharacters(in: .whitespaces).isEmpty { DetailLine(icon: "doc.text", text: n) }
             }
         }
-        .presentationDetents([.medium, .large])
     }
 
     @ViewBuilder private func footer(_ start: SolarDate) -> some View {
@@ -455,7 +453,6 @@ struct EventEditorSheet: View {
                    footer: AnyView(footer), onClose: { state.closeSheet() }) {
             form
         }
-        .presentationDetents([.large])
         .interactiveDismissDisabled(f.titleOk && target.builtin == nil)
         .modifier(NotificationsOffAlert(shown: $notificationsOff))
         // Notifications for reminders (shared/design/events.md): asked when the form opens with

@@ -14,8 +14,21 @@ struct SheetFrame<Content: View>: View {
     let onClose: () -> Void
     @ViewBuilder let content: Content
     @Environment(\.colors) private var c
+    // Heights of the header, the body and the footer: the sheet fits them, as Android's
+    // ModalBottomSheet wraps its content, up to the full height (the body then scrolls).
+    @State private var headerHeight: CGFloat = 0
+    @State private var bodyHeight: CGFloat = 0
+    @State private var footerHeight: CGFloat = 0
+
+    private var fitted: CGFloat { headerHeight + bodyHeight + footerHeight }
 
     var body: some View {
+        frame
+            .presentationDetents(fitted > 0 ? [.height(fitted)] : [.large])
+            .modifier(FittedFormSheet(height: fitted))
+    }
+
+    private var frame: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 if let heading {
@@ -36,19 +49,41 @@ struct SheetFrame<Content: View>: View {
                 .accessibilityLabel("Đóng")
             }
             .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 12)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { headerHeight = $0 }
             ScrollView {
                 content
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.horizontal, 20).padding(.bottom, 20)
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { bodyHeight = $0 }
             }
             .scrollDismissesKeyboard(.interactively)
+            .scrollBounceBehavior(.basedOnSize)
             if let footer {
-                Hairline()
-                footer.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 12)
+                VStack(spacing: 0) {
+                    Hairline()
+                    footer.padding(.horizontal, 20).padding(.top, 12).padding(.bottom, 12)
+                }
+                .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { footerHeight = $0 }
             }
         }
         .background(c.surface)
         .foregroundStyle(c.fg)
+    }
+}
+
+/// iPad (regular width): the sheet is a form sheet, which ignores detents; from iOS 18 it takes the
+/// fitted height instead of the fixed form height (the editor's date picker was cut off).
+private struct FittedFormSheet: ViewModifier {
+    let height: CGFloat
+
+    func body(content: Content) -> some View {
+        if #available(iOS 18.0, *), UIDevice.current.userInterfaceIdiom == .pad, height > 0 {
+            content
+                .frame(idealHeight: height)
+                .presentationSizing(.form.fitted(horizontal: false, vertical: true))
+        } else {
+            content
+        }
     }
 }
 

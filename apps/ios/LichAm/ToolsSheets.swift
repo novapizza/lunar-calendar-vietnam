@@ -235,7 +235,6 @@ struct QuickDateSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
     }
 }
 
@@ -320,7 +319,6 @@ struct AuspiciousSheet: View {
                 .font(AppFont.sans(11)).foregroundStyle(c.fg3).multilineTextAlignment(.center)
                 .frame(maxWidth: .infinity).padding(.top, 20)
         }
-        .presentationDetents([.large])
     }
 
     private func row(_ item: AuspiciousDate) -> some View {
@@ -416,7 +414,6 @@ struct LunarEventsSheet: View {
                 if !all.isEmpty { range(all: all, startYear: startYear) }
             }
         }
-        .presentationDetents([.large])
         .fileExporter(isPresented: $exporting, document: pending.map { IcsDocument(text: $0.text) }, contentType: icsType,
                       defaultFilename: Ics.fileName(startYear, yearCount)) { outcome in
             switch outcome {
@@ -562,7 +559,6 @@ struct AboutSheet: View {
                     .background(RoundedRectangle(cornerRadius: 16).fill(c.goldSoft))
             }
         }
-        .presentationDetents([.large])
     }
 
     private func para(_ bold: String, _ rest: String) -> some View {
@@ -660,6 +656,5 @@ struct BirthDateSheet: View {
                 }
             }
         }
-        .presentationDetents([.large])
     }
 }

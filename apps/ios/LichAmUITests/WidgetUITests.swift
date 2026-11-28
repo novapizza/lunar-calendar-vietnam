@@ -15,8 +15,15 @@ final class WidgetUITests: XCTestCase {
         add(a)
     }
 
-    func testGalleryListsBothWidgetsInThreeSizes() {
+    func testGalleryListsBothWidgetsInThreeSizes() throws {
+        try XCTSkipIf(UIDevice.current.userInterfaceIdiom == .pad, "the gallery pages are laid out for the iPhone")
         continueAfterFailure = false
+        // The widgets follow the app's Giao diện: start from the defaults (Theo máy, light simulator),
+        // not from what an earlier test left (a dark theme drew the gallery dark).
+        let app = XCUIApplication()
+        app.launchArguments = ["-ui-reset"]
+        app.launch()
+        app.terminate()
         XCUIDevice.shared.press(.home)
         sleep(1)
         springboard.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5)).press(forDuration: 2)
