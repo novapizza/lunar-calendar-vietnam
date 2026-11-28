@@ -15,14 +15,14 @@ private struct Cell: Identifiable {
 
 /// Lịch (Android's CalendarScreen, the web's views/CalendarView.tsx): header with the month and
 /// its lunar months, the month grid (solar day, lunar day, dots for a good or bad day, an event, a
-/// zodiac clash), then the selected day's panel. Wide (iPad): grid left, panel right.
-///
-/// Not yet as on Android: the month folding up to two week rows under a sticky header as the page
-/// scrolls (WeekFold).
+/// zodiac clash), then the selected day's panel. Wide (iPad): grid left, panel right. One column:
+/// the header stays at the top and the month folds up under it to two week rows as the page scrolls
+/// (WeekFold, as Android and the web's useStickyWeeks).
 struct CalendarScreen: View {
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
     @State private var picking = false
+    @State private var fold = WeekFold()
 
     var body: some View {
         TimelineView(.everyMinute) { context in
@@ -42,11 +42,15 @@ struct CalendarScreen: View {
                         .padding(24)
                     } else {
                         VStack(spacing: 12) {
-                            CalendarHeader(wide: false, pick: { picking = true })
-                            MonthGrid(wide: false)
+                            CalendarHeader(wide: false, pick: { picking = true }, fold: fold).zIndex(2)
+                            MonthGrid(wide: false, fold: fold).zIndex(1)
                             VStack(spacing: 12) { SelectedDayPanel(now: now) }.padding(.top, 4)
                         }
                         .padding(EdgeInsets(top: 12, leading: 16, bottom: 40, trailing: 16))
+                        // How far the page has scrolled (its top above the scroll view's).
+                        .onGeometryChange(for: CGFloat.self) { max(0, -$0.frame(in: .scrollView).minY) } action: { v in
+                            if fold.s != v { fold.s = v }
+                        }
                     }
                 }
             }
@@ -64,6 +68,7 @@ struct CalendarScreen: View {
 private struct CalendarHeader: View {
     let wide: Bool
     let pick: () -> Void
+    var fold: WeekFold? = nil
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
 
@@ -102,6 +107,8 @@ private struct CalendarHeader: View {
                 IconBtn(icon: "chevron.left", label: "Tháng trước") { state.showMonth(m.plusMonths(-1).year, m.plusMonths(-1).month) }
                 IconBtn(icon: "chevron.right", label: "Tháng sau") { state.showMonth(m.plusMonths(1).year, m.plusMonths(1).month) }
             }
+            .folding(fold) { f, title in FoldTitle(fold: f, content: title) }
+            .zIndex(1)
             // Chip row (mt-3), scrolling sideways; the shadows need a little room.
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 8) {
@@ -116,7 +123,11 @@ private struct CalendarHeader: View {
             }
             .padding(.horizontal, -16)
             .padding(.top, 8)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in if let fold, fold.chipsH != h { fold.chipsH = h } }
+            .folding(fold) { f, chips in FoldChips(fold: f, content: chips) }
         }
+        .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in if let fold, fold.headerH != h { fold.headerH = h } }
+        .folding(fold) { f, header in FoldHeader(fold: f, content: header) }
     }
 }
 
@@ -124,6 +135,7 @@ private struct CalendarHeader: View {
 
 private struct MonthGrid: View {
     let wide: Bool
+    var fold: WeekFold? = nil
     @Environment(AppState.self) private var state
     @Environment(\.colors) private var c
     @State private var lastSwipe = Date.distantPast
@@ -139,15 +151,21 @@ private struct MonthGrid: View {
         }
         let rows = stride(from: 0, to: cells.count, by: 7).map { Array(cells[$0..<$0 + 7]) }
         let gap: CGFloat = wide ? 4 : 2
-        Card(padding: wide ? 12 : 4) {
+        // The two weeks left when the month is folded: the selected day's and the next (WeekFold).
+        let selectedRow = cells.firstIndex { $0.date == state.selectedDate }.map { $0 / 7 } ?? -1
+        let first = fold?.pairFor(selectedRow, rows.count) ?? 0
+        let grid = VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: gap) {
                 ForEach(CalendarData.calendar.weekDays, id: \.self) { w in
                     Text(w).font(AppFont.sans(12, .semibold)).foregroundStyle(w == "CN" ? c.lunar : c.fg3)
                         .frame(maxWidth: .infinity).padding(.vertical, 8)
                 }
             }
+            // Folding, the labels cover the rows moving up under them (the card's clip bounds it).
+            .background(alignment: .bottom) { if fold != nil { Rectangle().fill(c.surface).padding(.top, -400) } }
+            .zIndex(1)
             VStack(spacing: gap) {
-                ForEach(rows, id: \.first!.id) { week in
+                ForEach(Array(rows.enumerated()), id: \.element.first!.id) { r, week in
                     HStack(spacing: gap) {
                         ForEach(week) { cell in
                             DayCell(cell: cell, selected: cell.date == state.selectedDate, isToday: cell.date == t,
@@ -158,6 +176,10 @@ private struct MonthGrid: View {
                             }
                         }
                     }
+                    .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in
+                        if r == 0, let fold, fold.rowH != h { fold.rowH = h }
+                    }
+                    .folding(fold) { f, row in FoldRow(fold: f, row: r, first: first, rows: rows.count, content: row) }
                 }
             }
             .padding(.top, gap)
@@ -169,6 +191,15 @@ private struct MonthGrid: View {
             }
             .frame(maxWidth: .infinity)
             .padding(.top, 12).padding(.bottom, 4)
+            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { h in if let fold, fold.legendH != h { fold.legendH = h } }
+            .folding(fold) { f, legend in FoldFade(fold: f, rows: rows.count, content: legend) }
+        }
+        Group {
+            if let fold {
+                FoldCard(fold: fold, rows: rows.count, padding: 4, content: grid)
+            } else {
+                Card(padding: wide ? 12 : 4) { grid }
+            }
         }
         // A sideways swipe turns the month (left = next), as Android's Modifier.swipe; vertical drags
         // still scroll the page.
@@ -178,6 +209,165 @@ private struct MonthGrid: View {
             let to = state.shownMonth.plusMonths(step)
             state.showMonth(to.year, to.month)
         }
+    }
+}
+
+// MARK: - WeekFold
+
+/// The month card getting shorter under the sticky header as the page scrolls (Android's WeekFold, the
+/// web's hooks/useStickyWeeks.ts): the same card, corners, labels and legend, with two week rows left,
+/// the selected day's week and the next one (the one before when it is the last; kept while the
+/// selection moves between the two).
+///
+/// The chip row goes first: the header scrolls up by its height while the title row is held and
+/// covers it as it fades. Then the card stays under the header and, over the next K pt of scrolling
+/// (K = all rows but two, and the legend), loses `folded` = 0…K at the bottom: the rows move up by
+/// t·first·step (t = folded / K) so rows first and first + 1 end under the labels, and the other rows
+/// and the legend fade. Points, in the page's coordinates (the page's top padding 12, spacing 12).
+@Observable @MainActor
+final class WeekFold {
+    /// How far the page has scrolled.
+    var s: CGFloat = 0
+    var headerH: CGFloat = 0
+    /// The chip row with its 12 pt above (8 padding + 4 inside).
+    var chipsH: CGFloat = 0
+    var rowH: CGFloat = 0
+    var legendH: CGFloat = 0
+    @ObservationIgnored private var pair = 0
+
+    private let keepGap: CGFloat = 12
+    private let gap: CGFloat = 2
+
+    /// The first of the two weeks kept: moves only when the selected week is not one of them.
+    func pairFor(_ selectedRow: Int, _ rows: Int) -> Int {
+        var f = pair
+        if selectedRow >= 0 && selectedRow != f && selectedRow != f + 1 { f = selectedRow }
+        f = min(max(f, 0), max(0, rows - 2))
+        pair = f
+        return f
+    }
+
+    /// Points of scrolling over which the chip row slides away (its top 12 stay under the title).
+    var chipsFold: CGFloat { max(0, chipsH - keepGap) }
+    var chipsHidden: CGFloat { min(max(s, 0), chipsFold) }
+    /// Scroll at which the card's top meets the header's bottom (the header without its chip row):
+    /// the card's top is 12 + headerH + 12, the header's bottom then 12 + headerH − chipsFold.
+    private var start: CGFloat { 12 + chipsFold }
+    private var step: CGFloat { rowH + gap }
+    private func foldBy(_ rows: Int) -> CGFloat { max(0, CGFloat(rows - 2) * step + legendH) }
+    func folded(_ rows: Int) -> CGFloat { min(max(s - start, 0), foldBy(rows)) }
+    func progress(_ rows: Int) -> CGFloat { foldBy(rows) > 0 ? folded(rows) / foldBy(rows) : 0 }
+    var cardShift: CGFloat { max(0, s - start) }
+    func rowShift(_ first: Int, _ rows: Int) -> CGFloat { -progress(rows) * CGFloat(first) * step }
+}
+
+extension View {
+    /// [wrap] applied when the page folds (one column), the view as it is otherwise.
+    @ViewBuilder func folding<T: View>(_ fold: WeekFold?, _ wrap: (WeekFold, Self) -> T) -> some View {
+        if let fold { wrap(fold, self) } else { self }
+    }
+}
+
+// Each piece that moves with the scroll reads it in its own small view, so a scroll redraws these
+// and not the 42 day cells.
+
+/// The header: held at the top of the screen once the chip row has slid away; opaque from above
+/// the screen's top across the gutters.
+private struct FoldHeader<Content: View>: View {
+    let fold: WeekFold
+    let content: Content
+    @Environment(\.colors) private var c
+
+    var body: some View {
+        content
+            .background(alignment: .bottom) { Rectangle().fill(c.bg).padding(.horizontal, -16).padding(.top, -400) }
+            .offset(y: fold.s - fold.chipsHidden)
+    }
+}
+
+/// The title row: held while the header scrolls by the chip row's height; opaque above it, so the
+/// chips slide away under it.
+private struct FoldTitle<Content: View>: View {
+    let fold: WeekFold
+    let content: Content
+    @Environment(\.colors) private var c
+
+    var body: some View {
+        content
+            .background(alignment: .bottom) { Rectangle().fill(c.bg).padding(.horizontal, -16).padding(.top, -400) }
+            .offset(y: fold.chipsHidden)
+    }
+}
+
+/// The chip row fades as it slides away.
+private struct FoldChips<Content: View>: View {
+    let fold: WeekFold
+    let content: Content
+
+    var body: some View {
+        content.opacity(fold.chipsFold > 0 ? 1 - fold.chipsHidden / fold.chipsFold : 1)
+    }
+}
+
+/// The card: stays under the header and gets shorter, its corners and shadow with it; the page's
+/// colour behind it, beside it and 16 pt under it, so the cards scrolling up under it never show.
+private struct FoldCard<Content: View>: View {
+    let fold: WeekFold
+    let rows: Int
+    let padding: CGFloat
+    let content: Content
+    @Environment(\.colors) private var c
+
+    var body: some View {
+        let cut = fold.folded(rows)
+        content
+            .padding(padding)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .clipShape(ShorterCard(cut: cut))
+            .background { ShorterCard(cut: cut).fill(c.surface).webShadow(c.shadowTint) }
+            .background(alignment: .top) { Rectangle().fill(c.bg).padding(.horizontal, -16).padding(.bottom, cut - 16) }
+            .offset(y: fold.cardShift)
+    }
+}
+
+/// A week row: moves up with the fold; the rows other than the two kept fade and stop taking taps
+/// (a clip does not stop them).
+private struct FoldRow<Content: View>: View {
+    let fold: WeekFold
+    let row: Int
+    let first: Int
+    let rows: Int
+    let content: Content
+
+    var body: some View {
+        let t = fold.progress(rows)
+        let kept = row == first || row == first + 1
+        content
+            .offset(y: fold.rowShift(first, rows))
+            .opacity(kept ? 1 : 1 - t)
+            .allowsHitTesting(kept || t == 0)
+    }
+}
+
+/// The legend fades with the rows.
+private struct FoldFade<Content: View>: View {
+    let fold: WeekFold
+    let rows: Int
+    let content: Content
+
+    var body: some View { content.opacity(1 - fold.progress(rows)) }
+}
+
+/// The card without its bottom [cut] points, all four corners rounded (Card's 20).
+private struct ShorterCard: Shape {
+    var cut: CGFloat
+    var animatableData: CGFloat {
+        get { cut }
+        set { cut = newValue }
+    }
+
+    func path(in rect: CGRect) -> Path {
+        Path(roundedRect: CGRect(x: rect.minX, y: rect.minY, width: rect.width, height: max(0, rect.height - cut)), cornerRadius: 20)
     }
 }
 

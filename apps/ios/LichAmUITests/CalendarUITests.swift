@@ -131,4 +131,26 @@ final class CalendarUITests: XCTestCase {
         XCTAssertTrue(app.staticTexts["Giờ hoàng đạo"].waitForExistence(timeout: 3))
         shot("c6-scrolled")
     }
+
+    /// WeekFold: scrolled down, the header stays at the top and the month folds to two weeks under
+    /// it, the selected day's (23–29/11) and the next; a kept day still takes a tap.
+    func testMonthFoldsToTwoWeeksAsThePageScrolls() {
+        launch(on: "2026-11-28")
+        XCTAssertTrue(header.waitForExistence(timeout: 5))
+        let headerTop = header.frame.minY
+        let start = app.staticTexts["selected-day"].coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.5))
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: -500)), withVelocity: 300, thenHoldForDuration: 0.5)
+        sleep(1)
+        shot("c7-folded")
+        XCTAssertEqual(header.frame.minY, headerTop, accuracy: 1, "the header stays")
+        let kept = day("2026-11-28").frame, next = day("2026-11-30").frame
+        XCTAssertGreaterThan(kept.minY, header.frame.maxY, "the selected week is under the header")
+        XCTAssertEqual(next.minY - kept.minY, kept.height + 2, accuracy: 2, "the next week right under it")
+        XCTAssertLessThan(next.maxY, header.frame.maxY + 3 * kept.height + 120, "the month is folded")
+        day("2026-11-25").tap()
+        XCTAssertTrue(selectedDay.label.contains("25/11"), selectedDay.label)
+        start.press(forDuration: 0.1, thenDragTo: start.withOffset(CGVector(dx: 0, dy: 600)), withVelocity: 600, thenHoldForDuration: 0.3)
+        sleep(1)
+        XCTAssertTrue(app.scrollViews.buttons["Đổi ngày"].isHittable, "scrolled back, the chips are back")
+    }
 }
